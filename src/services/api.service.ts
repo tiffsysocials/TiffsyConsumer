@@ -1468,6 +1468,43 @@ export interface BulkScheduleResult {
   };
 }
 
+// ============================================
+// AUTO-ORDER ADDON TYPES
+// ============================================
+
+export interface AutoOrderAddonSlot {
+  date: string;                // "YYYY-MM-DD"
+  dayName: string;             // e.g. "Monday"
+  mealWindow: 'LUNCH' | 'DINNER';
+  addressId: string;
+  isPaid: boolean;             // true if an existing PAID selection exists
+  existingAddons: Array<{
+    addonId: string;
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+  }>;
+  addonsCost: number;          // cost of existing paid selection (0 if not paid)
+}
+
+export interface AutoOrderAddonPricingData {
+  slots: Array<{
+    date: string;
+    mealWindow: string;
+    addons: Array<{
+      addonId: string;
+      name: string;
+      quantity: number;
+      unitPrice: number;
+      totalPrice: number;
+    }>;
+    addonsCost: number;
+  }>;
+  grandTotal: number;
+  kitchenId: string;
+}
+
 class ApiService {
   private api: AxiosInstance;
 
@@ -2419,6 +2456,60 @@ class ApiService {
     allowAutoOrderConflict?: boolean;
   }): Promise<{ success: boolean; message: string; data: BulkScheduleResult }> {
     return this.api.post('/api/scheduling/meals/bulk', data);
+  }
+
+  // ============================================
+  // AUTO-ORDER ADDON ENDPOINTS
+  // ============================================
+
+  // Get all upcoming auto-order slots with existing paid selections
+  async getAutoOrderAddonSlots(addressId?: string): Promise<{
+    success: boolean;
+    message: string;
+    data: { slots: AutoOrderAddonSlot[]; totalSlots: number; paidSlots: number };
+  }> {
+    return this.api.get('/api/auto-order/addon-slots', { params: addressId ? { addressId } : {} });
+  }
+
+  // Calculate pricing for chosen slots + addons
+  async getAutoOrderAddonPricing(data: {
+    addressId: string;
+    slots: Array<{ date: string; mealWindow: 'LUNCH' | 'DINNER'; addons: Array<{ addonId: string; quantity: number }> }>;
+  }): Promise<{ success: boolean; message: string; data: AutoOrderAddonPricingData }> {
+    return this.api.post('/api/auto-order/addon-pricing', data);
+  }
+
+  // Create selections + initiate Razorpay payment
+  async createAutoOrderAddonSelections(data: {
+    addressId: string;
+    slots: Array<{ date: string; mealWindow: 'LUNCH' | 'DINNER'; addons: Array<{ addonId: string; quantity: number }> }>;
+  }): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      batchId: string;
+      paymentRequired: boolean;
+      slotsActivated?: number;
+      payment?: {
+        razorpayOrderId: string;
+        amount: number;
+        amountRupees: number;
+        key: string;
+        expiresAt: string;
+      };
+    };
+  }> {
+    return this.api.post('/api/auto-order/addon-selections', data);
+  }
+
+  // Verify Razorpay payment and activate selections
+  async verifyAutoOrderAddonPayment(data: {
+    batchId: string;
+    razorpayOrderId: string;
+    razorpayPaymentId: string;
+    razorpaySignature: string;
+  }): Promise<{ success: boolean; message: string; data: { success: boolean; slotsActivated: number } }> {
+    return this.api.post('/api/auto-order/addon-selections/verify-payment', data);
   }
 }
 

@@ -312,6 +312,33 @@ const AutoOrderSettingsScreen: React.FC<Props> = ({ navigation }) => {
                         </View>
                       </View>
                     </View>
+                    {config.enabled && (
+                      <TouchableOpacity
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          navigation.navigate('AutoOrderAddons', { addressId: config.addressId });
+                        }}
+                        activeOpacity={0.7}
+                        style={{
+                          marginTop: 10,
+                          marginLeft: 60,
+                          backgroundColor: '#FFF7ED',
+                          borderRadius: 10,
+                          paddingVertical: 8,
+                          paddingHorizontal: 14,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          alignSelf: 'flex-start',
+                          borderWidth: 1,
+                          borderColor: '#FED7AA',
+                        }}
+                      >
+                        <MaterialCommunityIcons name="food-variant-plus" size={16} color="#ff8800" style={{ marginRight: 6 }} />
+                        <Text style={{ fontSize: FONT_SIZES.xs, fontWeight: '600', color: '#ff8800' }}>
+                          Add Add-ons to Meals
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </TouchableOpacity>
                 );
               } else {

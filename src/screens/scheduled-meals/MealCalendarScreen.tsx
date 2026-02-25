@@ -784,6 +784,24 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
                 <MaterialCommunityIcons name="refresh-auto" size={20} color="#ff8800" style={{ marginRight: SPACING.sm }} />
                 <Text style={{ fontSize: FONT_SIZES.xs, fontWeight: '600', color: '#1F2937' }}>Auto-Order</Text>
               </TouchableOpacity>
+              {currentAddressId && (
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('AutoOrderAddons', { addressId: currentAddressId })}
+                  style={{
+                    flex: 1,
+                    backgroundColor: '#FFF7ED',
+                    borderRadius: 12,
+                    padding: SPACING.md,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    borderWidth: 1,
+                    borderColor: '#FED7AA',
+                  }}
+                >
+                  <MaterialCommunityIcons name="food-variant-plus" size={20} color="#ff8800" style={{ marginRight: SPACING.sm }} />
+                  <Text style={{ fontSize: FONT_SIZES.xs, fontWeight: '600', color: '#ff8800' }}>Add Add-ons</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Bottom spacer for panel and floating action bar */}

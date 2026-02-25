@@ -449,6 +449,61 @@ class PaymentService {
   }
 
   /**
+   * Process auto-order addon payment.
+   * Razorpay details come from the addon-selections creation response.
+   * After checkout, calls the dedicated verify-payment endpoint for addon selections.
+   */
+  async processAutoOrderAddonPayment(paymentData: {
+    razorpayOrderId: string;
+    amount: number;
+    key: string;
+    currency: string;
+    batchId: string;
+    slotsCount: number;
+  }): Promise<OrderPaymentResult> {
+    try {
+      console.log('[PaymentService] Processing auto-order addon payment for batch:', paymentData.batchId);
+
+      const checkoutOptions: RazorpayOptions = {
+        key: paymentData.key,
+        amount: paymentData.amount,
+        currency: paymentData.currency,
+        name: MERCHANT_NAME,
+        description: `Auto-Order Add-ons (${paymentData.slotsCount} slot${paymentData.slotsCount !== 1 ? 's' : ''})`,
+        order_id: paymentData.razorpayOrderId,
+        theme: { color: THEME_COLOR },
+      };
+
+      const paymentResponse = await this.openCheckout(checkoutOptions);
+
+      console.log('[PaymentService] Verifying auto-order addon payment...');
+      const verifyResponse = await apiService.verifyAutoOrderAddonPayment({
+        batchId: paymentData.batchId,
+        razorpayOrderId: paymentResponse.razorpay_order_id,
+        razorpayPaymentId: paymentResponse.razorpay_payment_id,
+        razorpaySignature: paymentResponse.razorpay_signature,
+      });
+
+      if (!verifyResponse.success) {
+        throw new Error(verifyResponse.message || 'Payment verification failed');
+      }
+
+      console.log('[PaymentService] Auto-order addon payment completed successfully');
+      return { success: true, paymentId: paymentResponse.razorpay_payment_id };
+    } catch (error: any) {
+      console.error('[PaymentService] Auto-order addon payment failed:', error);
+
+      if (error.code === 0 || error.code === 2) {
+        console.log('[PaymentService] User cancelled addon payment');
+        return { success: false, error: 'Payment cancelled' };
+      }
+
+      const errorMessage = error.description || error.message || 'Payment failed. Please try again.';
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
    * Get payment status from backend
    */
   async getPaymentStatus(razorpayOrderId: string) {
