@@ -6,6 +6,7 @@ export interface ReferralCode {
 
 export interface ReferralStats {
   referralCode: string;
+  isReferred: boolean;
   totalReferred: number;
   totalConverted: number;
   totalVouchersEarned: number;

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -59,6 +59,13 @@ const UserOnboardingScreen: React.FC = () => {
   const [referralStatus, setReferralStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
   const [referralName, setReferralName] = useState('');
   const referralDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (referralDebounceRef.current) clearTimeout(referralDebounceRef.current);
+    };
+  }, []);
 
   // Notification permission modal state
   const [showNotificationModal, setShowNotificationModal] = useState(false);
@@ -140,7 +147,7 @@ const UserOnboardingScreen: React.FC = () => {
         name: name.trim(),
         email: email.trim() || undefined,
         dietaryPreferences,
-        referralCode: referralCode.trim() || undefined,
+        referralCode: referralStatus === 'valid' ? referralCode.trim() : undefined,
       });
 
       // Profile saved successfully - now show notification permission modal

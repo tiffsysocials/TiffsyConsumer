@@ -32,8 +32,8 @@ const ReferAndEarnScreen: React.FC<Props> = ({ navigation }) => {
   const [stats, setStats] = useState<ReferralStats | null>(null);
   const [shareMessage, setShareMessage] = useState('');
 
-  // Apply code state (for users who missed onboarding)
-  const [showApplySection, setShowApplySection] = useState(true);
+  // Apply code state (for users who missed onboarding — hidden if already referred)
+  const [showApplySection, setShowApplySection] = useState(false);
   const [applyCode, setApplyCode] = useState('');
   const [applyLoading, setApplyLoading] = useState(false);
 
@@ -50,6 +50,8 @@ const ReferAndEarnScreen: React.FC<Props> = ({ navigation }) => {
       }
       if (statsRes.success && statsRes.data) {
         setStats(statsRes.data);
+        // Only show "Apply Code" section if user hasn't been referred yet
+        setShowApplySection(!statsRes.data.isReferred);
       }
       if (shareRes.success && shareRes.data) {
         setShareMessage(shareRes.data.message);

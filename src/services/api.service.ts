@@ -2533,6 +2533,7 @@ class ApiService {
     message: string;
     data: {
       referralCode: string;
+      isReferred: boolean;
       totalReferred: number;
       totalConverted: number;
       totalVouchersEarned: number;
