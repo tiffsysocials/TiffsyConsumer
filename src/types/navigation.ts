@@ -57,6 +57,10 @@ export type MainTabParamList = {
 ScheduledMealPricing: { deliveryAddressId: string; mealWindow: 'LUNCH' | 'DINNER'; scheduledDate: string; voucherCount?: number };  // Meal pricing preview
   MyScheduledMeals: undefined;  // List of user's scheduled meals
   MealCalendar: undefined;  // Unified meal calendar view
+  BulkSchedulePricing: {
+    deliveryAddressId: string;
+    selectedSlots: Array<{ date: string; mealWindow: 'LUNCH' | 'DINNER' }>;
+  };
   ChatSupport: undefined;  // Chat support screen with hardcoded responses
 };
 

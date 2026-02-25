@@ -130,6 +130,8 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
         return { iconName: 'chef-hat', iconType: 'MaterialCommunityIcons', color: '#3B82F6' };
       case 'ORDER_STATUS_CHANGE':
         return { iconName: 'package-variant', iconType: 'MaterialCommunityIcons', color: '#10B981' };
+      case 'ORDER_UPDATE':
+        return { iconName: 'package-variant', iconType: 'MaterialCommunityIcons', color: '#D97706' };
       case 'VOUCHER_EXPIRY_REMINDER':
         return { iconName: 'ticket', iconType: 'MaterialCommunityIcons', color: '#F59E0B' };
       case 'ADMIN_PUSH':

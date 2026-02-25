@@ -500,11 +500,24 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
 
               {/* Discount */}
               {pricing.discount && (
+                pricing.discount.discountAmount > 0 ||
+                (pricing.discount.addonDiscountAmount || 0) > 0 ||
+                (pricing.discount.deliveryDiscount || 0) > 0 ||
+                (pricing.discount.extraVouchersToIssue || 0) > 0
+              ) && (
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: SPACING.sm }}>
                   <Text style={{ fontSize: FONT_SIZES.sm, color: '#10B981' }}>
-                    Discount ({pricing.discount.couponCode})
+                    {pricing.discount!.discountType === 'FREE_DELIVERY'
+                      ? 'Free Delivery'
+                      : pricing.discount!.discountType === 'FREE_EXTRA_VOUCHER'
+                      ? `+${pricing.discount!.extraVouchersToIssue} Bonus Voucher${(pricing.discount!.extraVouchersToIssue || 0) !== 1 ? 's' : ''}`
+                      : `Discount (${pricing.discount!.couponCode})`}
                   </Text>
-                  <Text style={{ fontSize: FONT_SIZES.sm, color: '#10B981', fontWeight: '600' }}>-₹{pricing.discount.discountAmount}</Text>
+                  {pricing.discount!.discountType !== 'FREE_EXTRA_VOUCHER' && (
+                    <Text style={{ fontSize: FONT_SIZES.sm, color: '#10B981', fontWeight: '600' }}>
+                      -₹{(pricing.discount!.discountAmount || 0) + (pricing.discount!.addonDiscountAmount || 0) + (pricing.discount!.deliveryDiscount || 0)}
+                    </Text>
+                  )}
                 </View>
               )}
 
@@ -538,7 +551,13 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: '#065F46' }}>{appliedCoupon} applied</Text>
                   {pricing.discount && (
-                    <Text style={{ fontSize: FONT_SIZES.xs, color: '#047857' }}>You save ₹{pricing.discount.discountAmount}</Text>
+                    <Text style={{ fontSize: FONT_SIZES.xs, color: '#047857' }}>
+                      {pricing.discount.discountType === 'FREE_DELIVERY'
+                        ? 'Free delivery applied!'
+                        : pricing.discount.discountType === 'FREE_EXTRA_VOUCHER'
+                        ? `${pricing.discount.extraVouchersToIssue} bonus voucher${(pricing.discount.extraVouchersToIssue || 0) !== 1 ? 's' : ''} will be issued`
+                        : `You save ₹${(pricing.discount.discountAmount || 0) + (pricing.discount.addonDiscountAmount || 0) + (pricing.discount.deliveryDiscount || 0)}`}
+                    </Text>
                   )}
                 </View>
                 <TouchableOpacity onPress={handleRemoveCoupon}>

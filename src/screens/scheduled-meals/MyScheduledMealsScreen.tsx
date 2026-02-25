@@ -24,6 +24,7 @@ import { FONT_SIZES } from '../../constants/typography';
 type Props = StackScreenProps<MainTabParamList, 'MyScheduledMeals'>;
 
 const STATUS_COLORS: Record<string, { text: string; bg: string }> = {
+  PENDING_KITCHEN_ACCEPTANCE: { text: '#B45309', bg: '#FEF3C7' },
   SCHEDULED: { text: '#1D4ED8', bg: '#DBEAFE' },
   PLACED: { text: '#B45309', bg: '#FEF3C7' },
   ACCEPTED: { text: '#047857', bg: '#D1FAE5' },
@@ -35,7 +36,7 @@ const STATUS_COLORS: Record<string, { text: string; bg: string }> = {
   CANCELLED: { text: '#DC2626', bg: '#FEE2E2' },
 };
 
-const CANCELLABLE_STATUSES = ['SCHEDULED', 'PLACED'];
+const CANCELLABLE_STATUSES = ['SCHEDULED', 'PENDING_KITCHEN_ACCEPTANCE', 'PLACED'];
 
 const formatDate = (isoString: string): string => {
   const date = new Date(isoString);

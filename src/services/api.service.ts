@@ -2,9 +2,9 @@ import axios, { AxiosInstance } from 'axios';
 import { getIdToken } from '../config/firebase';
 
 // Backend base URL - update this with your actual backend URL
-const BASE_URL = 'https://tiffsy-backend.onrender.com';
-// const BASE_URL = 'http://192.168.29.105:5005';
-// const BASE_URL = 'http://192.168.29.69:5005';
+//const BASE_URL = 'https://d31od4t2t5epcb.cloudfront.net';
+// const BASE_URL = 'http://192.168.1.4:5005';
+ const BASE_URL = 'http://192.168.29.69:5005';
 
 // Type definitions for API responses
 export interface UserData {
@@ -506,6 +506,7 @@ export interface PricingDiscount {
   discountType?: CouponDiscountType;
   discountAmount?: number;
   addonDiscountAmount?: number;
+  deliveryDiscount?: number;
   extraVouchersToIssue?: number;
   // Legacy fields for backward compatibility
   code?: string;
@@ -568,6 +569,7 @@ export interface OrderVoucherUsage {
 }
 
 export type OrderStatus =
+  | 'PENDING_KITCHEN_ACCEPTANCE'
   | 'PLACED'
   | 'ACCEPTED'
   | 'PREPARING'
@@ -623,6 +625,7 @@ export interface Order {
     discountType?: CouponDiscountType;
     discountAmount?: number;
     addonDiscountAmount?: number;
+    deliveryDiscount?: number;
     extraVouchersIssued?: number;
   };
   grandTotal: number;
@@ -655,6 +658,13 @@ export interface Order {
   isAutoOrder?: boolean;
   orderSource?: 'DIRECT' | 'SCHEDULED' | 'AUTO_ORDER';
   scheduledFor?: string;
+  distanceMetadata?: {
+    distanceFromKitchenKm?: number;
+    acceptanceZone?: 'AUTO_ACCEPT' | 'MANUAL_ACCEPT';
+    kitchenAcceptanceDeadline?: string;
+    kitchenResponseAt?: string;
+    autoRejectedAt?: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -1248,6 +1258,9 @@ export interface ScheduledMealPricingData {
       couponCode: string;
       discountType: string;
       discountAmount: number;
+      addonDiscountAmount?: number;
+      deliveryDiscount?: number;
+      extraVouchersToIssue?: number;
     } | null;
     voucherCoverage?: {
       voucherCount: number;
@@ -1286,6 +1299,8 @@ export interface ScheduledMealOrderData {
         couponCode: string;
         discountType: string;
         discountAmount: number;
+        addonDiscountAmount?: number;
+        deliveryDiscount?: number;
       } | null;
       voucherCoverage?: {
         voucherCount: number;
@@ -1347,6 +1362,110 @@ export interface CancelScheduledMealData {
   refundInitiated: boolean;
   vouchersRestored?: number;
   warning: string | null;
+}
+
+// Bulk scheduling types
+export interface BulkSlotInput {
+  date: string;      // ISO date YYYY-MM-DD
+  mealWindow: 'LUNCH' | 'DINNER';
+  addons?: Array<{ addonId: string; quantity: number }>;
+}
+
+export interface BulkSlotPricing {
+  date: string;
+  mealWindow: 'LUNCH' | 'DINNER';
+  items: Array<{
+    menuItemId: string;
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+    isMainCourse: boolean;
+    addons: Array<{
+      addonId: string;
+      name: string;
+      quantity: number;
+      unitPrice: number;
+      totalPrice: number;
+    }>;
+  }>;
+  pricing: {
+    subtotal: number;
+    mainCoursesTotal: number;
+    addonsTotal: number;
+    charges: {
+      deliveryFee: number;
+      serviceFee: number;
+      packagingFee: number;
+      handlingFee: number;
+      taxAmount: number;
+    };
+    discount?: {
+      couponCode: string;
+      discountType: string;
+      discountAmount: number;
+      addonDiscountAmount: number;
+      deliveryDiscount: number;
+      extraVouchersToIssue: number;
+    } | null;
+    voucherCoverage?: {
+      voucherCount: number;
+      mainCoursesCovered: number;
+      value: number;
+    } | null;
+    grandTotal: number;
+    amountToPay: number;
+  };
+}
+
+export interface BulkPricingData {
+  totalSlots: number;
+  kitchen: { id: string; name: string };
+  perSlotBreakdown: BulkSlotPricing[];
+  summary: {
+    totalSubtotal: number;
+    totalAddons: number;
+    totalCharges: number;
+    totalDiscount: number;
+    totalExtraVouchers: number;
+    appliedCouponType?: string | null;
+    vouchersApplied: number;
+    voucherSavings: number;
+    totalAmountToPay: number;
+  };
+  vouchers: {
+    available: number;
+    toUse: number;
+    remainingAfter: number;
+  };
+  conflicts: {
+    duplicates: Array<{ date: string; mealWindow: string; existingOrderNumber: string }>;
+    autoOrderConflicts: Array<{ date: string; mealWindow: string; reason: string }>;
+  };
+}
+
+export interface BulkScheduleOrderItem {
+  id: string;
+  orderNumber: string;
+  date: string;
+  mealWindow: 'LUNCH' | 'DINNER';
+  status: string;
+  amountToPay: number;
+}
+
+export interface BulkScheduleResult {
+  batchId: string;
+  orders: BulkScheduleOrderItem[];
+  totalOrders: number;
+  paymentRequired: boolean;
+  payment?: {
+    razorpayOrderId: string;
+    amount: number;
+    amountRupees: number;
+    key: string;
+    currency: string;
+    prefill: { name: string; contact: string; email?: string };
+  };
 }
 
 class ApiService {
@@ -2277,6 +2396,29 @@ class ApiService {
     data: CancelScheduledMealData;
   }> {
     return this.api.patch(`/api/scheduling/meals/${id}/cancel`, { reason });
+  }
+
+  // Bulk scheduling - pricing preview
+  async getBulkSchedulePricing(data: {
+    deliveryAddressId: string;
+    slots: BulkSlotInput[];
+    vouchersToUse?: number;
+    couponCode?: string;
+  }): Promise<{ success: boolean; message: string; data: BulkPricingData }> {
+    return this.api.post('/api/scheduling/meals/bulk/pricing', data);
+  }
+
+  // Bulk scheduling - create orders
+  async createBulkScheduledMeals(data: {
+    deliveryAddressId: string;
+    slots: BulkSlotInput[];
+    vouchersToUse?: number;
+    couponCode?: string;
+    specialInstructions?: string;
+    allowDuplicates?: boolean;
+    allowAutoOrderConflict?: boolean;
+  }): Promise<{ success: boolean; message: string; data: BulkScheduleResult }> {
+    return this.api.post('/api/scheduling/meals/bulk', data);
   }
 }
 

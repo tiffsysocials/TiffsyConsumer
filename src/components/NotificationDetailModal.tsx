@@ -81,6 +81,10 @@ const NotificationDetailModal: React.FC<NotificationDetailModalProps> = ({
       case NotificationType.ADMIN_PUSH:
         return { iconName: 'notifications', iconType: 'Ionicons', color: '#8B5CF6' };
 
+      // Geofencing order update
+      case NotificationType.ORDER_UPDATE:
+        return { iconName: 'package-variant', iconType: 'MaterialCommunityIcons', color: '#D97706' };
+
       // Legacy
       case NotificationType.ORDER_STATUS_CHANGE:
         return { iconName: 'package-variant', iconType: 'MaterialCommunityIcons', color: '#10B981' };
@@ -129,6 +133,20 @@ const NotificationDetailModal: React.FC<NotificationDetailModalProps> = ({
       case NotificationType.ORDER_REJECTED:
         return {
           label: 'View Details',
+          action: () => {
+            onClose();
+            if (notification.entityId || notification.data?.orderId) {
+              navigation.navigate('OrderDetail', {
+                orderId: notification.entityId || notification.data?.orderId,
+              });
+            }
+          },
+        };
+
+      // Geofencing order update - view order detail
+      case NotificationType.ORDER_UPDATE:
+        return {
+          label: 'View Order',
           action: () => {
             onClose();
             if (notification.entityId || notification.data?.orderId) {

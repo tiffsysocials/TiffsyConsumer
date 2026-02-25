@@ -393,6 +393,62 @@ class PaymentService {
   }
 
   /**
+   * Process bulk scheduled meal payment.
+   * Unlike processOrderPayment, Razorpay details come from the bulk creation response
+   * (no separate initiate step needed).
+   */
+  async processBulkPayment(paymentData: {
+    razorpayOrderId: string;
+    amount: number;
+    key: string;
+    currency: string;
+    prefill: { name: string; contact: string; email?: string };
+    batchId: string;
+    totalOrders: number;
+  }): Promise<OrderPaymentResult> {
+    try {
+      console.log('[PaymentService] Processing bulk payment for batch:', paymentData.batchId);
+
+      const checkoutOptions: RazorpayOptions = {
+        key: paymentData.key,
+        amount: paymentData.amount,
+        currency: paymentData.currency,
+        name: MERCHANT_NAME,
+        description: `Bulk Meal Schedule (${paymentData.totalOrders} meals)`,
+        order_id: paymentData.razorpayOrderId,
+        prefill: paymentData.prefill,
+        theme: { color: THEME_COLOR },
+      };
+
+      const paymentResponse = await this.openCheckout(checkoutOptions);
+
+      console.log('[PaymentService] Verifying bulk payment...');
+      const verifyResponse = await apiService.verifyPayment({
+        razorpayOrderId: paymentResponse.razorpay_order_id,
+        razorpayPaymentId: paymentResponse.razorpay_payment_id,
+        razorpaySignature: paymentResponse.razorpay_signature,
+      });
+
+      if (!verifyResponse.success || !verifyResponse.data.success) {
+        throw new Error(verifyResponse.message || 'Payment verification failed');
+      }
+
+      console.log('[PaymentService] Bulk payment completed successfully');
+      return { success: true, paymentId: paymentResponse.razorpay_payment_id };
+    } catch (error: any) {
+      console.error('[PaymentService] Bulk payment failed:', error);
+
+      if (error.code === 0 || error.code === 2) {
+        console.log('[PaymentService] User cancelled bulk payment');
+        return { success: false, error: 'Payment cancelled' };
+      }
+
+      const errorMessage = error.description || error.message || 'Payment failed. Please try again.';
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
    * Get payment status from backend
    */
   async getPaymentStatus(razorpayOrderId: string) {

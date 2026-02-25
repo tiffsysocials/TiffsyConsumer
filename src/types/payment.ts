@@ -9,7 +9,7 @@ export type PaymentStatus =
   | 'PARTIALLY_REFUNDED';
 
 // Purchase type enum
-export type PurchaseType = 'ORDER' | 'SUBSCRIPTION';
+export type PurchaseType = 'ORDER' | 'SUBSCRIPTION' | 'BULK_SCHEDULED';
 
 // Razorpay checkout options
 export interface RazorpayOptions {

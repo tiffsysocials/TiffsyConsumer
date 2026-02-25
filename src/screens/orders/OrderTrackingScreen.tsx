@@ -33,6 +33,7 @@ const STATUS_STEPS: OrderStatus[] = ['PLACED', 'PREPARING', 'OUT_FOR_DELIVERY', 
 // Map status to step index
 const getStepIndex = (status: OrderStatus): number => {
   switch (status) {
+    case 'PENDING_KITCHEN_ACCEPTANCE':
     case 'PLACED':
     case 'ACCEPTED':
       return 0;
@@ -55,6 +56,8 @@ const getStepIndex = (status: OrderStatus): number => {
 // Get status display text
 const getStatusDisplayText = (status: OrderStatus): string => {
   switch (status) {
+    case 'PENDING_KITCHEN_ACCEPTANCE':
+      return 'Waiting for kitchen confirmation';
     case 'PLACED':
       return 'Order placed';
     case 'ACCEPTED':

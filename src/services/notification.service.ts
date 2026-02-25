@@ -391,6 +391,20 @@ class NotificationService {
           screen: 'MyScheduledMeals',
         };
 
+      // Geofencing order update - navigate to order detail
+      case NotificationType.ORDER_UPDATE:
+        console.log('[NotificationService] Handling ORDER_UPDATE notification');
+        if (data.orderId) {
+          return {
+            screen: 'OrderDetail',
+            params: {
+              orderId: data.orderId,
+              orderNumber: data.orderNumber,
+            },
+          };
+        }
+        break;
+
       // Specific order status notifications - navigate to order tracking/detail
       case NotificationType.ORDER_ACCEPTED:
       case NotificationType.ORDER_PREPARING:

@@ -19,12 +19,10 @@ import { MainTabParamList } from '../../types/navigation';
 import { useSubscription } from '../../context/SubscriptionContext';
 import { useAddress } from '../../context/AddressContext';
 import { useAlert } from '../../context/AlertContext';
-import { useCart } from '../../context/CartContext';
 import apiService, {
   AutoOrderScheduleDay,
   ScheduledMealSlot,
   ScheduledMealListItem,
-  extractKitchensFromResponse,
 } from '../../services/api.service';
 import { formatShortDate, isPastDate } from '../../utils/autoOrderUtils';
 import { SPACING, TOUCH_TARGETS } from '../../constants/spacing';
@@ -59,7 +57,6 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { skipMeal, unskipMeal, getScheduleForAddress } = useSubscription();
   const { addresses, selectedAddressId } = useAddress();
-  const { replaceCart, setDeliveryAddressId, setKitchenId } = useCart();
   const { showAlert } = useAlert();
 
   // Local date string (YYYY-MM-DD) to avoid UTC timezone mismatch
@@ -73,6 +70,9 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
   const [panelHeight] = useState(new Animated.Value(0));
   const [currentAddressId, setCurrentAddressId] = useState<string | null>(null);
   const [showAddressPicker, setShowAddressPicker] = useState(false);
+  // Multi-select state for bulk scheduling
+  const [selectedSlots, setSelectedSlots] = useState<Set<string>>(new Set());
+  // Key format: "2026-02-24_LUNCH", "2026-02-24_DINNER"
 
   const getDefaultAddressId = useCallback((): string | null => {
     if (selectedAddressId) return selectedAddressId;
@@ -200,6 +200,7 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
     setCurrentAddressId(addressId);
     setShowAddressPicker(false);
     setSelectedDate(null);
+    setSelectedSlots(new Set());
     fetchAndMergeData(addressId);
   }, [fetchAndMergeData]);
 
@@ -241,6 +242,15 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
       }
     });
 
+    // Add orange dots for selected slots
+    selectedSlots.forEach(slotKey => {
+      const [date] = slotKey.split('_');
+      if (!marked[date]) marked[date] = { dots: [], marked: true };
+      if (!marked[date].dots?.some((d: any) => d.key === 'selected')) {
+        marked[date].dots = [...(marked[date].dots || []), { key: 'selected', color: '#ff8800' }];
+      }
+    });
+
     // Highlight selected date
     if (selectedDate) {
       marked[selectedDate] = {
@@ -251,7 +261,7 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
     }
 
     return marked;
-  }, [mergedData, selectedDate]);
+  }, [mergedData, selectedDate, selectedSlots]);
 
   // Handle date tap
   const handleDatePress = useCallback((day: DateData) => {
@@ -304,61 +314,30 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
     }
   }, [selectedDate, currentAddressId, unskipMeal, showAlert, fetchAndMergeData]);
 
-  // Schedule a new meal — resolve kitchen, populate cart, navigate to CartScreen
-  const [isScheduleLoading, setIsScheduleLoading] = useState(false);
-  const handleScheduleMeal = useCallback(async (mealWindow: 'LUNCH' | 'DINNER') => {
-    if (!selectedDate || !currentAddressId) return;
-    setIsScheduleLoading(true);
-    try {
-      // 1. Resolve kitchen for this address
-      const kitchenResponse = await apiService.getAddressKitchens(currentAddressId, 'MEAL_MENU');
-      const kitchenList = extractKitchensFromResponse(kitchenResponse);
-      if (kitchenList.length === 0) {
-        showAlert('No Kitchen', 'No kitchen is available for this address.', undefined, 'error');
-        return;
-      }
-      const kitchen = kitchenList.find((k: any) => k.type === 'TIFFSY') || kitchenList[0];
+  // Multi-select: toggle a slot for bulk scheduling
+  const toggleSlotSelection = useCallback((slotKey: string) => {
+    setSelectedSlots(prev => {
+      const next = new Set(prev);
+      if (next.has(slotKey)) next.delete(slotKey);
+      else next.add(slotKey);
+      return next;
+    });
+  }, []);
 
-      // 2. Fetch kitchen menu
-      const menuResponse = await apiService.getKitchenMenu(kitchen._id, 'MEAL_MENU');
-      const menuItem = mealWindow === 'LUNCH'
-        ? menuResponse.data.mealMenu.lunch
-        : menuResponse.data.mealMenu.dinner;
+  // Navigate to bulk pricing screen with selected slots
+  const handleContinueToPricing = useCallback(() => {
+    if (!currentAddressId || selectedSlots.size === 0) return;
 
-      if (!menuItem) {
-        showAlert('Not Available', `No ${mealWindow.toLowerCase()} menu available for this kitchen.`, undefined, 'error');
-        return;
-      }
+    const slots = Array.from(selectedSlots).map(key => {
+      const [date, mealWindow] = key.split('_');
+      return { date, mealWindow: mealWindow as 'LUNCH' | 'DINNER' };
+    }).sort((a, b) => a.date.localeCompare(b.date) || a.mealWindow.localeCompare(b.mealWindow));
 
-      // 3. Populate cart with the main course
-      setKitchenId(kitchen._id);
-      setDeliveryAddressId(currentAddressId);
-      replaceCart({
-        id: menuItem._id,
-        name: menuItem.name,
-        image: mealWindow === 'LUNCH'
-          ? require('../../assets/images/homepage/lunch2.png')
-          : require('../../assets/images/homepage/dinneritem.png'),
-        subtitle: '1 Thali',
-        price: menuItem.price,
-        quantity: 1,
-        hasVoucher: true,
-        mealWindow,
-      });
-
-      // 4. Navigate to Cart in scheduling mode
-      setTimeout(() => {
-        navigation.navigate('Cart', {
-          scheduledDate: selectedDate,
-          deliveryAddressId: currentAddressId,
-        });
-      }, 100);
-    } catch (err: any) {
-      showAlert('Error', err.message || 'Failed to load menu. Please try again.', undefined, 'error');
-    } finally {
-      setIsScheduleLoading(false);
-    }
-  }, [selectedDate, currentAddressId, navigation, showAlert, replaceCart, setDeliveryAddressId, setKitchenId]);
+    navigation.navigate('BulkSchedulePricing', {
+      deliveryAddressId: currentAddressId,
+      selectedSlots: slots,
+    });
+  }, [currentAddressId, selectedSlots, navigation]);
 
   // Render a slot card in the bottom panel
   const renderSlotCard = (mealWindow: 'LUNCH' | 'DINNER') => {
@@ -516,45 +495,38 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
       );
     }
 
-    // Available slot
+    // Available slot — multi-select toggle for bulk scheduling
     if (slot.slotStatus === 'available') {
+      const slotKey = `${selectedDate}_${mealWindow}`;
+      const isSelected = selectedSlots.has(slotKey);
+
       return (
-        <View style={{
-          backgroundColor: '#FFFFFF',
-          borderRadius: 14,
-          borderWidth: 1.5,
-          borderColor: '#6EE7B7',
-          borderStyle: 'dashed',
-          padding: SPACING.lg,
-          marginBottom: SPACING.md,
-        }}>
+        <TouchableOpacity
+          onPress={() => toggleSlotSelection(slotKey)}
+          activeOpacity={0.7}
+          style={{
+            backgroundColor: isSelected ? '#FFF7ED' : '#FFFFFF',
+            borderRadius: 14,
+            borderWidth: isSelected ? 2 : 1.5,
+            borderColor: isSelected ? '#ff8800' : '#6EE7B7',
+            borderStyle: isSelected ? 'solid' : 'dashed',
+            padding: SPACING.lg,
+            marginBottom: SPACING.md,
+          }}
+        >
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.sm }}>
             <MaterialCommunityIcons name={icon} size={22} color={iconColor} style={{ marginRight: SPACING.sm }} />
             <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '700', color: '#1F2937', flex: 1 }}>{label}</Text>
-            <View style={{ backgroundColor: '#D1FAE5', borderRadius: 8, paddingHorizontal: SPACING.sm, paddingVertical: 2 }}>
-              <Text style={{ fontSize: FONT_SIZES.xs, fontWeight: '600', color: '#065F46' }}>Available</Text>
-            </View>
+            <MaterialCommunityIcons
+              name={isSelected ? 'checkbox-marked' : 'checkbox-blank-outline'}
+              size={24}
+              color={isSelected ? '#ff8800' : '#9CA3AF'}
+            />
           </View>
-          <Text style={{ fontSize: FONT_SIZES.sm, color: '#6B7280', marginBottom: SPACING.sm }}>
-            No meal planned yet
+          <Text style={{ fontSize: FONT_SIZES.sm, color: isSelected ? '#ff8800' : '#6B7280' }}>
+            {isSelected ? 'Selected for scheduling' : 'Tap to select for scheduling'}
           </Text>
-          <TouchableOpacity
-            onPress={() => handleScheduleMeal(mealWindow)}
-            disabled={isScheduleLoading}
-            style={{
-              borderRadius: 10,
-              paddingVertical: SPACING.sm,
-              alignItems: 'center',
-              backgroundColor: isScheduleLoading ? '#fbb36b' : '#ff8800',
-            }}
-          >
-            {isScheduleLoading ? (
-              <ActivityIndicator size="small" color="white" />
-            ) : (
-              <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: 'white' }}>Schedule a Meal</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+        </TouchableOpacity>
       );
     }
 
@@ -632,6 +604,23 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
           <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
         </TouchableOpacity>
         <Text style={{ color: 'white', fontSize: FONT_SIZES.h4, fontWeight: 'bold', flex: 1 }}>Meal Calendar</Text>
+        {selectedSlots.size > 0 && (
+          <TouchableOpacity
+            onPress={() => setSelectedSlots(new Set())}
+            style={{
+              backgroundColor: 'rgba(255,255,255,0.25)',
+              borderRadius: 10,
+              paddingHorizontal: SPACING.sm + 2,
+              paddingVertical: SPACING.xs,
+              flexDirection: 'row',
+              alignItems: 'center',
+              marginRight: SPACING.sm,
+            }}
+          >
+            <MaterialCommunityIcons name="close-circle-outline" size={16} color="white" style={{ marginRight: 4 }} />
+            <Text style={{ color: 'white', fontSize: FONT_SIZES.xs, fontWeight: '600' }}>Clear ({selectedSlots.size})</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           onPress={() => navigation.navigate('MyScheduledMeals')}
           style={{
@@ -797,9 +786,9 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
               </TouchableOpacity>
             </View>
 
-            {/* Bottom spacer for panel */}
+            {/* Bottom spacer for panel and floating action bar */}
             {selectedDate && <View style={{ height: 400 }} />}
-            <View style={{ height: SPACING['4xl'] + insets.bottom }} />
+            <View style={{ height: SPACING['4xl'] + insets.bottom + (selectedSlots.size > 0 ? 80 : 0) }} />
           </>
         )}
       </ScrollView>
@@ -869,6 +858,50 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
             </View>
           </View>
         </Animated.View>
+      )}
+
+      {/* Floating Action Bar for Bulk Scheduling */}
+      {selectedSlots.size > 0 && (
+        <View style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: '#ff8800',
+          paddingVertical: SPACING.md,
+          paddingHorizontal: SPACING.xl,
+          paddingBottom: SPACING.md + insets.bottom,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderTopLeftRadius: 16,
+          borderTopRightRadius: 16,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.2,
+          shadowRadius: 8,
+          elevation: 8,
+        }}>
+          <View>
+            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: FONT_SIZES.base }}>
+              {selectedSlots.size} meal{selectedSlots.size > 1 ? 's' : ''} selected
+            </Text>
+            <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: FONT_SIZES.xs }}>
+              Continue to see pricing
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={handleContinueToPricing}
+            style={{
+              backgroundColor: 'white',
+              borderRadius: 10,
+              paddingVertical: SPACING.sm,
+              paddingHorizontal: SPACING.xl,
+            }}
+          >
+            <Text style={{ color: '#ff8800', fontWeight: '700', fontSize: FONT_SIZES.sm }}>Continue</Text>
+          </TouchableOpacity>
+        </View>
       )}
 
       {/* Address Picker Modal */}

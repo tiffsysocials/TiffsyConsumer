@@ -19,6 +19,7 @@ export enum NotificationType {
   ORDER_OUT_FOR_DELIVERY = 'ORDER_OUT_FOR_DELIVERY',
   ORDER_DELIVERED = 'ORDER_DELIVERED',
   ORDER_CANCELLED = 'ORDER_CANCELLED',
+  ORDER_UPDATE = 'ORDER_UPDATE',
 
   // Auto-ordering notifications
   AUTO_ORDER_SUCCESS = 'AUTO_ORDER_SUCCESS',
@@ -107,6 +108,7 @@ export const NotificationChannelMapping: Record<NotificationType, string> = {
   [NotificationType.ORDER_OUT_FOR_DELIVERY]: NotificationChannels.ORDERS,
   [NotificationType.ORDER_DELIVERED]: NotificationChannels.ORDERS,
   [NotificationType.ORDER_CANCELLED]: NotificationChannels.ORDERS,
+  [NotificationType.ORDER_UPDATE]: NotificationChannels.ORDERS,
   [NotificationType.AUTO_ORDER_SUCCESS]: NotificationChannels.ORDERS,
   [NotificationType.AUTO_ORDER_PAYMENT_REQUIRED]: NotificationChannels.ORDERS,
   [NotificationType.AUTO_ORDER_PAYMENT_EXPIRED]: NotificationChannels.ORDERS,

@@ -24,6 +24,7 @@ import ScheduledMealPricingScreen from '../screens/scheduled-meals/ScheduledMeal
 import MyScheduledMealsScreen from '../screens/scheduled-meals/MyScheduledMealsScreen';
 import ChatSupportScreen from '../screens/account/ChatSupportScreen';
 import MealCalendarScreen from '../screens/scheduled-meals/MealCalendarScreen';
+import BulkSchedulePricingScreen from '../screens/scheduled-meals/BulkSchedulePricingScreen';
 import BottomNavBar from '../components/BottomNavBar';
 import { MainTabParamList } from '../types/navigation';
 
@@ -88,6 +89,7 @@ const MainNavigatorContent = () => {
         <Stack.Screen name="MyScheduledMeals" component={MyScheduledMealsScreen} />
         <Stack.Screen name="ChatSupport" component={ChatSupportScreen} />
         <Stack.Screen name="MealCalendar" component={MealCalendarScreen} />
+        <Stack.Screen name="BulkSchedulePricing" component={BulkSchedulePricingScreen} />
       </Stack.Navigator>
       {showNavBar && <BottomNavBar activeTab={activeTab} />}
     </View>

@@ -76,6 +76,8 @@ const NotificationPopup: React.FC<NotificationPopupProps> = ({
         return { iconName: 'checkmark-circle', iconType: 'Ionicons', color: '#10B981' };
       case NotificationType.AUTO_ORDER_FAILED:
         return { iconName: 'warning', iconType: 'Ionicons', color: '#EF4444' };
+      case NotificationType.ORDER_UPDATE:
+        return { iconName: 'package-variant', iconType: 'MaterialCommunityIcons', color: '#D97706' };
       case NotificationType.ORDER_STATUS_CHANGE:
         return { iconName: 'package-variant', iconType: 'MaterialCommunityIcons', color: '#10B981' };
 

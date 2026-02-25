@@ -26,6 +26,7 @@ type Props = StackScreenProps<MainTabParamList, 'YourOrders'>;
 
 // Current order statuses (orders still in progress)
 const CURRENT_STATUSES: OrderStatus[] = [
+  'PENDING_KITCHEN_ACCEPTANCE',
   'PLACED',
   'ACCEPTED',
   'PREPARING',
@@ -40,6 +41,8 @@ const HISTORY_STATUSES: OrderStatus[] = ['DELIVERED', 'CANCELLED', 'REJECTED'];
 // Map order status to user-friendly message
 const getStatusMessage = (status: OrderStatus): string => {
   switch (status) {
+    case 'PENDING_KITCHEN_ACCEPTANCE':
+      return 'Waiting for kitchen confirmation';
     case 'PLACED':
       return 'Order placed';
     case 'ACCEPTED':

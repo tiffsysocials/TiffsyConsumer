@@ -845,6 +845,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
   const couponDiscount = getCouponDiscount(lunchPricing.pricing) + getCouponDiscount(dinnerPricing.pricing);
   const couponExtraVouchers = (lunchPricing.pricing?.discount?.extraVouchersToIssue ?? 0)
     + (dinnerPricing.pricing?.discount?.extraVouchersToIssue ?? 0);
+  const couponDiscountType = lunchPricing.pricing?.discount?.discountType || dinnerPricing.pricing?.discount?.discountType || null;
   const totalDiscount = voucherDiscount + couponDiscount;
 
   // Check if cart has any add-ons
@@ -1713,11 +1714,15 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
                     <Text style={{ fontSize: 14, fontWeight: '700', color: '#15803D' }}>
                       {couponCode} Applied
                     </Text>
-                    {couponDiscount > 0 && (
+                    {couponDiscountType === 'FREE_DELIVERY' ? (
+                      <Text style={{ fontSize: 12, color: '#16A34A', marginTop: 1 }}>
+                        Free delivery applied!
+                      </Text>
+                    ) : couponDiscount > 0 ? (
                       <Text style={{ fontSize: 12, color: '#16A34A', marginTop: 1 }}>
                         You save ₹{couponDiscount.toFixed(0)}
                       </Text>
-                    )}
+                    ) : null}
                     {couponExtraVouchers > 0 && (
                       <Text style={{ fontSize: 12, color: '#2563EB', marginTop: 1 }}>
                         +{couponExtraVouchers} bonus meal voucher{couponExtraVouchers > 1 ? 's' : ''}
@@ -1872,10 +1877,22 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
                   )}
 
                   {/* Coupon Discount */}
-                  {couponCode && couponDiscount > 0 && (
+                  {couponCode && couponDiscountType === 'FREE_DELIVERY' && (
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <Text style={{ fontSize: 14, color: '#10B981' }}>Discount:</Text>
+                      <Text style={{ fontSize: 14, color: '#10B981' }}>Free Delivery ({couponCode}):</Text>
+                      <Text style={{ fontSize: 14, color: '#10B981' }}>Applied</Text>
+                    </View>
+                  )}
+                  {couponCode && couponDiscount > 0 && couponDiscountType !== 'FREE_DELIVERY' && (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <Text style={{ fontSize: 14, color: '#10B981' }}>Discount ({couponCode}):</Text>
                       <Text style={{ fontSize: 14, color: '#10B981' }}>- ₹{Math.round(couponDiscount).toFixed(2)}</Text>
+                    </View>
+                  )}
+                  {couponCode && couponExtraVouchers > 0 && (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <Text style={{ fontSize: 14, color: '#2563EB' }}>Bonus Vouchers ({couponCode}):</Text>
+                      <Text style={{ fontSize: 14, color: '#2563EB' }}>+{couponExtraVouchers}</Text>
                     </View>
                   )}
 

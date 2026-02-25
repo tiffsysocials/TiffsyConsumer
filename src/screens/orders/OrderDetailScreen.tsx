@@ -28,6 +28,8 @@ type Props = StackScreenProps<MainTabParamList, 'OrderDetail'>;
 // Status color mapping
 const getStatusColor = (status: OrderStatus): string => {
   switch (status) {
+    case 'PENDING_KITCHEN_ACCEPTANCE':
+      return '#D97706'; // Amber
     case 'PLACED':
       return '#3B82F6'; // Blue
     case 'ACCEPTED':
@@ -53,6 +55,8 @@ const getStatusColor = (status: OrderStatus): string => {
 // Status text mapping
 const getStatusText = (status: OrderStatus): string => {
   switch (status) {
+    case 'PENDING_KITCHEN_ACCEPTANCE':
+      return 'Awaiting Kitchen';
     case 'PLACED':
       return 'Order Placed';
     case 'ACCEPTED':
@@ -78,6 +82,7 @@ const getStatusText = (status: OrderStatus): string => {
 
 // Active statuses
 const ACTIVE_STATUSES: OrderStatus[] = [
+  'PENDING_KITCHEN_ACCEPTANCE',
   'PLACED',
   'ACCEPTED',
   'PREPARING',
@@ -597,6 +602,36 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             <View className="flex-row justify-between mb-2">
               <Text className="text-sm text-gray-600">Tax</Text>
               <Text className="text-sm text-gray-900">₹{order.charges.taxAmount.toFixed(2)}</Text>
+            </View>
+          )}
+
+          {/* Coupon Discount */}
+          {order.discount?.couponCode && order.discount.discountType === 'FREE_DELIVERY' && (
+            <View className="flex-row justify-between mb-2">
+              <Text className="text-sm text-green-600">
+                Free Delivery ({order.discount.couponCode})
+              </Text>
+              <Text className="text-sm text-green-600">Applied</Text>
+            </View>
+          )}
+          {order.discount?.couponCode && ((order.discount.discountAmount || 0) + (order.discount.addonDiscountAmount || 0)) > 0 && (
+            <View className="flex-row justify-between mb-2">
+              <Text className="text-sm text-green-600">
+                Discount ({order.discount.couponCode})
+              </Text>
+              <Text className="text-sm text-green-600">
+                - ₹{((order.discount.discountAmount || 0) + (order.discount.addonDiscountAmount || 0)).toFixed(2)}
+              </Text>
+            </View>
+          )}
+          {order.discount?.extraVouchersIssued && order.discount.extraVouchersIssued > 0 && (
+            <View className="flex-row justify-between mb-2">
+              <Text className="text-sm" style={{ color: '#2563EB' }}>
+                Bonus Vouchers ({order.discount.couponCode})
+              </Text>
+              <Text className="text-sm" style={{ color: '#2563EB' }}>
+                +{order.discount.extraVouchersIssued} issued
+              </Text>
             </View>
           )}
 
