@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(netstat:*)"
+      "Bash(netstat:*)",
+      "Bash(git stash pop)",
+      "Bash(git checkout stash -- .)",
+      "Bash(git stash drop)"
     ]
   }
 }
