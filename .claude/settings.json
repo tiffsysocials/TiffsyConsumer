@@ -3,7 +3,10 @@
     "allow": [
       "Bash(netstat:*)",
       "Bash(./gradlew signingReport:*)",
-      "Bash(keytool:*)"
+      "Bash(keytool:*)",
+      "Bash(git stash pop)",
+      "Bash(git checkout stash -- .)",
+      "Bash(git stash drop)"
     ],
     "additionalDirectories": [
       "d:\\Tiffsy\\android\\app\\src\\main\\java\\com\\tiffindelivery"

@@ -62,8 +62,6 @@ ScheduledMealPricing: { deliveryAddressId: string; mealWindow: 'LUNCH' | 'DINNER
     selectedSlots: Array<{ date: string; mealWindow: 'LUNCH' | 'DINNER' }>;
   };
   ChatSupport: undefined;  // Chat support screen with hardcoded responses
-  AutoOrderAddons: { addressId: string };  // Per-slot add-on selection with upfront payment
-  ReferAndEarn: undefined;  // Refer & Earn screen
 };
 
 // Root navigation props
