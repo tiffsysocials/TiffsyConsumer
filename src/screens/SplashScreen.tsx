@@ -22,23 +22,23 @@ const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 const {width, height} = Dimensions.get('window');
 
-// ── Path 1: curve that draws down to the driver, then STOPS ──
+// ── Path 1: curve that draws down to the middle, then STOPS ──
 const PATH_CURVE =
-  'M30.7553 5C30.7553 5 64.4925 43.4245 93.8611 85.1536C148.528 162.829 74.4157 222.5 74.4157 277.688C74.4157 321.3 111.062 348 153.255 348C195.448 348 241.352 341.316 246.489 277.688C251.625 214.061 217.871 190.924 148.528 199.6C112.896 204.059 55.3372 218.193 30.7553 244.222C10.1895 265.998 -15.1064 315.699 30.7553 352.471C59.3054 375.362 100.729 370.233 112.755 404C126.51 442.63 132.39 471.01 163.08 489.04';
+  'M58.6953 40.387695C58.6953 40.387695 87.9947 64.2034 93.1953 85.8877C103.096 127.1685 17.5234 132.4326 28.6952 173.388C38.4951 209.313 130.549 181.905 126.195 218.888C123.431 242.368 69.6953 267.888 69.6953 267.888';
 
-// ── Path 2: continues from driver position, sweeps right + extends off-screen ──
+// ── Path 2: continues from below the gap, sweeps down ──
 const PATH_EXIT =
-  'M163.08 489.04C193.76 507.07 249.26 514.75 362.255 512 L1000 512';
+  'M93.1953 301.888C93.1953 301.888 135.695 356.398 69.6953 365.888C3.69534 375.378 -15.3643 417.388 13.6952 417.388C30.6952 417.388 63.6952 399.888 93.1953 417.388C122.695 434.888 88.8977 470.388 84.1952 474.888C79.4928 479.388 75.6952 481.888 75.6952 487.888C75.6952 493.888 80.78 498.778 87.1952 501.388C92.4405 503.521 99.1952 502.888 99.1952 502.888';
 
-const CURVE_LENGTH = 1600; // generous upper bound
-const EXIT_LENGTH = 1200; // generous upper bound
+const CURVE_LENGTH = 800; // generous upper bound
+const EXIT_LENGTH = 800; // generous upper bound
 
 // ── Layout ──
-const SC = (width * 0.78) / 363;
-const SVG_W = 1000 * SC;
-const SVG_H = 518 * SC;
-const SVG_LEFT = (width - 363 * SC) / 2 + width * 0.04;
-const SVG_TOP = (height - SVG_H) / 2 - height * 0.01;
+const SC = (height * 0.65) / 544;
+const SVG_W = 127 * SC;
+const SVG_H = 544 * SC;
+const SVG_LEFT = (width - 127 * SC) / 2;
+const SVG_TOP = (height - 544 * SC) / 2;
 
 // ── Element sizes ──
 const PHONE_LOTTIE_SIZE = width * 0.26;
@@ -47,10 +47,10 @@ const DRIVER_SIZE = width * 0.34;
 const LOGO_SIZE = width * 0.6;
 
 // ── Fixed screen positions ──
-const POS_PHONE = {x: SVG_LEFT + 30.75 * SC, y: SVG_TOP + 5 * SC - height * 0.03};
-const POS_PAN = {x: SVG_LEFT + 290 * SC, y: SVG_TOP + 280 * SC};
-const POS_LOGO = {x: width / 2, y: height / 2};
-const POS_DRIVER = {x: SVG_LEFT + 136 * SC, y: SVG_TOP + 475 * SC};
+const POS_PHONE = {x: SVG_LEFT + 58 * SC, y: SVG_TOP + 0 * SC};
+const POS_PAN = {x: SVG_LEFT + 165 * SC, y: SVG_TOP + 178 * SC};
+const POS_LOGO = {x: width / 2, y: SVG_TOP + 285 * SC};
+const POS_DRIVER = {x: SVG_LEFT + 99 * SC, y: SVG_TOP + 502 * SC};
 
 // Static splash for loading states
 export const SplashView = () => (
@@ -88,31 +88,33 @@ const SplashScreen = () => {
 
       Animated.delay(300),
 
-      // 2. Curve draws to driver + elements pop in (curve done at 82% = when driver appears)
+      // 2. Top curve draws + phone/pan pop in
       Animated.timing(progress, {
         toValue: 1,
-        duration: 1600,
+        duration: 1400,
+        easing: Easing.linear,
+        useNativeDriver: false,
+      }),
+
+      Animated.delay(200),
+
+      // 3. Bottom SVG draws, driver appears at the end
+      Animated.timing(exitLine, {
+        toValue: 1,
+        duration: 800,
         easing: Easing.linear,
         useNativeDriver: false,
       }),
 
       Animated.delay(300),
 
-      // 3. Driver moves right + exit line draws behind it
-      Animated.parallel([
-        Animated.timing(driverExit, {
-          toValue: 1,
-          duration: 300,
-          easing: Easing.in(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(exitLine, {
-          toValue: 1,
-          duration: 300,
-          easing: Easing.in(Easing.quad),
-          useNativeDriver: false,
-        }),
-      ]),
+      // 4. Driver rides right, trailing line draws behind it
+      Animated.timing(driverExit, {
+        toValue: 1,
+        duration: 600,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: false,
+      }),
 
       Animated.delay(400),
     ]).start(() => {
@@ -120,9 +122,9 @@ const SplashScreen = () => {
     });
   }, [navigation, logoAnim, progress, driverExit, exitLine]);
 
-  // ── Curve: fully revealed by progress 0.82 (when driver appears), then frozen ──
+  // ── Top curve: fully draws during progress ──
   const curveDashOffset = progress.interpolate({
-    inputRange: [0, 0.82],
+    inputRange: [0, 1],
     outputRange: [CURVE_LENGTH, 0],
     extrapolate: 'clamp',
   });
@@ -133,26 +135,26 @@ const SplashScreen = () => {
     outputRange: [EXIT_LENGTH, 0],
   });
 
-  // ── Phone: appears at start ──
+  // ── Phone: appears at start of top curve ──
   const phoneOpacity = progress.interpolate({
-    inputRange: [0, 0.05],
+    inputRange: [0, 0.06],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
   const phoneScale = progress.interpolate({
-    inputRange: [0, 0.04, 0.08],
+    inputRange: [0, 0.05, 0.1],
     outputRange: [0, 1.15, 1],
     extrapolate: 'clamp',
   });
 
-  // ── Pan: appears on right side (~40%) ──
+  // ── Pan: appears midway through top curve ──
   const panOpacity = progress.interpolate({
-    inputRange: [0.38, 0.44],
+    inputRange: [0.45, 0.52],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
   const panScale = progress.interpolate({
-    inputRange: [0.38, 0.42, 0.48],
+    inputRange: [0.45, 0.5, 0.56],
     outputRange: [0, 1.15, 1],
     extrapolate: 'clamp',
   });
@@ -169,19 +171,25 @@ const SplashScreen = () => {
     extrapolate: 'clamp',
   });
 
-  // ── Driver: appears near end of curve ──
-  const driverOpacity = progress.interpolate({
-    inputRange: [0.82, 0.88],
+  // ── Driver: appears near end of bottom SVG ──
+  const driverOpacity = exitLine.interpolate({
+    inputRange: [0.85, 0.95],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
-  const driverScale = progress.interpolate({
-    inputRange: [0.82, 0.86, 0.92],
+  const driverScale = exitLine.interpolate({
+    inputRange: [0.85, 0.9, 1],
     outputRange: [0, 1.1, 1],
     extrapolate: 'clamp',
   });
 
   const driverTranslateX = driverExit.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, width],
+  });
+
+  // ── Trail line: grows from the end of bottom path as driver rides right ──
+  const trailWidth = driverExit.interpolate({
     inputRange: [0, 1],
     outputRange: [0, width],
   });
@@ -196,13 +204,13 @@ const SplashScreen = () => {
       <Svg
         width={SVG_W}
         height={SVG_H}
-        viewBox="0 0 1000 518"
+        viewBox="0 0 127 544"
         style={{position: 'absolute', left: SVG_LEFT, top: SVG_TOP}}>
         {/* Curve: draws during progress, stops at driver */}
         <AnimatedPath
           d={PATH_CURVE}
           stroke="rgba(255,255,255,0.8)"
-          strokeWidth={5}
+          strokeWidth={2}
           strokeLinecap="round"
           fill="none"
           strokeDasharray={[CURVE_LENGTH, CURVE_LENGTH]}
@@ -212,7 +220,7 @@ const SplashScreen = () => {
         <AnimatedPath
           d={PATH_EXIT}
           stroke="rgba(255,255,255,0.8)"
-          strokeWidth={5}
+          strokeWidth={2}
           strokeLinecap="round"
           fill="none"
           strokeDasharray={[EXIT_LENGTH, EXIT_LENGTH]}
@@ -278,14 +286,28 @@ const SplashScreen = () => {
         />
       </Animated.View>
 
+      {/* ── Trail line behind driver ── */}
+      <Animated.View
+        style={[
+          styles.abs,
+          {
+            left: POS_DRIVER.x,
+            top: POS_DRIVER.y - 1,
+            height: 2,
+            width: trailWidth,
+            backgroundColor: 'rgba(255,255,255,0.8)',
+            borderRadius: 1,
+          },
+        ]}
+      />
+
       {/* ── Driver (bottom) ── */}
       <Animated.View
         style={[
           styles.abs,
           {
-            left: POS_DRIVER.x - DRIVER_SIZE / 2,
             top: POS_DRIVER.y - DRIVER_SIZE / 2,
-            transform: [{translateX: driverTranslateX}],
+            left: Animated.add(POS_DRIVER.x - DRIVER_SIZE / 2, driverTranslateX),
           },
         ]}>
         <Animated.View
