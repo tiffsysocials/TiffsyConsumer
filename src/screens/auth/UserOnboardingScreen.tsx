@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useUser, DietaryPreferences } from '../../context/UserContext';
 import { useAlert } from '../../context/AlertContext';
+import apiService from '../../services/api.service';
 import NotificationPermissionModal from '../../components/NotificationPermissionModal';
 import notificationService from '../../services/notification.service';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -53,6 +54,19 @@ const UserOnboardingScreen: React.FC = () => {
   const [emailError, setEmailError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Referral code state
+  const [referralCode, setReferralCode] = useState('');
+  const [referralStatus, setReferralStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
+  const [referralName, setReferralName] = useState('');
+  const referralDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (referralDebounceRef.current) clearTimeout(referralDebounceRef.current);
+    };
+  }, []);
+
   // Notification permission modal state
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [isRequestingPermission, setIsRequestingPermission] = useState(false);
@@ -60,6 +74,38 @@ const UserOnboardingScreen: React.FC = () => {
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
+  };
+
+  const handleReferralCodeChange = (text: string) => {
+    const cleaned = text.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    setReferralCode(cleaned);
+    if (referralDebounceRef.current) clearTimeout(referralDebounceRef.current);
+    if (!cleaned) {
+      setReferralStatus('idle');
+      setReferralName('');
+      return;
+    }
+    if (cleaned.length >= 6) {
+      setReferralStatus('checking');
+      referralDebounceRef.current = setTimeout(async () => {
+        try {
+          const res = await apiService.validateReferralCode(cleaned);
+          if (res.success && res.data?.valid) {
+            setReferralStatus('valid');
+            setReferralName(res.data.referrerName || '');
+          } else {
+            setReferralStatus('invalid');
+            setReferralName('');
+          }
+        } catch {
+          setReferralStatus('invalid');
+          setReferralName('');
+        }
+      }, 600);
+    } else {
+      setReferralStatus('idle');
+      setReferralName('');
+    }
   };
 
   const handleContinue = async () => {
@@ -101,6 +147,7 @@ const UserOnboardingScreen: React.FC = () => {
         name: name.trim(),
         email: email.trim() || undefined,
         dietaryPreferences,
+        referralCode: referralStatus === 'valid' ? referralCode.trim() : undefined,
       });
 
       // Profile saved successfully - now show notification permission modal
@@ -258,6 +305,54 @@ const UserOnboardingScreen: React.FC = () => {
             />
             {emailError ? (
               <Text className="text-red-500 text-xs mt-1 ml-1">{emailError}</Text>
+            ) : null}
+          </View>
+
+          {/* Referral Code Input */}
+          <View className="mb-5">
+            <Text className="text-gray-700 font-semibold mb-2 text-base">
+              Referral Code (Optional)
+            </Text>
+            <View style={{ position: 'relative' }}>
+              <TextInput
+                className="bg-gray-50 rounded-2xl px-4 py-4 text-base"
+                style={{
+                  borderWidth: referralStatus === 'valid' ? 1.5 : referralStatus === 'invalid' ? 1.5 : 1,
+                  borderColor: referralStatus === 'valid' ? '#10B981' : referralStatus === 'invalid' ? '#EF4444' : '#EAEAEA',
+                  paddingRight: 44,
+                }}
+                placeholder="Enter referral code"
+                placeholderTextColor="#9CA3AF"
+                value={referralCode}
+                onChangeText={handleReferralCodeChange}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                maxLength={20}
+              />
+              {referralStatus === 'checking' && (
+                <View style={{ position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' }}>
+                  <ActivityIndicator size="small" color="#ff8800" />
+                </View>
+              )}
+              {referralStatus === 'valid' && (
+                <View style={{ position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' }}>
+                  <MaterialCommunityIcons name="check-circle" size={22} color="#10B981" />
+                </View>
+              )}
+              {referralStatus === 'invalid' && (
+                <View style={{ position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' }}>
+                  <MaterialCommunityIcons name="close-circle" size={22} color="#EF4444" />
+                </View>
+              )}
+            </View>
+            {referralStatus === 'valid' && referralName ? (
+              <Text className="text-green-600 text-xs mt-1 ml-1">
+                Referred by {referralName}
+              </Text>
+            ) : referralStatus === 'invalid' ? (
+              <Text className="text-red-500 text-xs mt-1 ml-1">
+                Invalid referral code
+              </Text>
             ) : null}
           </View>
 

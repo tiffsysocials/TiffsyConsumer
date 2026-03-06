@@ -6,7 +6,9 @@
       "Bash(keytool:*)",
       "Bash(git stash pop)",
       "Bash(git checkout stash -- .)",
-      "Bash(git stash drop)"
+      "Bash(git stash drop)",
+      "Bash(npx react-native run-android)",
+      "Bash(adb uninstall:*)"
     ],
     "additionalDirectories": [
       "d:\\Tiffsy\\android\\app\\src\\main\\java\\com\\tiffindelivery"

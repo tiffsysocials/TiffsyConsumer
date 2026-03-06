@@ -42,6 +42,7 @@ export type MainTabParamList = {
   Payment: undefined;
   Account: undefined;
   EditProfile: undefined;  // Edit user profile (name, email, dietary preferences, image)
+  ReferAndEarn: undefined;  // Refer & Earn screen
   HelpSupport: undefined;
   About: undefined;
   OurJourney: undefined;
@@ -62,6 +63,7 @@ ScheduledMealPricing: { deliveryAddressId: string; mealWindow: 'LUNCH' | 'DINNER
     selectedSlots: Array<{ date: string; mealWindow: 'LUNCH' | 'DINNER' }>;
   };
   ChatSupport: undefined;  // Chat support screen with hardcoded responses
+  AutoOrderAddons: { addressId: string };  // Add add-ons to auto-order meals
 };
 
 // Root navigation props

@@ -25,6 +25,9 @@ class MainApplication : Application(), ReactApplication {
 
   override fun onCreate() {
     super.onCreate()
+    // Create notification channels early so they exist before any
+    // background FCM messages arrive (before React Native initializes)
+    NotificationHelper.createChannels(this)
     loadReactNative(this)
   }
 }

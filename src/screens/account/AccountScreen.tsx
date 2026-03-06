@@ -41,6 +41,7 @@ const ACCOUNT_MENU_ITEMS = [
   { id: 'autoordersettings', label: 'Auto-Order Settings', icon: require('../../assets/icons/time2.png'), route: 'AutoOrderSettings' as const, authRequired: true },
   { id: 'mealcalendar', label: 'Meal Calendar', icon: require('../../assets/icons/time2.png'), route: 'MealCalendar' as const, authRequired: true },
   { id: 'scheduledmeals', label: 'Scheduled Meals', icon: require('../../assets/icons/meal.png'), route: 'MyScheduledMeals' as const, authRequired: true },
+  { id: 'referral', label: 'Refer & Earn', icon: require('../../assets/icons/people2.png'), route: 'ReferAndEarn' as const, authRequired: true },
   { id: 'bulkorders', label: 'Bulk Orders', icon: require('../../assets/icons/bulkorders.png'), route: 'BulkOrders' as const, authRequired: false },
 ];
 

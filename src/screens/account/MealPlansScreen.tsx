@@ -11,8 +11,6 @@ import {
   RefreshControl,
   Modal,
   TextInput,
-  Alert,
-  Platform,
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -60,6 +58,8 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showSubscriptionDetails, setShowSubscriptionDetails] = useState(false);
+  const [showFailureModal, setShowFailureModal] = useState(false);
+  const [failureMessage, setFailureMessage] = useState('');
 
   // Fetch plans on mount
   useEffect(() => {
@@ -113,11 +113,8 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
 
         // Payment failed
         console.log('[MealPlansScreen] Payment failed:', paymentResult.error);
-        Alert.alert(
-          'Payment Failed',
-          paymentResult.error || 'Payment could not be processed. Please try again.',
-          [{ text: 'OK' }]
-        );
+        setFailureMessage(paymentResult.error || 'Payment could not be processed. Please try again.');
+        setShowFailureModal(true);
         return;
       }
 
@@ -157,7 +154,8 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
       setShowSuccessModal(true);
     } catch (err: any) {
       console.log('[MealPlansScreen] confirmPurchase - Purchase failed:', err.message || err);
-      Alert.alert('Error', err.message || 'Failed to complete purchase');
+      setFailureMessage(err.message || 'Failed to complete purchase. Please try again.');
+      setShowFailureModal(true);
     } finally {
       setIsProcessing(false);
     }
@@ -197,9 +195,14 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
     return date.toLocaleDateString('en-IN', options);
   };
 
-  // Calculate savings
-  const calculateSavings = (plan: SubscriptionPlan) => {
-    return plan.originalPrice - plan.price;
+  // Calculate savings - first plan uses originalPrice, others compare against first plan's per-voucher rate
+  const calculateSavings = (plan: SubscriptionPlan, index: number) => {
+    if (index === 0 || plans.length === 0) {
+      return plan.originalPrice - plan.price;
+    }
+    const basePricePerVoucher = Math.round(plans[0].price / plans[0].totalVouchers);
+    const thisPricePerVoucher = Math.round(plan.price / plan.totalVouchers);
+    return (basePricePerVoucher - thisPricePerVoucher) * plan.totalVouchers;
   };
 
   // Calculate price per voucher
@@ -436,8 +439,8 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
 
           {/* Plans List */}
           {!plansLoading &&
-            plans.map((plan) => {
-              const savings = calculateSavings(plan);
+            plans.map((plan, index) => {
+              const savings = calculateSavings(plan, index);
               const pricePerVoucher = calculatePricePerVoucher(plan);
               const activeSubscriptionsForPlan = subscriptions.filter(
                 sub => sub.status === 'ACTIVE' && sub.planSnapshot?.name === plan.name
@@ -451,7 +454,7 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                   activeOpacity={0.8}
                   style={{
                     width: '100%',
-                    minHeight: 160,
+                    minHeight: 130,
                     borderRadius: 28,
                     borderWidth: 1,
                     borderColor: '#ff8800',
@@ -468,14 +471,24 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                   />
 
                   {/* Content */}
-                  <View style={{ flex: 1, padding: 19 }}>
-                    {/* Voucher Icon */}
-                    <View style={{ marginBottom: 12 }}>
+                  <View style={{ flex: 1, padding: 16 }}>
+                    {/* Voucher Icon + Plan Name */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                       <Image
                         source={require('../../assets/icons/newvoucher2.png')}
-                        style={{ width: 28, height: 28 }}
+                        style={{ width: 22, height: 22, marginRight: 8 }}
                         resizeMode="contain"
                       />
+                      <Text
+                        style={{
+                          fontFamily: 'DMSans-SemiBold',
+                          fontWeight: '600',
+                          fontSize: 14,
+                          color: '#000000',
+                        }}
+                      >
+                        {plan.name}
+                      </Text>
                     </View>
 
                     {/* Save Badge - positioned top right */}
@@ -483,19 +496,19 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                       <View
                         style={{
                           position: 'absolute',
-                          top: 16,
-                          right: 16,
+                          top: 14,
+                          right: 14,
                           backgroundColor: 'rgba(233, 255, 238, 1)',
-                          borderRadius: 20,
-                          paddingHorizontal: 12,
-                          paddingVertical: 4,
+                          borderRadius: 16,
+                          paddingHorizontal: 10,
+                          paddingVertical: 3,
                         }}
                       >
                         <Text
                           style={{
                             fontFamily: 'DMSans-SemiBold',
                             fontWeight: '600',
-                            fontSize: 12,
+                            fontSize: 11,
                             color: 'rgba(0, 139, 30, 1)',
                           }}
                         >
@@ -512,8 +525,8 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                           style={{
                             fontFamily: 'DMSans-SemiBold',
                             fontWeight: '600',
-                            fontSize: 32,
-                            lineHeight: 36,
+                            fontSize: 24,
+                            lineHeight: 28,
                             color: '#000000',
                           }}
                         >
@@ -521,12 +534,12 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                         </Text>
 
                         {/* Vouchers and Meals */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
                           <Text
                             style={{
                               fontFamily: 'Inter',
                               fontWeight: '400',
-                              fontSize: 15,
+                              fontSize: 12,
                               color: '#000000',
                             }}
                           >
@@ -536,9 +549,9 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                             style={{
                               fontFamily: 'Inter',
                               fontWeight: '400',
-                              fontSize: 15,
+                              fontSize: 12,
                               color: '#000000',
-                              marginHorizontal: 8,
+                              marginHorizontal: 6,
                             }}
                           >
                             •
@@ -547,7 +560,7 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                             style={{
                               fontFamily: 'Inter',
                               fontWeight: '400',
-                              fontSize: 15,
+                              fontSize: 12,
                               color: '#000000',
                             }}
                           >
@@ -563,8 +576,8 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                             style={{
                               fontFamily: 'DMSans-SemiBold',
                               fontWeight: '600',
-                              fontSize: 40,
-                              lineHeight: 44,
+                              fontSize: 30,
+                              lineHeight: 34,
                               color: '#000000',
                             }}
                           >
@@ -574,10 +587,10 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                             style={{
                               fontFamily: 'DMSans-Medium',
                               fontWeight: '500',
-                              fontSize: 20,
-                              lineHeight: 30,
+                              fontSize: 15,
+                              lineHeight: 22,
                               color: '#000000',
-                              marginLeft: 4,
+                              marginLeft: 3,
                             }}
                           >
                             Days
@@ -589,9 +602,9 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                           style={{
                             fontFamily: 'Inter',
                             fontWeight: '400',
-                            fontSize: 14,
+                            fontSize: 12,
                             color: '#000000',
-                            marginTop: 4,
+                            marginTop: 3,
                           }}
                         >
                           ₹{pricePerVoucher}/Voucher
@@ -825,6 +838,90 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
             >
               <Text className="text-center text-white font-semibold">Done</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Purchase Failed Modal */}
+      <Modal visible={showFailureModal} transparent animationType="fade">
+        <View className="flex-1 bg-black/50 justify-center items-center px-5">
+          <View className="bg-white rounded-3xl w-full max-w-md p-6 items-center">
+            <View
+              style={{
+                width: 64,
+                height: 64,
+                backgroundColor: '#FEE2E2',
+                borderRadius: 32,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 16,
+              }}
+            >
+              <Text style={{ fontSize: 28, color: '#EF4444' }}>✕</Text>
+            </View>
+
+            <Text
+              style={{
+                fontFamily: 'DMSans-SemiBold',
+                fontWeight: '600',
+                fontSize: 20,
+                color: '#111827',
+                marginBottom: 8,
+                textAlign: 'center',
+              }}
+            >
+              Purchase Failed
+            </Text>
+
+            <Text
+              style={{
+                fontSize: 14,
+                color: '#6B7280',
+                textAlign: 'center',
+                marginBottom: 20,
+                lineHeight: 20,
+              }}
+            >
+              {failureMessage}
+            </Text>
+
+            <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowFailureModal(false);
+                  setFailureMessage('');
+                  setSelectedPlan(null);
+                }}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  borderRadius: 999,
+                  borderWidth: 1,
+                  borderColor: '#D1D5DB',
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#6B7280' }}>Close</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowFailureModal(false);
+                  setFailureMessage('');
+                  if (selectedPlan) {
+                    setShowPurchaseModal(true);
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  borderRadius: 999,
+                  backgroundColor: '#ff8800',
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFFFFF' }}>Try Again</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>

@@ -15,6 +15,7 @@ interface MealWindowModalProps {
   nextMealWindow: MealType;
   nextMealWindowTime: string;
   onClose: () => void;
+  onSchedule?: () => void;
 }
 
 const MealWindowModal: React.FC<MealWindowModalProps> = ({
@@ -22,6 +23,7 @@ const MealWindowModal: React.FC<MealWindowModalProps> = ({
   nextMealWindow,
   nextMealWindowTime,
   onClose,
+  onSchedule,
 }) => {
   const getMealName = () => nextMealWindow === 'lunch' ? 'Lunch' : 'Dinner';
 
@@ -124,21 +126,50 @@ const MealWindowModal: React.FC<MealWindowModalProps> = ({
             </Text>
           </View>
 
-          {/* Button */}
+          {/* Schedule for Tomorrow Button */}
+          {onSchedule && (
+            <TouchableOpacity
+              onPress={onSchedule}
+              style={{
+                backgroundColor: '#ff8800',
+                borderRadius: 30,
+                paddingVertical: 14,
+                paddingHorizontal: 40,
+                width: '100%',
+                marginBottom: 12,
+              }}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={{
+                  color: 'white',
+                  fontSize: 16,
+                  fontWeight: '600',
+                  textAlign: 'center',
+                }}
+              >
+                Schedule for Tomorrow
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {/* View Menu Button */}
           <TouchableOpacity
             onPress={onClose}
             style={{
-              backgroundColor: '#ff8800',
+              backgroundColor: onSchedule ? 'transparent' : '#ff8800',
               borderRadius: 30,
               paddingVertical: 14,
               paddingHorizontal: 40,
               width: '100%',
+              borderWidth: onSchedule ? 2 : 0,
+              borderColor: '#ff8800',
             }}
             activeOpacity={0.8}
           >
             <Text
               style={{
-                color: 'white',
+                color: onSchedule ? '#ff8800' : 'white',
                 fontSize: 16,
                 fontWeight: '600',
                 textAlign: 'center',

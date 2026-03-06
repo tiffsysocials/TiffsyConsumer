@@ -1,10 +1,7 @@
 package com.tiffsy.consumer
 
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
-import android.media.AudioAttributes
-import android.media.RingtoneManager
 import android.os.Build
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -28,104 +25,11 @@ class NotificationChannelModule(reactContext: ReactApplicationContext) :
      */
     @ReactMethod
     fun createNotificationChannels(promise: Promise) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            try {
-                val notificationManager = reactApplicationContext
-                    .getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-                // 1. Orders Channel (High Priority)
-                // For order status updates, delivery notifications
-                val ordersChannel = NotificationChannel(
-                    "orders_channel",
-                    "Orders",
-                    NotificationManager.IMPORTANCE_HIGH
-                ).apply {
-                    description = "Order status updates and delivery notifications"
-                    enableLights(true)
-                    lightColor = android.graphics.Color.parseColor("#ff8800") // Orange brand color
-                    enableVibration(true)
-                    vibrationPattern = longArrayOf(0, 300, 200, 300) // Custom vibration pattern
-                    setSound(
-                        RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
-                        AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_NOTIFICATION)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                            .build()
-                    )
-                    setShowBadge(true) // Show badge on app icon
-                }
-
-                // 2. Subscriptions Channel (High Priority)
-                // For subscription updates, voucher notifications, auto-ordering
-                val subscriptionsChannel = NotificationChannel(
-                    "subscriptions_channel",
-                    "Subscriptions",
-                    NotificationManager.IMPORTANCE_HIGH
-                ).apply {
-                    description = "Subscription and voucher notifications"
-                    enableLights(true)
-                    lightColor = android.graphics.Color.parseColor("#8B5CF6") // Purple color
-                    enableVibration(true)
-                    vibrationPattern = longArrayOf(0, 200, 100, 200)
-                    setSound(
-                        RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
-                        AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_NOTIFICATION)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                            .build()
-                    )
-                    setShowBadge(true)
-                }
-
-                // 3. General Channel (High Priority)
-                // For admin push, menu updates, promotional messages
-                val generalChannel = NotificationChannel(
-                    "general_channel",
-                    "General",
-                    NotificationManager.IMPORTANCE_HIGH
-                ).apply {
-                    description = "Admin announcements, menu updates and promotional messages"
-                    enableLights(true)
-                    lightColor = android.graphics.Color.parseColor("#10B981") // Green color
-                    enableVibration(true)
-                    vibrationPattern = longArrayOf(0, 200, 100, 200)
-                    setSound(
-                        RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
-                        AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_NOTIFICATION)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                            .build()
-                    )
-                    setShowBadge(true)
-                }
-
-                // 4. Default Channel (Fallback)
-                // For uncategorized notifications
-                val defaultChannel = NotificationChannel(
-                    "default_channel",
-                    "Default",
-                    NotificationManager.IMPORTANCE_DEFAULT
-                ).apply {
-                    description = "Default notifications"
-                    enableLights(true)
-                    enableVibration(true)
-                    vibrationPattern = longArrayOf(0, 250, 250, 250)
-                    setShowBadge(true)
-                }
-
-                // Register all channels
-                notificationManager.createNotificationChannel(ordersChannel)
-                notificationManager.createNotificationChannel(subscriptionsChannel)
-                notificationManager.createNotificationChannel(generalChannel)
-                notificationManager.createNotificationChannel(defaultChannel)
-
-                promise.resolve(true)
-            } catch (e: Exception) {
-                promise.reject("CHANNEL_ERROR", "Failed to create notification channels: ${e.message}", e)
-            }
-        } else {
-            // Pre-Android O doesn't need channels
+        try {
+            NotificationHelper.createChannels(reactApplicationContext)
             promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("CHANNEL_ERROR", "Failed to create notification channels: ${e.message}", e)
         }
     }
 

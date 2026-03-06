@@ -69,7 +69,11 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { width, isSmallDevice } = useResponsive();
   const { scale } = useScaling();
-  const [selectedMeal, setSelectedMeal] = useState<MealType>('lunch');
+  const [selectedMeal, setSelectedMeal] = useState<MealType>(() => {
+    const now = new Date();
+    const totalMin = now.getHours() * 60 + now.getMinutes();
+    return totalMin >= 11 * 60 && totalMin < 21 * 60 ? 'dinner' : 'lunch';
+  });
   const [showCartModal, setShowCartModal] = useState(false);
   const [mealQuantity, setMealQuantity] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
@@ -90,7 +94,8 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
 
   // Meal window modal state
   const [showMealWindowModal, setShowMealWindowModal] = useState(false);
-  const [hasCheckedMealWindow, setHasCheckedMealWindow] = useState(false);
+  // Focus counter to recalculate meal window on screen focus
+  const [focusCount, setFocusCount] = useState(0);
 
   // Auto-order notification state
   const [showAutoOrderNotification, setShowAutoOrderNotification] = useState(false);
@@ -175,40 +180,32 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
         nextMealWindowTime: '6:00 AM tomorrow',
       };
     }
-  }, []);
+  }, [focusCount]);
 
 
   // Initialize meal tab based on current time and show modal if outside window
   useEffect(() => {
-    if (!hasCheckedMealWindow) {
-      const now = new Date();
-      console.log('==================================================');
-      console.log('[HomeScreen] TAB SELECTION INITIALIZATION');
-      console.log('==================================================');
-      console.log('[HomeScreen] Current time:', now.toLocaleString());
-      console.log('[HomeScreen] Current hour:', now.getHours(), 'minute:', now.getMinutes());
-      console.log('[HomeScreen] Kitchen:', currentKitchen?.name);
-      console.log('[HomeScreen] Has operating hours:', !!currentKitchen?.operatingHours);
-      console.log('[HomeScreen] Meal window info:', JSON.stringify(mealWindowInfo, null, 2));
-      console.log('[HomeScreen] Selected meal will be:', mealWindowInfo.activeMeal);
-      console.log('==================================================');
+    const now = new Date();
+    console.log('==================================================');
+    console.log('[HomeScreen] TAB SELECTION INITIALIZATION');
+    console.log('==================================================');
+    console.log('[HomeScreen] Current time:', now.toLocaleString());
+    console.log('[HomeScreen] Current hour:', now.getHours(), 'minute:', now.getMinutes());
+    console.log('[HomeScreen] Meal window info:', JSON.stringify(mealWindowInfo, null, 2));
+    console.log('[HomeScreen] Selected meal will be:', mealWindowInfo.activeMeal);
+    console.log('==================================================');
 
-      // Set the initial meal based on current time
-      setSelectedMeal(mealWindowInfo.activeMeal);
-      console.log('[HomeScreen] Tab set to:', mealWindowInfo.activeMeal);
+    // Set the meal based on current time
+    setSelectedMeal(mealWindowInfo.activeMeal);
 
-      // If outside meal window, show the modal
-      if (!mealWindowInfo.isWindowOpen) {
-        console.log('[HomeScreen] Outside meal window, showing modal');
-        console.log('[HomeScreen] Next meal window:', mealWindowInfo.nextMealWindow, 'at', mealWindowInfo.nextMealWindowTime);
-        setShowMealWindowModal(true);
-      } else {
-        console.log('[HomeScreen] Within meal window, no modal shown');
-      }
-
-      setHasCheckedMealWindow(true);
+    // If outside meal window, show the modal
+    if (!mealWindowInfo.isWindowOpen) {
+      console.log('[HomeScreen] Outside meal window, showing modal');
+      setShowMealWindowModal(true);
+    } else {
+      setShowMealWindowModal(false);
     }
-  }, [hasCheckedMealWindow, mealWindowInfo, currentKitchen]);
+  }, [mealWindowInfo]);
 
   // Handle modal close - switch to the next meal window tab
   const handleMealWindowModalClose = () => {
@@ -465,6 +462,13 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   useFocusEffect(
     useCallback(() => {
       console.log('[HomeScreen] useFocusEffect triggered - refetching menu');
+      // Recalculate correct meal tab based on current time
+      const now = new Date();
+      const totalMin = now.getHours() * 60 + now.getMinutes();
+      const timeMeal: MealType = totalMin >= 11 * 60 && totalMin < 21 * 60 ? 'dinner' : 'lunch';
+      setSelectedMeal(timeMeal);
+      // Increment focus counter to recalculate mealWindowInfo
+      setFocusCount(c => c + 1);
       fetchMenu();
     }, [selectedAddressId])
   );
@@ -1236,73 +1240,6 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
         {/* White Container with Meal Options and Image */}
         <View className="mb-6" style={{ position: 'relative', overflow: 'visible', marginTop: SPACING.md }}>
 
-          {/* Meal Type Tabs - commented out to prevent manual switching */}
-          {/* <View className="flex-row justify-center pt-10 mb-6">
-            <TouchableOpacity
-              onPress={() => setSelectedMeal('lunch')}
-              className={`items-center mx-6 ${selectedMeal === 'lunch' ? '' : 'opacity-50'}`}
-            >
-              <View style={{ height: SPACING.iconXl * 2, width: SPACING.iconXl * 2, alignItems: 'center', justifyContent: 'center', marginBottom: 2 }}>
-                <Image
-                  source={require('../../assets/images/homepage/lunch1.png')}
-                  style={{
-                    width: selectedMeal === 'lunch' ? SPACING.iconXl * 2 : SPACING.iconXl * 1.6,
-                    height: selectedMeal === 'lunch' ? SPACING.iconXl * 2 : SPACING.iconXl * 1.6,
-                    borderRadius: 12,
-                  }}
-                  resizeMode="contain"
-                />
-              </View>
-              <Text
-                className={`font-semibold ${
-                  selectedMeal === 'lunch' ? 'text-orange-400' : 'text-gray-400'
-                }`}
-                style={{ fontSize: FONT_SIZES.base }}
-              >
-                Lunch
-              </Text>
-              {selectedMeal === 'lunch' && (
-                <Image
-                  source={require('../../assets/icons/borderline.png')}
-                  style={{ width: SPACING['5xl'] * 2, height: SPACING.sm, marginTop: 4 }}
-                  resizeMode="contain"
-                />
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setSelectedMeal('dinner')}
-              className={`items-center mx-6 ${selectedMeal === 'dinner' ? '' : 'opacity-50'}`}
-            >
-              <View style={{ height: SPACING.iconXl * 2, width: SPACING.iconXl * 2, alignItems: 'center', justifyContent: 'center', marginBottom: 2 }}>
-                <Image
-                  source={require('../../assets/images/homepage/dinner1.png')}
-                  style={{
-                    width: selectedMeal === 'dinner' ? SPACING.iconXl * 2 : SPACING.iconXl * 1.6,
-                    height: selectedMeal === 'dinner' ? SPACING.iconXl * 2 : SPACING.iconXl * 1.6,
-                    borderRadius: 12,
-                  }}
-                  resizeMode="contain"
-                />
-              </View>
-              <Text
-                className={`font-semibold ${
-                  selectedMeal === 'dinner' ? 'text-orange-400' : 'text-gray-400'
-                }`}
-                style={{ fontSize: FONT_SIZES.base }}
-              >
-                Dinner
-              </Text>
-              {selectedMeal === 'dinner' && (
-                <Image
-                  source={require('../../assets/icons/borderline.png')}
-                  style={{ width: SPACING['5xl'] * 2, height: SPACING.sm, marginTop: 4 }}
-                  resizeMode="contain"
-                />
-              )}
-            </TouchableOpacity>
-          </View> */}
-
           {/* Main Meal Image */}
           <View className="items-center justify-center pb-4" style={{ width: '100%' }}>
             <Image
@@ -1406,11 +1343,13 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
               <MaterialCommunityIcons name="clock-alert-outline" size={20} color="#EF4444" style={{ marginRight: 8 }} />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: FONT_SIZES.sm, color: '#991B1B', fontWeight: '600' }}>
-                  {selectedMeal === 'lunch' ? 'Lunch' : 'Dinner'} ordering is closed
+                  {!mealWindowInfo.isWindowOpen ? 'Ordering closed for today' : `${selectedMeal === 'lunch' ? 'Lunch' : 'Dinner'} ordering is closed`}
                 </Text>
                 <Text style={{ fontSize: FONT_SIZES.xs, color: '#B91C1C', marginTop: 2 }}>
-                  {getCurrentMealItem()?.cutoffMessage ||
-                    `Orders closed at ${getCurrentMealItem()?.orderCutoffTime || (selectedMeal === 'lunch' ? '11:00 AM' : '9:00 PM')}`}
+                  {!mealWindowInfo.isWindowOpen
+                    ? 'Orders reopen at 6:00 AM tomorrow'
+                    : (getCurrentMealItem()?.cutoffMessage ||
+                      `Orders closed at ${getCurrentMealItem()?.orderCutoffTime || (selectedMeal === 'lunch' ? '11:00 AM' : '9:00 PM')}`)}
                 </Text>
               </View>
             </View>
@@ -1422,6 +1361,11 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
           <View className="flex-row justify-between items-start mb-6">
             {/* Left: Meal Name and Price */}
             <View className="flex-1 pr-4">
+              {!mealWindowInfo.isWindowOpen && (
+                <Text style={{ fontSize: FONT_SIZES.xs, color: '#ff8800', fontWeight: '600', marginBottom: 4 }}>
+                  Tomorrow's Menu
+                </Text>
+              )}
               <Text className="font-bold text-gray-900" style={{ fontSize: FONT_SIZES.h3 }}>{getMealName()}</Text>
               <Text className="text-gray-600 mt-1" style={{ fontSize: FONT_SIZES.base }}>
                 From: <Text className="font-semibold text-gray-900">₹{getMealPrice().toFixed(2)}</Text>
@@ -1432,13 +1376,13 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
             <View style={{ gap: SPACING.sm }}>
               {!showCartModal ? (
               <TouchableOpacity
-                onPress={canOrderCurrentMeal() ? handleAddToCart : undefined}
-                activeOpacity={canOrderCurrentMeal() ? 0.7 : 1}
-                disabled={!canOrderCurrentMeal()}
+                onPress={canOrderCurrentMeal() ? handleAddToCart : (!mealWindowInfo.isWindowOpen ? () => navigation.navigate('MealCalendar') : undefined)}
+                activeOpacity={canOrderCurrentMeal() || !mealWindowInfo.isWindowOpen ? 0.7 : 1}
+                disabled={!canOrderCurrentMeal() && mealWindowInfo.isWindowOpen}
                 style={{
-                  backgroundColor: canOrderCurrentMeal() ? 'rgba(255, 136, 0, 1)' : 'rgba(209, 213, 219, 1)',
+                  backgroundColor: canOrderCurrentMeal() || !mealWindowInfo.isWindowOpen ? 'rgba(255, 136, 0, 1)' : 'rgba(209, 213, 219, 1)',
                   borderRadius: SPACING['3xl'],
-                  width: SPACING['5xl'] * 3.125,
+                  minWidth: SPACING['5xl'] * 3.125,
                   height: SPACING['2xl'] + SPACING.xl + 1,
                   paddingHorizontal: SPACING.lg,
                   flexDirection: 'row',
@@ -1446,9 +1390,9 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
                   justifyContent: 'center',
                 }}
               >
-                <MaterialCommunityIcons name={canOrderCurrentMeal() ? "cart-plus" : "clock-alert-outline"} size={18} color="white" style={{ marginRight: 6 }} />
+                <MaterialCommunityIcons name={canOrderCurrentMeal() ? "cart-plus" : (!mealWindowInfo.isWindowOpen ? "calendar-clock" : "clock-alert-outline")} size={18} color="white" style={{ marginRight: 6 }} />
                 <Text style={{ color: 'white', fontSize: FONT_SIZES.sm, fontWeight: '600' }}>
-                  {canOrderCurrentMeal() ? 'Add to Cart' : 'Ordering Closed'}
+                  {canOrderCurrentMeal() ? 'Add to Cart' : (!mealWindowInfo.isWindowOpen ? 'Schedule for Tomorrow' : 'Ordering Closed')}
                 </Text>
               </TouchableOpacity>
             ) : (
@@ -1722,6 +1666,10 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
         nextMealWindow={mealWindowInfo.nextMealWindow}
         nextMealWindowTime={mealWindowInfo.nextMealWindowTime}
         onClose={handleMealWindowModalClose}
+        onSchedule={() => {
+          setShowMealWindowModal(false);
+          navigation.navigate('MealCalendar');
+        }}
       />
 
       {/* Voucher Payment Choice Modal */}

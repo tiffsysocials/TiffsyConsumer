@@ -48,6 +48,7 @@ interface UserContextType {
     name: string;
     email?: string;
     dietaryPreferences?: DietaryPreferences;
+    referralCode?: string;
   }) => Promise<void>;
   registerFcmToken: () => Promise<boolean>;
   logout: () => Promise<void>;
@@ -322,6 +323,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     name: string;
     email?: string;
     dietaryPreferences?: DietaryPreferences;
+    referralCode?: string;
   }) => {
     // OFFLINE MODE: Skip backend call, save locally
     if (OFFLINE_MODE) {
@@ -373,6 +375,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           name: data.name,
           email: data.email,
           dietaryPreferences: dietaryPrefsArray,
+          referralCode: data.referralCode || undefined,
         });
         responseData = response.data;
       } else {

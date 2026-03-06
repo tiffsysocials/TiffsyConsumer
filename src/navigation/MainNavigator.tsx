@@ -7,6 +7,7 @@ import CartScreen from '../screens/cart/CartScreen';
 import PaymentScreen from '../screens/payment/PaymentScreen';
 import AccountScreen from '../screens/account/AccountScreen';
 import EditProfileScreen from '../screens/account/EditProfileScreen';
+import ReferAndEarnScreen from '../screens/account/ReferAndEarnScreen';
 import HelpSupportScreen from '../screens/account/HelpSupportScreen';
 import AboutScreen from '../screens/account/AboutScreen';
 import OurJourneyScreen from '../screens/account/OurJourneyScreen';
@@ -25,6 +26,7 @@ import MyScheduledMealsScreen from '../screens/scheduled-meals/MyScheduledMealsS
 import ChatSupportScreen from '../screens/account/ChatSupportScreen';
 import MealCalendarScreen from '../screens/scheduled-meals/MealCalendarScreen';
 import BulkSchedulePricingScreen from '../screens/scheduled-meals/BulkSchedulePricingScreen';
+import AutoOrderAddonScreen from '../screens/scheduled-meals/AutoOrderAddonScreen';
 import BottomNavBar from '../components/BottomNavBar';
 import { MainTabParamList } from '../types/navigation';
 
@@ -74,6 +76,7 @@ const MainNavigatorContent = () => {
         <Stack.Screen name="Cart" component={CartScreen} />
         <Stack.Screen name="Payment" component={PaymentScreen} />
         <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+        <Stack.Screen name="ReferAndEarn" component={ReferAndEarnScreen} />
         <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
         <Stack.Screen name="About" component={AboutScreen} />
         <Stack.Screen name="OurJourney" component={OurJourneyScreen} />
@@ -90,6 +93,7 @@ const MainNavigatorContent = () => {
         <Stack.Screen name="ChatSupport" component={ChatSupportScreen} />
         <Stack.Screen name="MealCalendar" component={MealCalendarScreen} />
         <Stack.Screen name="BulkSchedulePricing" component={BulkSchedulePricingScreen} />
+        <Stack.Screen name="AutoOrderAddons" component={AutoOrderAddonScreen} />
       </Stack.Navigator>
       {showNavBar && <BottomNavBar activeTab={activeTab} />}
     </View>

@@ -2,9 +2,9 @@ import axios, { AxiosInstance } from 'axios';
 import { getIdToken } from '../config/firebase';
 
 // Backend base URL - update this with your actual backend URL
-//const BASE_URL = 'https://d31od4t2t5epcb.cloudfront.net';
+// const BASE_URL = 'https://d31od4t2t5epcb.cloudfront.net';
 // const BASE_URL = 'http://192.168.1.4:5005';
- const BASE_URL = 'http://192.168.29.69:5005';
+const BASE_URL = 'http://192.168.29.69:5005';
 
 // Type definitions for API responses
 export interface UserData {
@@ -569,6 +569,7 @@ export interface OrderVoucherUsage {
 }
 
 export type OrderStatus =
+  | 'SCHEDULED'
   | 'PENDING_KITCHEN_ACCEPTANCE'
   | 'PLACED'
   | 'ACCEPTED'
@@ -1468,6 +1469,43 @@ export interface BulkScheduleResult {
   };
 }
 
+// ============================================
+// AUTO-ORDER ADDON TYPES
+// ============================================
+
+export interface AutoOrderAddonSlot {
+  date: string;                // "YYYY-MM-DD"
+  dayName: string;             // e.g. "Monday"
+  mealWindow: 'LUNCH' | 'DINNER';
+  addressId: string;
+  isPaid: boolean;             // true if an existing PAID selection exists
+  existingAddons: Array<{
+    addonId: string;
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+  }>;
+  addonsCost: number;          // cost of existing paid selection (0 if not paid)
+}
+
+export interface AutoOrderAddonPricingData {
+  slots: Array<{
+    date: string;
+    mealWindow: string;
+    addons: Array<{
+      addonId: string;
+      name: string;
+      quantity: number;
+      unitPrice: number;
+      totalPrice: number;
+    }>;
+    addonsCost: number;
+  }>;
+  grandTotal: number;
+  kitchenId: string;
+}
+
 class ApiService {
   private api: AxiosInstance;
 
@@ -1548,6 +1586,7 @@ class ApiService {
     name: string;
     email?: string;
     dietaryPreferences?: string[];
+    referralCode?: string;
   }): Promise<RegisterUserResponse> {
     return this.api.post('/api/auth/register', data);
   }
@@ -1971,9 +2010,10 @@ class ApiService {
     name: string;
     email?: string;
     dietaryPreferences?: string[];
+    referralCode?: string;
   }): Promise<{
     message: string;
-    data: { user: UserData };
+    data: { user: UserData; referral?: { success: boolean; error?: string } };
   }> {
     return this.api.post('/api/customer/profile/complete', data);
   }
@@ -2419,6 +2459,125 @@ class ApiService {
     allowAutoOrderConflict?: boolean;
   }): Promise<{ success: boolean; message: string; data: BulkScheduleResult }> {
     return this.api.post('/api/scheduling/meals/bulk', data);
+  }
+
+  // ============================================
+  // AUTO-ORDER ADDON ENDPOINTS
+  // ============================================
+
+  // Get all upcoming auto-order slots with existing paid selections
+  async getAutoOrderAddonSlots(addressId?: string): Promise<{
+    success: boolean;
+    message: string;
+    data: { slots: AutoOrderAddonSlot[]; totalSlots: number; paidSlots: number };
+  }> {
+    return this.api.get('/api/auto-order/addon-slots', { params: addressId ? { addressId } : {} });
+  }
+
+  // Calculate pricing for chosen slots + addons
+  async getAutoOrderAddonPricing(data: {
+    addressId: string;
+    slots: Array<{ date: string; mealWindow: 'LUNCH' | 'DINNER'; addons: Array<{ addonId: string; quantity: number }> }>;
+  }): Promise<{ success: boolean; message: string; data: AutoOrderAddonPricingData }> {
+    return this.api.post('/api/auto-order/addon-pricing', data);
+  }
+
+  // Create selections + initiate Razorpay payment
+  async createAutoOrderAddonSelections(data: {
+    addressId: string;
+    slots: Array<{ date: string; mealWindow: 'LUNCH' | 'DINNER'; addons: Array<{ addonId: string; quantity: number }> }>;
+  }): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      batchId: string;
+      paymentRequired: boolean;
+      slotsActivated?: number;
+      payment?: {
+        razorpayOrderId: string;
+        amount: number;
+        amountRupees: number;
+        key: string;
+        expiresAt: string;
+      };
+    };
+  }> {
+    return this.api.post('/api/auto-order/addon-selections', data);
+  }
+
+  // Verify Razorpay payment and activate selections
+  async verifyAutoOrderAddonPayment(data: {
+    batchId: string;
+    razorpayOrderId: string;
+    razorpayPaymentId: string;
+    razorpaySignature: string;
+  }): Promise<{ success: boolean; message: string; data: { success: boolean; slotsActivated: number } }> {
+    return this.api.post('/api/auto-order/addon-selections/verify-payment', data);
+  }
+
+  // =============================================
+  // REFERRAL ENDPOINTS
+  // =============================================
+
+  // Get or generate referral code
+  async getMyReferralCode(): Promise<{
+    success: boolean;
+    message: string;
+    data: { code: string };
+  }> {
+    return this.api.get('/api/referrals/my-code');
+  }
+
+  // Get referral stats
+  async getMyReferralStats(): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      referralCode: string;
+      totalReferred: number;
+      totalConverted: number;
+      totalVouchersEarned: number;
+      currentMilestone: { name: string; referralCount: number } | null;
+      nextMilestone: { name: string; referralCount: number; remaining: number } | null;
+      referrals: Array<{
+        _id: string;
+        refereeName: string;
+        refereePhone: string | null;
+        status: string;
+        createdAt: string;
+        conversionDate?: string;
+        referrerReward?: { voucherCount: number };
+      }>;
+    };
+  }> {
+    return this.api.get('/api/referrals/my-stats');
+  }
+
+  // Validate a referral code
+  async validateReferralCode(code: string): Promise<{
+    success: boolean;
+    message: string;
+    data: { valid: boolean; referrerName?: string; reason?: string };
+  }> {
+    return this.api.post('/api/referrals/validate-code', { code });
+  }
+
+  // Apply a referral code
+  async applyReferralCode(code: string): Promise<{
+    success: boolean;
+    message: string;
+    data: { applied: boolean; referralId?: string };
+  }> {
+    return this.api.post('/api/referrals/apply-code', { code });
+  }
+
+  // Get shareable content
+  async getShareContent(): Promise<{
+    success: boolean;
+    message: string;
+    data: { message: string; code: string };
+  }> {
+    return this.api.get('/api/referrals/share-content');
   }
 }
 

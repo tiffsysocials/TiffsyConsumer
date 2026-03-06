@@ -714,7 +714,7 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           {isActiveOrder && (
             <TouchableOpacity
               onPress={handleTrackOrder}
-              className="rounded-full items-center mb-3"
+              className="rounded-full items-center justify-center mb-3"
               style={{ backgroundColor: '#ff8800', minHeight: TOUCH_TARGETS.comfortable }}
             >
               <Text className="text-white font-bold" style={{ fontSize: FONT_SIZES.base }}>Track Order</Text>

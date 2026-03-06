@@ -18,7 +18,7 @@ import { useSubscription } from '../../context/SubscriptionContext';
 import { useAlert } from '../../context/AlertContext';
 import apiService, { Order, OrderStatus } from '../../services/api.service';
 import dataPreloader from '../../services/dataPreloader.service';
-import CancelOrderModal from '../../components/CancelOrderModal';
+
 import { useResponsive } from '../../hooks/useResponsive';
 import { SPACING } from '../../constants/spacing';
 
@@ -26,6 +26,7 @@ type Props = StackScreenProps<MainTabParamList, 'YourOrders'>;
 
 // Current order statuses (orders still in progress)
 const CURRENT_STATUSES: OrderStatus[] = [
+  'SCHEDULED',
   'PENDING_KITCHEN_ACCEPTANCE',
   'PLACED',
   'ACCEPTED',
@@ -41,6 +42,8 @@ const HISTORY_STATUSES: OrderStatus[] = ['DELIVERED', 'CANCELLED', 'REJECTED'];
 // Map order status to user-friendly message
 const getStatusMessage = (status: OrderStatus): string => {
   switch (status) {
+    case 'SCHEDULED':
+      return 'Scheduled for upcoming delivery';
     case 'PENDING_KITCHEN_ACCEPTANCE':
       return 'Waiting for kitchen confirmation';
     case 'PLACED':
@@ -155,10 +158,6 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
   // Track if data has been loaded to prevent unnecessary fetches
   const hasLoadedDataRef = useRef(false);
 
-  // Cancel modal state
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [selectedOrderForCancel, setSelectedOrderForCancel] = useState<Order | null>(null);
-  const [isCancelling, setIsCancelling] = useState(false);
 
   // Fetch current orders
   const fetchCurrentOrders = async () => {
@@ -366,69 +365,6 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
     }, [])
   );
 
-  // Open cancel modal
-  const handleOpenCancelModal = (order: Order) => {
-    console.log('[YourOrdersScreen] Opening cancel modal for order:', order.orderNumber);
-    setSelectedOrderForCancel(order);
-    setShowCancelModal(true);
-  };
-
-  // Cancel order handler
-  const handleCancelOrder = async (reason: string) => {
-    if (!selectedOrderForCancel) return;
-
-    try {
-      setIsCancelling(true);
-      console.log('[YourOrdersScreen] Cancelling order:', selectedOrderForCancel._id);
-      const response = await apiService.cancelOrder(selectedOrderForCancel._id, reason);
-      console.log('[YourOrdersScreen] Cancel response:', JSON.stringify(response, null, 2));
-
-      // Handle API response format: {message: true/false, data: string, error?: object}
-      // or standard format: {success: boolean, message: string, data?: object}
-      const isSuccess = response.success === true || (response as any).message === true;
-      const responseData = (response as any).error || response.data;
-
-      if (isSuccess) {
-        console.log('[YourOrdersScreen] Order cancelled successfully');
-        setShowCancelModal(false);
-        setSelectedOrderForCancel(null);
-
-        const message = responseData?.message ||
-          (typeof response.data === 'string' ? response.data : 'Order cancelled successfully.');
-
-        showAlert('Order Cancelled', message, [
-          { text: 'OK', onPress: () => fetchAllOrders() },
-        ], 'success');
-      } else {
-        const errorMessage = typeof response.data === 'string'
-          ? response.data
-          : (response.message && typeof response.message === 'string' ? response.message : 'Failed to cancel order');
-        console.log('[YourOrdersScreen] Cancel failed:', errorMessage);
-        setShowCancelModal(false);
-        // Hide cancel button for this order (window likely expired)
-        if (selectedOrderForCancel) {
-          setCurrentOrders(prev => prev.map(o =>
-            o._id === selectedOrderForCancel._id ? { ...o, canCancel: false } : o
-          ));
-        }
-        setSelectedOrderForCancel(null);
-        showAlert('Cannot Cancel Order', errorMessage, undefined, 'error');
-      }
-    } catch (error: any) {
-      console.error('[YourOrdersScreen] Cancel error:', error.message || error);
-      setShowCancelModal(false);
-      // Hide cancel button for this order (window likely expired)
-      if (selectedOrderForCancel) {
-        setCurrentOrders(prev => prev.map(o =>
-          o._id === selectedOrderForCancel._id ? { ...o, canCancel: false } : o
-        ));
-      }
-      setSelectedOrderForCancel(null);
-      showAlert('Error', error.message || 'Failed to cancel order', undefined, 'error');
-    } finally {
-      setIsCancelling(false);
-    }
-  };
 
   // Navigate to order detail
   const handleViewOrderDetail = (orderId: string) => {
@@ -543,26 +479,13 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
 
       {/* Action Buttons */}
       <View className="flex-row justify-center">
-        {order.canCancel === true && (
-          <TouchableOpacity
-            onPress={(e) => {
-              e.stopPropagation();
-              handleOpenCancelModal(order);
-            }}
-            className="py-2 rounded-full items-center"
-            style={{ width: 135, marginRight: 12, borderWidth: 2, borderColor: 'rgba(255, 136, 0, 1)' }}
-          >
-            <Text className="text-base font-semibold" style={{ color: 'rgba(255, 136, 0, 1)' }}>Cancel</Text>
-          </TouchableOpacity>
-        )}
-
         <TouchableOpacity
           onPress={(e) => {
             e.stopPropagation();
             handleTrackOrder(order._id);
           }}
-          className="py-2 rounded-full items-center"
-          style={{ width: order.canCancel === true ? 135 : 280, backgroundColor: 'rgba(255, 136, 0, 1)' }}
+          className="py-2 rounded-full items-center justify-center"
+          style={{ width: 280, backgroundColor: 'rgba(255, 136, 0, 1)' }}
         >
           <Text className="text-base font-semibold text-white">Track Order</Text>
         </TouchableOpacity>
@@ -983,17 +906,6 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Cancel Order Modal */}
-      <CancelOrderModal
-        visible={showCancelModal}
-        onClose={() => {
-          setShowCancelModal(false);
-          setSelectedOrderForCancel(null);
-        }}
-        onConfirm={handleCancelOrder}
-        orderNumber={selectedOrderForCancel?.orderNumber}
-        isLoading={isCancelling}
-      />
     </View>
   );
 };
