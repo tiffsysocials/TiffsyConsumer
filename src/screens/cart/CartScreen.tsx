@@ -534,6 +534,8 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
             voucherCount: slotVouchers || undefined,
             couponCode: couponCode || undefined,
             specialInstructions: cookingInstructions.trim() || undefined,
+            leaveAtDoor: leaveAtDoor || undefined,
+            doNotContact: doNotContact || undefined,
           });
 
           console.log(`[CartScreen] createScheduledMeal response for ${slot}:`, JSON.stringify(response));
@@ -560,6 +562,9 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
             voucherCount: slotVouchers,
             couponCode: couponCode || null,
             paymentMethod: slotVouchers > 0 && slotPricingData?.amountToPay === 0 ? 'VOUCHER_ONLY' : 'UPI',
+            specialInstructions: cookingInstructions.trim() || undefined,
+            leaveAtDoor: leaveAtDoor || undefined,
+            doNotContact: doNotContact || undefined,
           };
 
           let response = await apiService.createOrder(orderPayload);

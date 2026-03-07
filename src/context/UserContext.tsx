@@ -58,6 +58,8 @@ interface UserContextType {
   checkProfileStatus: () => Promise<void>;
   setNeedsAddressSetup: (value: boolean) => void;
   refreshUser: () => Promise<void>;
+  authError: string | null;
+  retrySync: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -68,6 +70,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
   const [needsAddressSetup, setNeedsAddressSetup] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // Check if user needs to set up address
   const checkAddressSetup = async (userProfile?: UserProfile | null) => {
@@ -126,15 +129,21 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const { userProfile } = await syncUserInternal();
             // Check if user needs to set up address (pass the synced user profile)
             await checkAddressSetup(userProfile);
-          } catch (error) {
+            setAuthError(null);
+          } catch (error: any) {
             console.error('Error checking profile status:', error);
             // Fallback to cached data if backend fails
             const storedUser = await AsyncStorage.getItem('user_profile');
             if (storedUser) {
               const parsedUser = JSON.parse(storedUser);
               setUser(parsedUser);
+              setAuthError(null);
               // Also check address setup for cached user
               await checkAddressSetup(parsedUser);
+            } else {
+              // No cache AND sync failed - set error so UI can show retry
+              console.log('[UserContext] Sync failed with no cache, setting authError');
+              setAuthError(error?.message || 'Failed to connect to server');
             }
           }
         } else {
@@ -267,6 +276,27 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.error('[UserContext] Error refreshing profile:', error.message || error);
       // Fallback to sync if getProfile fails
       await syncUserInternal();
+    }
+  };
+
+  const retrySync = async () => {
+    setAuthError(null);
+    setIsLoading(true);
+    try {
+      const { userProfile } = await syncUserInternal();
+      await checkAddressSetup(userProfile);
+    } catch (error: any) {
+      console.error('[UserContext] Retry sync failed:', error);
+      const storedUser = await AsyncStorage.getItem('user_profile');
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        setAuthError(null);
+      } else {
+        setAuthError(error?.message || 'Failed to connect to server');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -563,6 +593,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(null);
       setFirebaseUser(null);
       setIsGuest(false);
+      setAuthError(null);
       await AsyncStorage.removeItem('user_profile');
       await AsyncStorage.removeItem('is_guest');
       console.log('[Auth] User logged out successfully');
@@ -595,6 +626,8 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         checkProfileStatus,
         setNeedsAddressSetup,
         refreshUser,
+        authError,
+        retrySync,
       }}
     >
       {children}

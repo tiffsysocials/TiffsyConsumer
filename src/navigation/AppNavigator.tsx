@@ -1,4 +1,5 @@
 import React from 'react';
+import { View, Text, TouchableOpacity, ActivityIndicator, Image, Dimensions } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import OnboardingNavigator from './OnboardingNavigator';
@@ -12,13 +13,82 @@ import { useUser } from '../context/UserContext';
 import { navigationRef } from './navigationRef';
 
 const Stack = createStackNavigator<RootStackParamList>();
+const { width } = Dimensions.get('window');
+
+const AuthErrorView: React.FC<{
+  onRetry: () => Promise<void>;
+  onLogout: () => Promise<void>;
+}> = ({ onRetry, onLogout }) => {
+  const [retrying, setRetrying] = React.useState(false);
+
+  const handleRetry = async () => {
+    setRetrying(true);
+    try {
+      await onRetry();
+    } finally {
+      setRetrying(false);
+    }
+  };
+
+  return (
+    <View style={{ flex: 1, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }}>
+      <Image
+        source={require('../assets/images/logo.png')}
+        style={{ width: width * 0.3, height: width * 0.3, marginBottom: 32 }}
+        resizeMode="contain"
+      />
+      <Text style={{ fontSize: 20, fontWeight: '700', color: '#111827', marginBottom: 8, textAlign: 'center' }}>
+        Connection Error
+      </Text>
+      <Text style={{ fontSize: 15, color: '#6B7280', textAlign: 'center', marginBottom: 32, lineHeight: 22 }}>
+        We couldn't connect to our servers. Please check your internet connection and try again.
+      </Text>
+      <TouchableOpacity
+        onPress={handleRetry}
+        disabled={retrying}
+        style={{
+          backgroundColor: '#ff8800',
+          borderRadius: 100,
+          paddingVertical: 14,
+          paddingHorizontal: 48,
+          marginBottom: 16,
+          opacity: retrying ? 0.6 : 1,
+          width: '100%',
+          alignItems: 'center',
+        }}
+      >
+        {retrying ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Try Again</Text>
+        )}
+      </TouchableOpacity>
+      <TouchableOpacity
+        onPress={onLogout}
+        style={{
+          paddingVertical: 14,
+          paddingHorizontal: 48,
+          width: '100%',
+          alignItems: 'center',
+        }}
+      >
+        <Text style={{ color: '#6B7280', fontSize: 15, fontWeight: '500' }}>Logout</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
 
 const AppNavigator = () => {
-  const { firebaseUser, user, isLoading, isGuest, needsAddressSetup } = useUser();
+  const { firebaseUser, user, isLoading, isGuest, needsAddressSetup, authError, retrySync, logout } = useUser();
 
-  // Show splash screen while checking auth state
-  if (isLoading || (firebaseUser && !user && !isGuest)) {
+  // Show splash screen while checking auth state (but NOT when there's an auth error)
+  if (isLoading || (firebaseUser && !user && !isGuest && !authError)) {
     return <SplashView />;
+  }
+
+  // Show error/retry screen when sync failed with no cached data
+  if (authError && firebaseUser && !user) {
+    return <AuthErrorView onRetry={retrySync} onLogout={logout} />;
   }
 
   return (

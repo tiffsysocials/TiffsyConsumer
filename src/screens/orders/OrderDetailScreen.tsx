@@ -370,7 +370,7 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             resizeMode="contain"
           />
         </TouchableOpacity>
-        <Text className="flex-1 text-center font-bold text-gray-900 mr-10" style={{ fontSize: isSmallDevice ? FONT_SIZES.h4 : FONT_SIZES.h3 }}>
+        <Text className="flex-1 text-center font-bold text-gray-900 mr-10" style={{ fontSize: isSmallDevice ? FONT_SIZES.h5 : FONT_SIZES.h4 }}>
           Order Details
         </Text>
       </View>
@@ -389,7 +389,7 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         {/* Order Header */}
         <View className="bg-white mb-2" style={{ padding: isSmallDevice ? SPACING.lg : SPACING.xl }}>
           <View className="flex-row items-center justify-between mb-2">
-            <Text className="font-bold text-gray-900" style={{ fontSize: FONT_SIZES.h4 }}>
+            <Text className="font-bold text-gray-900" style={{ fontSize: FONT_SIZES.lg }}>
               #{order.orderNumber}
             </Text>
             <View
@@ -482,7 +482,7 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         {/* Kitchen Info */}
         {kitchen && (
           <View className="bg-white mb-2" style={{ padding: isSmallDevice ? SPACING.lg : SPACING.xl }}>
-            <Text className="font-bold text-gray-900 mb-3" style={{ fontSize: FONT_SIZES.h4 }}>Kitchen</Text>
+            <Text className="font-bold text-gray-900 mb-3" style={{ fontSize: FONT_SIZES.lg }}>Kitchen</Text>
             <View>
               <Text className="font-semibold text-gray-900" style={{ fontSize: FONT_SIZES.base }}>
                 {kitchen.name}
@@ -500,7 +500,7 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
         {/* Items Section */}
         <View className="bg-white mb-2" style={{ padding: isSmallDevice ? SPACING.lg : SPACING.xl }}>
-          <Text className="font-bold text-gray-900 mb-3" style={{ fontSize: FONT_SIZES.h4 }}>Items</Text>
+          <Text className="font-bold text-gray-900 mb-3" style={{ fontSize: FONT_SIZES.lg }}>Items</Text>
 
           {order.items.map((item, index) => (
             <View key={index} className="mb-3">
@@ -542,7 +542,7 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
         {/* Pricing Breakdown */}
         <View className="bg-white mb-2" style={{ padding: isSmallDevice ? SPACING.lg : SPACING.xl }}>
-          <Text className="font-bold text-gray-900 mb-3" style={{ fontSize: FONT_SIZES.h4 }}>Payment Details</Text>
+          <Text className="font-bold text-gray-900 mb-3" style={{ fontSize: FONT_SIZES.lg }}>Payment Details</Text>
 
           <View className="flex-row justify-between mb-2">
             <Text className="text-sm text-gray-600">Subtotal</Text>
@@ -648,13 +648,13 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           )}
 
           <View className="flex-row justify-between pt-3 mt-2 border-t border-gray-200">
-            <Text className="text-base font-bold text-gray-900">Grand Total</Text>
-            <Text className="text-base font-bold text-gray-900">₹{order.grandTotal.toFixed(2)}</Text>
+            <Text className="font-bold text-gray-900" style={{ fontSize: FONT_SIZES.base }}>Grand Total</Text>
+            <Text className="font-bold text-gray-900" style={{ fontSize: FONT_SIZES.base }}>₹{order.grandTotal.toFixed(2)}</Text>
           </View>
 
           <View className="flex-row justify-between mt-2">
-            <Text className="text-sm text-gray-600">Amount Paid</Text>
-            <Text className="text-sm font-semibold" style={{ color: '#ff8800' }}>
+            <Text className="text-gray-600" style={{ fontSize: FONT_SIZES.sm }}>Amount Paid</Text>
+            <Text className="font-semibold" style={{ color: '#ff8800', fontSize: FONT_SIZES.sm }}>
               ₹{order.amountPaid.toFixed(2)}
             </Text>
           </View>
@@ -662,7 +662,7 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
         {/* Delivery Address */}
         <View className="bg-white mb-2" style={{ padding: isSmallDevice ? SPACING.lg : SPACING.xl }}>
-          <Text className="font-bold text-gray-900 mb-3" style={{ fontSize: FONT_SIZES.h4 }}>Delivery Address</Text>
+          <Text className="font-bold text-gray-900 mb-3" style={{ fontSize: FONT_SIZES.lg }}>Delivery Address</Text>
 
           <Text className="text-sm font-semibold text-gray-900">
             {order.deliveryAddress.contactName}

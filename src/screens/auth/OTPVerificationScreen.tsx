@@ -109,6 +109,22 @@ const OTPVerificationScreen: React.FC<Props> = ({ navigation, route }) => {
       // Keep loading true to prevent UI flash during transition
     } catch (error: any) {
       console.error('Error verifying OTP:', error);
+
+      // If Firebase auth succeeded but backend sync failed, don't show "Invalid OTP"
+      // The AuthErrorView in AppNavigator will handle the sync failure
+      const errorMsg = error?.message || error?.error || '';
+      const isSyncError = typeof errorMsg === 'string' && (
+        errorMsg.includes('Unauthorized') ||
+        errorMsg.includes('Invalid token') ||
+        errorMsg.includes('Failed to connect')
+      );
+
+      if (isSyncError) {
+        // Sync failed after OTP was verified - let AppNavigator show error/retry
+        setLoading(false);
+        return;
+      }
+
       showAlert('Invalid OTP', 'Please try again.', undefined, 'error');
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();

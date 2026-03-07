@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -22,12 +23,16 @@ import { FONT_SIZES } from '../../constants/typography';
 const ADDRESS_LABELS = ['Home', 'Office', 'Other'];
 
 const AddressSetupScreen: React.FC = () => {
-  const { checkServiceability, createAddressOnServer } = useAddress();
+  const { checkServiceability, createAddressOnServer, getCurrentLocationWithAddress } = useAddress();
   const { setNeedsAddressSetup, user, logout } = useUser();
   const { showAlert } = useAlert();
   const { isSmallDevice } = useResponsive();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [formCoordinates, setFormCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [isCheckingPincode, setIsCheckingPincode] = useState(false);
+  const [pincodeServiceable, setPincodeServiceable] = useState<boolean | null>(null);
 
   // Address form state
   const [addressForm, setAddressForm] = useState({
@@ -44,6 +49,89 @@ const AddressSetupScreen: React.FC = () => {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Auto-detect location on mount
+  useEffect(() => {
+    detectLocation(true);
+  }, []);
+
+  const detectLocation = async (isAutoDetect = false) => {
+    setIsDetectingLocation(true);
+    try {
+      const location = await getCurrentLocationWithAddress();
+
+      if (!location.pincode) {
+        if (!isAutoDetect) {
+          showAlert(
+            'Location Error',
+            'Unable to get pincode from your location. Please enter your address manually.',
+            undefined,
+            'error'
+          );
+        }
+        setIsDetectingLocation(false);
+        return;
+      }
+
+      // Store GPS coordinates
+      setFormCoordinates(location.coordinates);
+
+      // Auto-fill form with location data
+      setAddressForm(prev => ({
+        ...prev,
+        addressLine1: location.address?.addressLine1 || '',
+        locality: location.address?.locality || '',
+        city: location.address?.city || '',
+        state: location.address?.state || '',
+        pincode: location.pincode || '',
+      }));
+
+      // Clear any existing errors for auto-filled fields
+      setErrors({});
+
+      // Auto-check pincode serviceability
+      if (location.pincode && location.pincode.length === 6) {
+        setIsCheckingPincode(true);
+        const result = await checkServiceability(location.pincode);
+        setPincodeServiceable(result.isServiceable);
+        setIsCheckingPincode(false);
+      }
+
+      if (!isAutoDetect) {
+        showAlert(
+          'Location Detected',
+          'We\'ve auto-filled your address details. Please review and add any missing information.',
+          undefined,
+          'success'
+        );
+      }
+    } catch (error: any) {
+      console.error('Location detection error:', error);
+      if (!isAutoDetect) {
+        showAlert(
+          'Location Error',
+          error.message || 'Unable to get your current location. Please ensure location services are enabled.',
+          undefined,
+          'error'
+        );
+      }
+    } finally {
+      setIsDetectingLocation(false);
+    }
+  };
+
+  const handlePincodeChange = async (text: string) => {
+    const pincode = text.replace(/[^0-9]/g, '');
+    updateFormField('pincode', pincode);
+    setPincodeServiceable(null);
+
+    if (pincode.length === 6) {
+      setIsCheckingPincode(true);
+      const result = await checkServiceability(pincode);
+      setPincodeServiceable(result.isServiceable);
+      setIsCheckingPincode(false);
+    }
+  };
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -85,22 +173,23 @@ const AddressSetupScreen: React.FC = () => {
       const serviceabilityResult = await checkServiceability(addressForm.pincode);
 
       if (!serviceabilityResult.isServiceable) {
-        // Show error and keep the form open for editing
         showAlert(
           'Not Serviceable',
           serviceabilityResult.message || `We don't deliver to pincode ${addressForm.pincode} yet. Please try a different address.`,
           undefined,
           'error'
         );
-        // Highlight the pincode field
         setErrors(prev => ({ ...prev, pincode: 'This pincode is not serviceable' }));
         setIsSubmitting(false);
         return;
       }
 
-      // Serviceability check passed — geocode address to get coordinates
-      const fullAddress = `${addressForm.addressLine1}, ${addressForm.locality}, ${addressForm.city}, ${addressForm.state}, ${addressForm.pincode}`;
-      const coordinates = await locationService.forwardGeocode(fullAddress);
+      // Use GPS coordinates if available, otherwise forward geocode
+      let coordinates = formCoordinates;
+      if (!coordinates) {
+        const fullAddress = `${addressForm.addressLine1}, ${addressForm.locality}, ${addressForm.city}, ${addressForm.state}, ${addressForm.pincode}`;
+        coordinates = await locationService.forwardGeocode(fullAddress);
+      }
 
       await createAddressOnServer({
         label: addressForm.label,
@@ -119,12 +208,11 @@ const AddressSetupScreen: React.FC = () => {
 
       // Address created successfully, exit address setup flow
       setNeedsAddressSetup(false);
-      // Navigation will be handled automatically by AppNavigator
     } catch (error: any) {
       console.error('Error creating address:', error);
       showAlert(
         'Error',
-        error.message || 'Failed to save address. Please try again.',
+        error.error || error.message || 'Failed to save address. Please try again.',
         undefined,
         'error'
       );
@@ -141,7 +229,6 @@ const AddressSetupScreen: React.FC = () => {
 
   const handleBackPress = async () => {
     try {
-      // Log out the user - this will automatically redirect to login screen
       await logout();
     } catch (error) {
       console.error('Error logging out:', error);
@@ -151,21 +238,29 @@ const AddressSetupScreen: React.FC = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      {/* Back Button */}
-      <View className="px-5 pt-2 pb-2">
-        <TouchableOpacity
-          onPress={handleBackPress}
-          style={{
-            minWidth: TOUCH_TARGETS.minimum,
-            minHeight: TOUCH_TARGETS.minimum,
-            borderRadius: TOUCH_TARGETS.minimum / 2,
-            backgroundColor: '#F3F4F6',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <MaterialCommunityIcons name="arrow-left" size={SPACING.iconSize} color="#374151" />
-        </TouchableOpacity>
+      {/* Header with Back Button */}
+      <View style={{ paddingHorizontal: isSmallDevice ? SPACING.lg : SPACING.xl, paddingTop: SPACING.md, paddingBottom: SPACING.lg }}>
+        <View className="flex-row items-center">
+          <TouchableOpacity
+            onPress={handleBackPress}
+            className="rounded-full bg-orange-400 items-center justify-center mr-4"
+            style={{ minWidth: TOUCH_TARGETS.minimum, minHeight: TOUCH_TARGETS.minimum }}
+          >
+            <Image
+              source={require('../../assets/icons/backarrow2.png')}
+              style={{ width: SPACING.iconLg, height: SPACING.iconLg - 2 }}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+          <View className="flex-1">
+            <Text className="font-bold text-gray-900" style={{ fontSize: isSmallDevice ? FONT_SIZES.h3 : FONT_SIZES.h2 }}>
+              Add Delivery Address
+            </Text>
+            <Text className="text-gray-500 mt-1" style={{ fontSize: FONT_SIZES.sm }}>
+              We'll check if we deliver to your area
+            </Text>
+          </View>
+        </View>
       </View>
 
       <KeyboardAvoidingView
@@ -173,16 +268,42 @@ const AddressSetupScreen: React.FC = () => {
         className="flex-1"
       >
         <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-          <View className="px-5 py-6">
-            {/* Header */}
-            <View className="mb-6">
-              <Text className="font-bold text-gray-800 mb-1" style={{ fontSize: isSmallDevice ? FONT_SIZES.h3 : FONT_SIZES.h2 }}>
-                Add Delivery Address
-              </Text>
-              <Text className="text-gray-500" style={{ fontSize: FONT_SIZES.base }}>
-                We'll check if we deliver to your area
-              </Text>
-            </View>
+          <View className="px-5 pb-6">
+            {/* Use Current Location Button */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              disabled={isDetectingLocation}
+              onPress={() => detectLocation(false)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: isDetectingLocation ? '#FFF7ED' : '#FFFFFF',
+                borderRadius: 16,
+                paddingVertical: 14,
+                paddingHorizontal: 20,
+                marginBottom: 20,
+                borderWidth: 1.5,
+                borderColor: '#ff8800',
+                borderStyle: 'dashed',
+              }}
+            >
+              {isDetectingLocation ? (
+                <>
+                  <ActivityIndicator size="small" color="#ff8800" style={{ marginRight: 10 }} />
+                  <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '600', color: '#ff8800' }}>
+                    Detecting your location...
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <MaterialCommunityIcons name="crosshairs-gps" size={22} color="#ff8800" style={{ marginRight: 10 }} />
+                  <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '600', color: '#ff8800' }}>
+                    Use Current Location
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
 
             {/* Address Label */}
             <View className="mb-5">
@@ -220,30 +341,51 @@ const AddressSetupScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* Pincode */}
+            {/* Pincode with serviceability check */}
             <View className="mb-4">
               <Text className="text-gray-700 font-semibold mb-2" style={{ fontSize: FONT_SIZES.base }}>
                 Pincode <Text className="text-red-500">*</Text>
               </Text>
-              <TextInput
-                className="bg-gray-50 rounded-xl"
-                style={{
-                  paddingHorizontal: SPACING.lg,
-                  paddingVertical: SPACING.md,
-                  minHeight: TOUCH_TARGETS.comfortable,
-                  fontSize: FONT_SIZES.base,
-                  borderWidth: 1,
-                  borderColor: errors.pincode ? '#EF4444' : addressForm.pincode.length === 6 ? '#10B981' : '#E5E7EB',
-                }}
-                placeholder="Enter 6-digit pincode"
-                placeholderTextColor="#9CA3AF"
-                value={addressForm.pincode}
-                onChangeText={(text) => updateFormField('pincode', text.replace(/[^0-9]/g, ''))}
-                keyboardType="number-pad"
-                maxLength={6}
-              />
+              <View className="flex-row items-center">
+                <TextInput
+                  className="flex-1 bg-gray-50 rounded-xl"
+                  style={{
+                    paddingHorizontal: SPACING.lg,
+                    paddingVertical: SPACING.md,
+                    minHeight: TOUCH_TARGETS.comfortable,
+                    fontSize: FONT_SIZES.base,
+                    borderWidth: 1,
+                    borderColor: errors.pincode ? '#EF4444' : pincodeServiceable === true ? '#10B981' : pincodeServiceable === false ? '#EF4444' : '#E5E7EB',
+                  }}
+                  placeholder="Enter 6-digit pincode"
+                  placeholderTextColor="#9CA3AF"
+                  value={addressForm.pincode}
+                  onChangeText={handlePincodeChange}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                />
+                {isCheckingPincode && (
+                  <ActivityIndicator size="small" color="#ff8800" style={{ marginLeft: 12 }} />
+                )}
+                {pincodeServiceable === true && (
+                  <Text className="ml-3 text-green-600 text-lg">✓</Text>
+                )}
+                {pincodeServiceable === false && (
+                  <Text className="ml-3 text-red-500 text-lg">✗</Text>
+                )}
+              </View>
               {errors.pincode && (
                 <Text className="text-red-500 mt-1" style={{ fontSize: FONT_SIZES.xs }}>{errors.pincode}</Text>
+              )}
+              {pincodeServiceable === false && !errors.pincode && (
+                <Text className="text-red-500 mt-1" style={{ fontSize: FONT_SIZES.xs }}>
+                  Sorry, we don't deliver to this pincode yet
+                </Text>
+              )}
+              {pincodeServiceable === true && (
+                <Text className="text-green-600 mt-1" style={{ fontSize: FONT_SIZES.xs }}>
+                  Great! We deliver to this location
+                </Text>
               )}
             </View>
 
