@@ -293,16 +293,16 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
   if (isLoading) {
     return (
       <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-        <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
-        <SafeAreaView style={{ backgroundColor: '#ff8800' }} edges={['top']} />
-        <View style={{ backgroundColor: '#ff8800', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
+        <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
+        <SafeAreaView style={{ backgroundColor: '#FF6636' }} edges={['top']} />
+        <View style={{ backgroundColor: '#FF6636', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: SPACING.md }}>
             <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
           </TouchableOpacity>
           <Text style={{ color: 'white', fontSize: FONT_SIZES.h4, fontWeight: 'bold' }}>Meal Preview</Text>
         </View>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color="#ff8800" />
+          <ActivityIndicator size="large" color="#FE8733" />
           <Text style={{ marginTop: SPACING.md, fontSize: FONT_SIZES.sm, color: '#6B7280' }}>Loading pricing...</Text>
         </View>
       </View>
@@ -312,9 +312,9 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
   if (error || !pricingData) {
     return (
       <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-        <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
-        <SafeAreaView style={{ backgroundColor: '#ff8800' }} edges={['top']} />
-        <View style={{ backgroundColor: '#ff8800', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
+        <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
+        <SafeAreaView style={{ backgroundColor: '#FF6636' }} edges={['top']} />
+        <View style={{ backgroundColor: '#FF6636', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: SPACING.md }}>
             <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
           </TouchableOpacity>
@@ -325,7 +325,7 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text style={{ marginTop: SPACING.md, fontSize: FONT_SIZES.sm, color: '#6B7280', textAlign: 'center' }}>{error || 'Something went wrong'}</Text>
           <TouchableOpacity
             onPress={() => { setIsLoading(true); fetchPricing(appliedCoupon || undefined); }}
-            style={{ marginTop: SPACING.lg, backgroundColor: '#ff8800', borderRadius: 10, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.xl }}
+            style={{ marginTop: SPACING.lg, backgroundColor: '#FE8733', borderRadius: 10, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.xl }}
           >
             <Text style={{ color: 'white', fontWeight: '600', fontSize: FONT_SIZES.sm }}>Retry</Text>
           </TouchableOpacity>
@@ -339,11 +339,11 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
-      <SafeAreaView style={{ backgroundColor: '#ff8800' }} edges={['top']} />
+      <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
+      <SafeAreaView style={{ backgroundColor: '#FF6636' }} edges={['top']} />
 
       {/* Header */}
-      <View style={{ backgroundColor: '#ff8800', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
+      <View style={{ backgroundColor: '#FF6636', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: SPACING.md }}>
           <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
         </TouchableOpacity>
@@ -354,7 +354,7 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
         <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
           {/* Date & Meal Window Badge */}
           <View style={{ paddingHorizontal: SPACING.lg, paddingTop: SPACING.lg, flexDirection: 'row', alignItems: 'center' }}>
-            <MaterialCommunityIcons name="calendar" size={18} color="#ff8800" style={{ marginRight: SPACING.xs }} />
+            <MaterialCommunityIcons name="calendar" size={18} color="#FE8733" style={{ marginRight: SPACING.xs }} />
             <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: '#1F2937' }}>{formatDate(scheduledDate)}</Text>
             <View style={{
               marginLeft: SPACING.sm,
@@ -372,7 +372,7 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
           {/* Items Card */}
           <View style={{ margin: SPACING.lg, backgroundColor: '#FFFFFF', borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#E5E7EB' }}>
             <View style={{ width: '100%', height: 100, backgroundColor: '#FFF7ED', alignItems: 'center', justifyContent: 'center' }}>
-              <MaterialCommunityIcons name="food-variant" size={48} color="#ff8800" />
+              <MaterialCommunityIcons name="food-variant" size={48} color="#FE8733" />
             </View>
             <View style={{ padding: SPACING.lg }}>
               {items.map((item, index) => (
@@ -590,7 +590,7 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
                     onPress={handleApplyCoupon}
                     disabled={!couponCode.trim() || isApplyingCoupon}
                     style={{
-                      backgroundColor: couponCode.trim() ? '#ff8800' : '#D1D5DB',
+                      backgroundColor: couponCode.trim() ? '#FE8733' : '#D1D5DB',
                       borderRadius: 10,
                       paddingHorizontal: SPACING.lg,
                       justifyContent: 'center',
@@ -689,7 +689,7 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
             onPress={handleScheduleAndPay}
             disabled={isCreating}
             style={{
-              backgroundColor: isCreating ? '#FDBA74' : '#ff8800',
+              backgroundColor: isCreating ? '#FDBA74' : '#FE8733',
               borderRadius: 14,
               paddingVertical: SPACING.md + 2,
               alignItems: 'center',

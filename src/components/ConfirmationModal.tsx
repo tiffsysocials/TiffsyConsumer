@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   confirmButton: {
-    backgroundColor: '#ff8800',
+    backgroundColor: '#FE8733',
   },
   dangerButton: {
     backgroundColor: '#EF4444',

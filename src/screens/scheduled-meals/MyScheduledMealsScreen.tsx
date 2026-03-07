@@ -295,7 +295,7 @@ const MyScheduledMealsScreen: React.FC<Props> = ({ navigation }) => {
         onPress={() => navigation.navigate('MealCalendar')}
         style={{
           marginTop: SPACING.xl,
-          backgroundColor: '#ff8800',
+          backgroundColor: '#FE8733',
           borderRadius: 12,
           paddingVertical: SPACING.md,
           paddingHorizontal: SPACING['2xl'],
@@ -310,18 +310,18 @@ const MyScheduledMealsScreen: React.FC<Props> = ({ navigation }) => {
     if (!isLoadingMore) return null;
     return (
       <View style={{ paddingVertical: SPACING.lg, alignItems: 'center' }}>
-        <ActivityIndicator size="small" color="#ff8800" />
+        <ActivityIndicator size="small" color="#FE8733" />
       </View>
     );
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
-      <SafeAreaView style={{ backgroundColor: '#ff8800' }} edges={['top']} />
+      <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
+      <SafeAreaView style={{ backgroundColor: '#FF6636' }} edges={['top']} />
 
       {/* Header */}
-      <View style={{ backgroundColor: '#ff8800', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
+      <View style={{ backgroundColor: '#FF6636', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: SPACING.md }}>
           <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
         </TouchableOpacity>
@@ -344,7 +344,7 @@ const MyScheduledMealsScreen: React.FC<Props> = ({ navigation }) => {
 
       {isLoading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color="#ff8800" />
+          <ActivityIndicator size="large" color="#FE8733" />
           <Text style={{ marginTop: SPACING.md, fontSize: FONT_SIZES.sm, color: '#6B7280' }}>Loading scheduled meals...</Text>
         </View>
       ) : (
@@ -357,7 +357,7 @@ const MyScheduledMealsScreen: React.FC<Props> = ({ navigation }) => {
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.3}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#ff8800']} />
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#FE8733']} />
           }
           contentContainerStyle={{
             paddingTop: SPACING.lg,

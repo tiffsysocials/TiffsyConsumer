@@ -1,6 +1,6 @@
 // src/screens/onboarding/OnboardingScreen2.tsx
 import React, { useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StatusBar, Animated, Easing, ImageBackground, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StatusBar, Animated, Easing, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { OnboardingScreenProps } from '../../types/navigation';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -63,16 +63,15 @@ const OnboardingScreen2: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-orange-400">
-      <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#FD9E2F' }}>
+      <StatusBar barStyle="light-content" backgroundColor="#FD9E2F" />
       <View className="flex-1 px-10">
         <View className="flex-1 justify-center" style={{ width: '100%' }}>
           {/* Background Image */}
-          <ImageBackground
+          <Image
             source={require('../../assets/images/onboarding/couponbackground.png')}
-            style={{ width: 250, height: 320, paddingLeft: 2, paddingRight: 8, marginTop:-100, marginLeft:-50, position: 'absolute', top: 0, left: 0 }}
+            style={{ width: 250, height: 320, marginTop: -100, marginLeft: -50, position: 'absolute', top: 0, left: 0, opacity: 0.04, borderRadius: 100 }}
             resizeMode="cover"
-            imageStyle={{ opacity: 0.8, borderRadius: 100 }}
           />
 
           {/* Text */}
@@ -83,6 +82,9 @@ const OnboardingScreen2: React.FC<Props> = ({ navigation }) => {
               fontWeight: 'bold',
               marginTop: SPACING['3xl'],
               lineHeight: FONT_SIZES['3xl'] * 1.2,
+              textShadowColor: 'rgba(0, 0, 0, 0.3)',
+              textShadowOffset: { width: 0, height: 2 },
+              textShadowRadius: 4,
             }}
           >
             Get Coupons{'\n'}For Auto{'\n'}Delivery
@@ -182,7 +184,7 @@ const OnboardingScreen2: React.FC<Props> = ({ navigation }) => {
             >
               <Text
                 style={{
-                  color: '#ff8800',
+                  color: '#FE8733',
                   fontSize: FONT_SIZES.h4,
                   fontWeight: '600',
                   flex: 1,
@@ -194,7 +196,7 @@ const OnboardingScreen2: React.FC<Props> = ({ navigation }) => {
               </Text>
               <View
                 style={{
-                  backgroundColor: '#ff8800',
+                  backgroundColor: '#FE8733',
                   borderRadius: SPACING.iconXl / 2,
                   width: SPACING.iconXl + 4,
                   height: SPACING.iconXl + 4,

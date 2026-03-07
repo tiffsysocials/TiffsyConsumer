@@ -284,21 +284,21 @@ const AddressSetupScreen: React.FC = () => {
                 paddingHorizontal: 20,
                 marginBottom: 20,
                 borderWidth: 1.5,
-                borderColor: '#ff8800',
+                borderColor: '#FE8733',
                 borderStyle: 'dashed',
               }}
             >
               {isDetectingLocation ? (
                 <>
-                  <ActivityIndicator size="small" color="#ff8800" style={{ marginRight: 10 }} />
-                  <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '600', color: '#ff8800' }}>
+                  <ActivityIndicator size="small" color="#FE8733" style={{ marginRight: 10 }} />
+                  <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '600', color: '#FE8733' }}>
                     Detecting your location...
                   </Text>
                 </>
               ) : (
                 <>
-                  <MaterialCommunityIcons name="crosshairs-gps" size={22} color="#ff8800" style={{ marginRight: 10 }} />
-                  <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '600', color: '#ff8800' }}>
+                  <MaterialCommunityIcons name="crosshairs-gps" size={22} color="#FE8733" style={{ marginRight: 10 }} />
+                  <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '600', color: '#FE8733' }}>
                     Use Current Location
                   </Text>
                 </>
@@ -320,9 +320,9 @@ const AddressSetupScreen: React.FC = () => {
                       paddingHorizontal: SPACING.lg,
                       paddingVertical: SPACING.sm,
                       minHeight: TOUCH_TARGETS.minimum,
-                      backgroundColor: addressForm.label === label ? '#ff8800' : '#F3F4F6',
+                      backgroundColor: addressForm.label === label ? '#FE8733' : '#F3F4F6',
                       borderWidth: 1,
-                      borderColor: addressForm.label === label ? '#ff8800' : '#E5E7EB',
+                      borderColor: addressForm.label === label ? '#FE8733' : '#E5E7EB',
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
@@ -365,7 +365,7 @@ const AddressSetupScreen: React.FC = () => {
                   maxLength={6}
                 />
                 {isCheckingPincode && (
-                  <ActivityIndicator size="small" color="#ff8800" style={{ marginLeft: 12 }} />
+                  <ActivityIndicator size="small" color="#FE8733" style={{ marginLeft: 12 }} />
                 )}
                 {pincodeServiceable === true && (
                   <Text className="ml-3 text-green-600 text-lg">✓</Text>
@@ -608,7 +608,7 @@ const AddressSetupScreen: React.FC = () => {
               style={{
                 paddingVertical: SPACING.lg,
                 minHeight: TOUCH_TARGETS.large,
-                backgroundColor: isSubmitting ? '#CCCCCC' : '#ff8800',
+                backgroundColor: isSubmitting ? '#CCCCCC' : '#FE8733',
                 justifyContent: 'center',
               }}
             >

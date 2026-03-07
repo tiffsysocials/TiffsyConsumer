@@ -247,7 +247,7 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
       const [date] = slotKey.split('_');
       if (!marked[date]) marked[date] = { dots: [], marked: true };
       if (!marked[date].dots?.some((d: any) => d.key === 'selected')) {
-        marked[date].dots = [...(marked[date].dots || []), { key: 'selected', color: '#ff8800' }];
+        marked[date].dots = [...(marked[date].dots || []), { key: 'selected', color: '#FE8733' }];
       }
     });
 
@@ -256,7 +256,7 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
       marked[selectedDate] = {
         ...marked[selectedDate],
         selected: true,
-        selectedColor: '#ff8800',
+        selectedColor: '#FE8733',
       };
     }
 
@@ -508,7 +508,7 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
             backgroundColor: isSelected ? '#FFF7ED' : '#FFFFFF',
             borderRadius: 14,
             borderWidth: isSelected ? 2 : 1.5,
-            borderColor: isSelected ? '#ff8800' : '#6EE7B7',
+            borderColor: isSelected ? '#FE8733' : '#6EE7B7',
             borderStyle: isSelected ? 'solid' : 'dashed',
             padding: SPACING.lg,
             marginBottom: SPACING.md,
@@ -520,10 +520,10 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
             <MaterialCommunityIcons
               name={isSelected ? 'checkbox-marked' : 'checkbox-blank-outline'}
               size={24}
-              color={isSelected ? '#ff8800' : '#9CA3AF'}
+              color={isSelected ? '#FE8733' : '#9CA3AF'}
             />
           </View>
-          <Text style={{ fontSize: FONT_SIZES.sm, color: isSelected ? '#ff8800' : '#6B7280' }}>
+          <Text style={{ fontSize: FONT_SIZES.sm, color: isSelected ? '#FE8733' : '#6B7280' }}>
             {isSelected ? 'Selected for scheduling' : 'Tap to select for scheduling'}
           </Text>
         </TouchableOpacity>
@@ -560,9 +560,9 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
   if (addresses.length === 0) {
     return (
       <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-        <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
-        <SafeAreaView style={{ backgroundColor: '#ff8800' }} edges={['top']} />
-        <View style={{ backgroundColor: '#ff8800', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
+        <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
+        <SafeAreaView style={{ backgroundColor: '#FF6636' }} edges={['top']} />
+        <View style={{ backgroundColor: '#FF6636', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: SPACING.md }}>
             <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
           </TouchableOpacity>
@@ -580,7 +580,7 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
             onPress={() => navigation.navigate('Address')}
             style={{
               marginTop: SPACING.xl,
-              backgroundColor: '#ff8800',
+              backgroundColor: '#FE8733',
               borderRadius: 12,
               paddingVertical: SPACING.md,
               paddingHorizontal: SPACING['2xl'],
@@ -595,11 +595,11 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
-      <SafeAreaView style={{ backgroundColor: '#ff8800' }} edges={['top']} />
+      <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
+      <SafeAreaView style={{ backgroundColor: '#FF6636' }} edges={['top']} />
 
       {/* Header */}
-      <View style={{ backgroundColor: '#ff8800', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
+      <View style={{ backgroundColor: '#FF6636', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: SPACING.md }}>
           <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
         </TouchableOpacity>
@@ -652,7 +652,7 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
             borderColor: '#E5E7EB',
           }}
         >
-          <MaterialCommunityIcons name="map-marker-outline" size={20} color="#ff8800" style={{ marginRight: SPACING.sm }} />
+          <MaterialCommunityIcons name="map-marker-outline" size={20} color="#FE8733" style={{ marginRight: SPACING.sm }} />
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: FONT_SIZES.xs, color: '#6B7280' }}>Showing calendar for</Text>
             <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: '#1F2937' }} numberOfLines={1}>
@@ -664,7 +664,7 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
 
         {isLoading ? (
           <View style={{ paddingVertical: SPACING['5xl'], alignItems: 'center' }}>
-            <ActivityIndicator size="large" color="#ff8800" />
+            <ActivityIndicator size="large" color="#FE8733" />
             <Text style={{ marginTop: SPACING.md, fontSize: FONT_SIZES.sm, color: '#6B7280' }}>Loading meal calendar...</Text>
           </View>
         ) : (
@@ -700,19 +700,19 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
                   <MaterialCommunityIcons
                     name={direction === 'left' ? 'chevron-left' : 'chevron-right'}
                     size={24}
-                    color="#ff8800"
+                    color="#FE8733"
                   />
                 )}
                 theme={{
                   backgroundColor: '#FFFFFF',
                   calendarBackground: '#FFFFFF',
                   textSectionTitleColor: '#6B7280',
-                  selectedDayBackgroundColor: '#ff8800',
+                  selectedDayBackgroundColor: '#FE8733',
                   selectedDayTextColor: '#FFFFFF',
-                  todayTextColor: '#ff8800',
+                  todayTextColor: '#FE8733',
                   dayTextColor: '#1F2937',
                   textDisabledColor: '#D1D5DB',
-                  arrowColor: '#ff8800',
+                  arrowColor: '#FE8733',
                   monthTextColor: '#1F2937',
                   textMonthFontWeight: 'bold' as any,
                   textDayFontSize: 16,
@@ -765,7 +765,7 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
                   borderColor: '#E5E7EB',
                 }}
               >
-                <MaterialCommunityIcons name="calendar-text" size={20} color="#ff8800" style={{ marginRight: SPACING.sm }} />
+                <MaterialCommunityIcons name="calendar-text" size={20} color="#FE8733" style={{ marginRight: SPACING.sm }} />
                 <Text style={{ fontSize: FONT_SIZES.xs, fontWeight: '600', color: '#1F2937' }}>My Meals</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -781,7 +781,7 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
                   borderColor: '#E5E7EB',
                 }}
               >
-                <MaterialCommunityIcons name="refresh-auto" size={20} color="#ff8800" style={{ marginRight: SPACING.sm }} />
+                <MaterialCommunityIcons name="refresh-auto" size={20} color="#FE8733" style={{ marginRight: SPACING.sm }} />
                 <Text style={{ fontSize: FONT_SIZES.xs, fontWeight: '600', color: '#1F2937' }}>Auto-Order</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -797,8 +797,8 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
                   borderColor: '#FED7AA',
                 }}
               >
-                <MaterialCommunityIcons name="food-variant-plus" size={20} color="#ff8800" style={{ marginRight: SPACING.sm }} />
-                <Text style={{ fontSize: FONT_SIZES.xs, fontWeight: '600', color: '#ff8800' }}>Add Add-ons</Text>
+                <MaterialCommunityIcons name="food-variant-plus" size={20} color="#FE8733" style={{ marginRight: SPACING.sm }} />
+                <Text style={{ fontSize: FONT_SIZES.xs, fontWeight: '600', color: '#FE8733' }}>Add Add-ons</Text>
               </TouchableOpacity>
             </View>
 
@@ -883,7 +883,7 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
           bottom: 0,
           left: 0,
           right: 0,
-          backgroundColor: '#ff8800',
+          backgroundColor: '#FE8733',
           paddingVertical: SPACING.md,
           paddingHorizontal: SPACING.xl,
           paddingBottom: SPACING.md + insets.bottom,
@@ -915,7 +915,7 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
               paddingHorizontal: SPACING.xl,
             }}
           >
-            <Text style={{ color: '#ff8800', fontWeight: '700', fontSize: FONT_SIZES.sm }}>Continue</Text>
+            <Text style={{ color: '#FE8733', fontWeight: '700', fontSize: FONT_SIZES.sm }}>Continue</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -959,11 +959,11 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
                   <MaterialCommunityIcons
                     name={item.label === 'Home' ? 'home-outline' : item.label === 'Office' ? 'office-building-outline' : 'map-marker-outline'}
                     size={20}
-                    color={item.id === currentAddressId ? '#ff8800' : '#6B7280'}
+                    color={item.id === currentAddressId ? '#FE8733' : '#6B7280'}
                     style={{ marginRight: SPACING.md }}
                   />
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: item.id === currentAddressId ? '#ff8800' : '#1F2937' }}>
+                    <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: item.id === currentAddressId ? '#FE8733' : '#1F2937' }}>
                       {item.label}
                     </Text>
                     <Text style={{ fontSize: FONT_SIZES.xs, color: '#6B7280', marginTop: 2 }} numberOfLines={1}>
@@ -971,7 +971,7 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
                     </Text>
                   </View>
                   {item.id === currentAddressId && (
-                    <MaterialCommunityIcons name="check-circle" size={20} color="#ff8800" />
+                    <MaterialCommunityIcons name="check-circle" size={20} color="#FE8733" />
                   )}
                 </TouchableOpacity>
               )}

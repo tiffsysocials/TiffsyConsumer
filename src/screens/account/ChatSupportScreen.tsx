@@ -511,12 +511,12 @@ const ChatSupportScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F3F4F6' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
+      <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
 
       {/* Header */}
       <View
         style={{
-          backgroundColor: '#ff8800',
+          backgroundColor: '#FF6636',
           paddingHorizontal: 20,
           paddingVertical: 14,
           flexDirection: 'row',
@@ -642,7 +642,7 @@ const ChatSupportScreen: React.FC<Props> = ({ navigation }) => {
                       width: 32,
                       height: 32,
                       borderRadius: 16,
-                      backgroundColor: '#ff8800',
+                      backgroundColor: '#FE8733',
                       alignItems: 'center',
                       justifyContent: 'center',
                       marginRight: 8,
@@ -659,7 +659,7 @@ const ChatSupportScreen: React.FC<Props> = ({ navigation }) => {
                 <View
                   style={{
                     maxWidth: '75%',
-                    backgroundColor: msg.isUser ? '#ff8800' : '#FFFFFF',
+                    backgroundColor: msg.isUser ? '#FE8733' : '#FFFFFF',
                     borderRadius: 18,
                     borderTopRightRadius: msg.isUser ? 4 : 18,
                     borderTopLeftRadius: msg.isUser ? 18 : 4,
@@ -712,14 +712,14 @@ const ChatSupportScreen: React.FC<Props> = ({ navigation }) => {
                       onPress={() => handleQuickReply(reply)}
                       style={{
                         borderWidth: 1.5,
-                        borderColor: '#ff8800',
+                        borderColor: '#FE8733',
                         borderRadius: 20,
                         paddingHorizontal: 14,
                         paddingVertical: 7,
                         backgroundColor: '#FFF7ED',
                       }}
                     >
-                      <Text style={{ fontSize: FONT_SIZES.sm, color: '#ff8800', fontWeight: '600' }}>
+                      <Text style={{ fontSize: FONT_SIZES.sm, color: '#FE8733', fontWeight: '600' }}>
                         {reply}
                       </Text>
                     </TouchableOpacity>
@@ -778,10 +778,10 @@ const ChatSupportScreen: React.FC<Props> = ({ navigation }) => {
               width: 46,
               height: 46,
               borderRadius: 23,
-              backgroundColor: inputText.trim() ? '#ff8800' : '#D1D5DB',
+              backgroundColor: inputText.trim() ? '#FE8733' : '#D1D5DB',
               alignItems: 'center',
               justifyContent: 'center',
-              shadowColor: inputText.trim() ? '#ff8800' : 'transparent',
+              shadowColor: inputText.trim() ? '#FE8733' : 'transparent',
               shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.3,
               shadowRadius: 4,

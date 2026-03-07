@@ -120,7 +120,7 @@ const VoucherPaymentModal: React.FC<VoucherPaymentModalProps> = ({
                   <MaterialCommunityIcons
                     name="ticket-confirmation"
                     size={40}
-                    color="#ff8800"
+                    color="#FE8733"
                   />
                 </View>
               </View>
@@ -153,7 +153,7 @@ const VoucherPaymentModal: React.FC<VoucherPaymentModalProps> = ({
                   style={{
                     fontSize: 16,
                     fontWeight: '600',
-                    color: '#ff8800',
+                    color: '#FE8733',
                     textAlign: 'center',
                   }}
                 >
@@ -178,13 +178,13 @@ const VoucherPaymentModal: React.FC<VoucherPaymentModalProps> = ({
               <TouchableOpacity
                 onPress={onUseVoucher}
                 style={{
-                  backgroundColor: 'rgba(255, 136, 0, 1)',
+                  backgroundColor: 'rgba(254, 135, 51, 1)',
                   borderRadius: 28,
                   paddingVertical: 14,
                   paddingHorizontal: 32,
                   alignItems: 'center',
                   marginBottom: 12,
-                  shadowColor: 'rgba(255, 136, 0, 1)',
+                  shadowColor: 'rgba(254, 135, 51, 1)',
                   shadowOffset: { width: 0, height: 4 },
                   shadowOpacity: 0.3,
                   shadowRadius: 8,
@@ -207,7 +207,7 @@ const VoucherPaymentModal: React.FC<VoucherPaymentModalProps> = ({
                 onPress={onPayDirectly}
                 style={{
                   borderWidth: 2,
-                  borderColor: 'rgba(255, 136, 0, 1)',
+                  borderColor: 'rgba(254, 135, 51, 1)',
                   borderRadius: 28,
                   paddingVertical: 12,
                   paddingHorizontal: 32,
@@ -218,7 +218,7 @@ const VoucherPaymentModal: React.FC<VoucherPaymentModalProps> = ({
                   style={{
                     fontSize: 16,
                     fontWeight: '600',
-                    color: 'rgba(255, 136, 0, 1)',
+                    color: 'rgba(254, 135, 51, 1)',
                   }}
                 >
                   Pay Directly

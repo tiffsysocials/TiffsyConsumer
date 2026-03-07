@@ -381,9 +381,9 @@ const AddressScreen: React.FC<Props> = ({ navigation }) => {
               onPress={() => setFormData({ ...formData, label: item.id })}
               className="flex-1 mr-2 rounded-xl py-3 items-center"
               style={{
-                backgroundColor: formData.label === item.id ? '#ff8800' : '#F3F4F6',
+                backgroundColor: formData.label === item.id ? '#FE8733' : '#F3F4F6',
                 borderWidth: 1,
-                borderColor: formData.label === item.id ? '#ff8800' : '#E5E7EB',
+                borderColor: formData.label === item.id ? '#FE8733' : '#E5E7EB',
               }}
             >
               <Text className="text-lg mb-1">{item.icon}</Text>
@@ -486,7 +486,7 @@ const AddressScreen: React.FC<Props> = ({ navigation }) => {
             className="flex-1 bg-gray-50 rounded-2xl px-4 py-3 text-gray-900 border border-gray-200"
           />
           {isCheckingPincode && (
-            <ActivityIndicator size="small" color="#ff8800" style={{ marginLeft: 12 }} />
+            <ActivityIndicator size="small" color="#FE8733" style={{ marginLeft: 12 }} />
           )}
           {pincodeServiceable === true && (
             <Text className="ml-3 text-green-600 text-lg">✓</Text>
@@ -536,7 +536,7 @@ const AddressScreen: React.FC<Props> = ({ navigation }) => {
         onPress={isEdit ? handleUpdateAddress : handleAddAddress}
         disabled={isSubmitting}
         className="rounded-full items-center justify-center mt-2 mb-4"
-        style={{ backgroundColor: isSubmitting ? '#CCCCCC' : '#ff8800', minHeight: TOUCH_TARGETS.large }}
+        style={{ backgroundColor: isSubmitting ? '#CCCCCC' : '#FE8733', minHeight: TOUCH_TARGETS.large }}
       >
         {isSubmitting ? (
           <ActivityIndicator color="white" />
@@ -556,7 +556,7 @@ const AddressScreen: React.FC<Props> = ({ navigation }) => {
         className="flex-1"
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#ff8800']} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FE8733']} />
         }
       >
         {/* Header */}
@@ -737,7 +737,7 @@ const AddressScreen: React.FC<Props> = ({ navigation }) => {
             }}
           >
             {isGettingLocation ? (
-              <ActivityIndicator size="small" color="#ff8800" />
+              <ActivityIndicator size="small" color="#FE8733" />
             ) : (
               <>
                 <View style={{ width: 32, height: 32, marginRight: 12 }}>
@@ -758,7 +758,7 @@ const AddressScreen: React.FC<Props> = ({ navigation }) => {
         {/* Loading State */}
         {isLoadingAddresses && addresses.length === 0 && (
           <View className="items-center justify-center py-12">
-            <ActivityIndicator size="large" color="#ff8800" />
+            <ActivityIndicator size="large" color="#FE8733" />
             <Text className="text-gray-500 mt-4">Loading addresses...</Text>
           </View>
         )}
@@ -875,9 +875,9 @@ const AddressScreen: React.FC<Props> = ({ navigation }) => {
                   <TouchableOpacity
                     onPress={() => handleSetDefault(address)}
                     className="mt-2 py-2 px-4 rounded-full border self-start"
-                    style={{ borderColor: '#ff8800' }}
+                    style={{ borderColor: '#FE8733' }}
                   >
-                    <Text className="text-sm font-medium" style={{ color: '#ff8800' }}>
+                    <Text className="text-sm font-medium" style={{ color: '#FE8733' }}>
                       Set as Default
                     </Text>
                   </TouchableOpacity>

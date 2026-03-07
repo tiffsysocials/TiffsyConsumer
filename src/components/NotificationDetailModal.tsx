@@ -467,18 +467,18 @@ const styles = StyleSheet.create({
   },
   promoLabel: {
     fontSize: 13,
-    color: '#ff8800',
+    color: '#FE8733',
     marginBottom: 6,
     fontWeight: '600',
   },
   promoCode: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#ff8800',
+    color: '#FE8733',
     letterSpacing: 1,
   },
   actionButton: {
-    backgroundColor: '#ff8800',
+    backgroundColor: '#FE8733',
     paddingVertical: 14,
     borderRadius: 25,
     alignItems: 'center',

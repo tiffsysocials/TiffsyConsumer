@@ -183,7 +183,7 @@ const HelpSupportScreen: React.FC<Props> = ({ navigation }) => {
           >
             <Image
               source={require('../../assets/icons/search2.png')}
-              style={{ width: SPACING.iconSize, height: SPACING.iconSize, tintColor: '#F97316' }}
+              style={{ width: SPACING.iconSize, height: SPACING.iconSize, tintColor: '#FE8733' }}
               resizeMode="contain"
             />
             <TextInput
@@ -203,12 +203,12 @@ const HelpSupportScreen: React.FC<Props> = ({ navigation }) => {
           style={{
             marginHorizontal: 20,
             marginTop: 16,
-            backgroundColor: '#ff8800',
+            backgroundColor: '#FE8733',
             borderRadius: 16,
             padding: 18,
             flexDirection: 'row',
             alignItems: 'center',
-            shadowColor: '#ff8800',
+            shadowColor: '#FE8733',
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.25,
             shadowRadius: 8,
@@ -337,7 +337,7 @@ const HelpSupportScreen: React.FC<Props> = ({ navigation }) => {
                   paddingHorizontal: SPACING.lg,
                   paddingVertical: SPACING.sm,
                   minHeight: TOUCH_TARGETS.minimum,
-                  backgroundColor: selectedCategory === category ? '#ff8800' : '#F3F4F6',
+                  backgroundColor: selectedCategory === category ? '#FE8733' : '#F3F4F6',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}

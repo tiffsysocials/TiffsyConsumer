@@ -267,7 +267,7 @@ const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
   if (isLoading) {
     return (
       <SafeAreaView className="flex-1 bg-white items-center justify-center">
-        <ActivityIndicator size="large" color="#ff8800" />
+        <ActivityIndicator size="large" color="#FE8733" />
         <Text className="mt-4 text-gray-600" style={{ fontSize: FONT_SIZES.base }}>Loading profile...</Text>
       </SafeAreaView>
     );
@@ -275,7 +275,7 @@ const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <SafeAreaView className="flex-1 bg-orange-400">
-      <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
+      <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
 
       {/* Header */}
       <View className="bg-orange-400 pb-6" style={{ position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30 }}>
@@ -326,7 +326,7 @@ const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
           >
             {isUploadingImage ? (
               <View className="rounded-full bg-gray-200 items-center justify-center" style={{ width: isSmallDevice ? 96 : 112, height: isSmallDevice ? 96 : 112 }}>
-                <ActivityIndicator size="large" color="#ff8800" />
+                <ActivityIndicator size="large" color="#FE8733" />
               </View>
             ) : profileImage ? (
               <Image

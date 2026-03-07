@@ -331,7 +331,7 @@ const UserOnboardingScreen: React.FC = () => {
               />
               {referralStatus === 'checking' && (
                 <View style={{ position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' }}>
-                  <ActivityIndicator size="small" color="#ff8800" />
+                  <ActivityIndicator size="small" color="#FE8733" />
                 </View>
               )}
               {referralStatus === 'valid' && (
@@ -373,9 +373,9 @@ const UserOnboardingScreen: React.FC = () => {
                       paddingHorizontal: SPACING.lg,
                       paddingVertical: SPACING.md,
                       minHeight: TOUCH_TARGETS.comfortable,
-                      backgroundColor: isSelected ? '#ff8800' : '#F3F4F6',
+                      backgroundColor: isSelected ? '#FE8733' : '#F3F4F6',
                       borderWidth: 1,
-                      borderColor: isSelected ? '#ff8800' : '#E5E7EB',
+                      borderColor: isSelected ? '#FE8733' : '#E5E7EB',
                       minWidth: 100,
                     }}
                   >
@@ -407,9 +407,9 @@ const UserOnboardingScreen: React.FC = () => {
                 onPress={() => setEggiterian(!eggiterian)}
                 className="rounded-full px-4 py-3 flex-row items-center"
                 style={{
-                  backgroundColor: eggiterian ? '#ff8800' : '#F3F4F6',
+                  backgroundColor: eggiterian ? '#FE8733' : '#F3F4F6',
                   borderWidth: 1,
-                  borderColor: eggiterian ? '#ff8800' : '#E5E7EB',
+                  borderColor: eggiterian ? '#FE8733' : '#E5E7EB',
                 }}
               >
                 <MaterialCommunityIcons
@@ -430,9 +430,9 @@ const UserOnboardingScreen: React.FC = () => {
                 onPress={() => setJainFriendly(!jainFriendly)}
                 className="rounded-full px-4 py-3 flex-row items-center"
                 style={{
-                  backgroundColor: jainFriendly ? '#ff8800' : '#F3F4F6',
+                  backgroundColor: jainFriendly ? '#FE8733' : '#F3F4F6',
                   borderWidth: 1,
-                  borderColor: jainFriendly ? '#ff8800' : '#E5E7EB',
+                  borderColor: jainFriendly ? '#FE8733' : '#E5E7EB',
                 }}
               >
                 <MaterialCommunityIcons
@@ -465,9 +465,9 @@ const UserOnboardingScreen: React.FC = () => {
                     onPress={() => setDabbaType(type.id as any)}
                     className="rounded-full px-4 py-3 flex-row items-center flex-1"
                     style={{
-                      backgroundColor: isSelected ? '#ff8800' : '#F3F4F6',
+                      backgroundColor: isSelected ? '#FE8733' : '#F3F4F6',
                       borderWidth: 1,
-                      borderColor: isSelected ? '#ff8800' : '#E5E7EB',
+                      borderColor: isSelected ? '#FE8733' : '#E5E7EB',
                     }}
                   >
                     <MaterialCommunityIcons
@@ -502,9 +502,9 @@ const UserOnboardingScreen: React.FC = () => {
                     onPress={() => setSpiceLevel(level.id as any)}
                     className="rounded-full px-4 py-3 flex-row items-center flex-1"
                     style={{
-                      backgroundColor: isSelected ? '#ff8800' : '#F3F4F6',
+                      backgroundColor: isSelected ? '#FE8733' : '#F3F4F6',
                       borderWidth: 1,
-                      borderColor: isSelected ? '#ff8800' : '#E5E7EB',
+                      borderColor: isSelected ? '#FE8733' : '#E5E7EB',
                     }}
                   >
                     <MaterialCommunityIcons
@@ -568,8 +568,8 @@ const UserOnboardingScreen: React.FC = () => {
             style={{
               paddingVertical: SPACING.lg,
               minHeight: TOUCH_TARGETS.large,
-              backgroundColor: isLoading ? '#CCCCCC' : '#ff8800',
-              shadowColor: '#ff8800',
+              backgroundColor: isLoading ? '#CCCCCC' : '#FE8733',
+              shadowColor: '#FE8733',
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.3,
               shadowRadius: 8,

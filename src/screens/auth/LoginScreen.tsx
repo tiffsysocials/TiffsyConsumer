@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Platform,
+  Keyboard,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,6 +33,18 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const { loginWithPhone } = useUser();
   const { showAlert } = useAlert();
   const { height } = useResponsive();
+  const scrollRef = useRef<ScrollView>(null);
+
+  // Scroll down when keyboard opens so input + button are visible
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => {
+        scrollRef.current?.scrollTo({ y: 200, animated: true });
+      },
+    );
+    return () => showSub.remove();
+  }, []);
 
   // Load saved phone number on mount
   useEffect(() => {
@@ -102,23 +115,26 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#ff8800' }} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#FF6636' }} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={{ flexGrow: 1 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           bounces={false}
+          overScrollMode="never"
         >
           {/* Top image / header area */}
           <View
             style={{
               height: 220,
-              backgroundColor: '#ff8800',
+              backgroundColor: '#FF6636',
               paddingHorizontal: 20,
               paddingTop: 10,
             }}
@@ -170,8 +186,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
               borderTopRightRadius: 30,
               paddingHorizontal: 20,
               paddingTop: 20,
-              paddingBottom: 50,
-              minHeight: 450,
+              paddingBottom: 30,
             }}
           >
             {/* Welcome heading */}
@@ -316,7 +331,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
               onPress={handleGetOtp}
               disabled={loading || phone.length !== 10}
               style={{
-                backgroundColor: loading || phone.length !== 10 ? '#CCCCCC' : '#ff8800',
+                backgroundColor: loading || phone.length !== 10 ? '#CCCCCC' : '#FE8733',
                 borderRadius: 100,
                 paddingVertical: 15,
                 alignItems: 'center',

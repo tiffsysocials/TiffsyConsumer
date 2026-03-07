@@ -237,9 +237,9 @@ const ScheduleMealScreen: React.FC<Props> = ({ navigation }) => {
   if (!hasAddresses) {
     return (
       <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-        <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
-        <SafeAreaView style={{ backgroundColor: '#ff8800' }} edges={['top']} />
-        <View style={{ backgroundColor: '#ff8800', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
+        <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
+        <SafeAreaView style={{ backgroundColor: '#FF6636' }} edges={['top']} />
+        <View style={{ backgroundColor: '#FF6636', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: SPACING.md }}>
             <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
           </TouchableOpacity>
@@ -257,7 +257,7 @@ const ScheduleMealScreen: React.FC<Props> = ({ navigation }) => {
             onPress={() => navigation.navigate('Address')}
             style={{
               marginTop: SPACING.xl,
-              backgroundColor: '#ff8800',
+              backgroundColor: '#FE8733',
               borderRadius: 12,
               paddingVertical: SPACING.md,
               paddingHorizontal: SPACING['2xl'],
@@ -272,11 +272,11 @@ const ScheduleMealScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
-      <SafeAreaView style={{ backgroundColor: '#ff8800' }} edges={['top']} />
+      <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
+      <SafeAreaView style={{ backgroundColor: '#FF6636' }} edges={['top']} />
 
       {/* Header */}
-      <View style={{ backgroundColor: '#ff8800', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
+      <View style={{ backgroundColor: '#FF6636', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: SPACING.md }}>
           <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
         </TouchableOpacity>
@@ -290,7 +290,7 @@ const ScheduleMealScreen: React.FC<Props> = ({ navigation }) => {
 
       <ScrollView
         style={{ flex: 1 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#ff8800']} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#FE8733']} />}
       >
         {/* Address Selector */}
         <TouchableOpacity
@@ -306,7 +306,7 @@ const ScheduleMealScreen: React.FC<Props> = ({ navigation }) => {
             borderColor: '#E5E7EB',
           }}
         >
-          <MaterialCommunityIcons name="map-marker-outline" size={20} color="#ff8800" style={{ marginRight: SPACING.sm }} />
+          <MaterialCommunityIcons name="map-marker-outline" size={20} color="#FE8733" style={{ marginRight: SPACING.sm }} />
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: FONT_SIZES.xs, color: '#6B7280' }}>Delivering to</Text>
             <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: '#1F2937' }} numberOfLines={1}>
@@ -337,7 +337,7 @@ const ScheduleMealScreen: React.FC<Props> = ({ navigation }) => {
         {/* Loading State */}
         {isLoading ? (
           <View style={{ paddingVertical: SPACING['5xl'], alignItems: 'center' }}>
-            <ActivityIndicator size="large" color="#ff8800" />
+            <ActivityIndicator size="large" color="#FE8733" />
             <Text style={{ marginTop: SPACING.md, fontSize: FONT_SIZES.sm, color: '#6B7280' }}>Loading available slots...</Text>
           </View>
         ) : error ? (
@@ -347,7 +347,7 @@ const ScheduleMealScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={{ marginTop: SPACING.md, fontSize: FONT_SIZES.sm, color: '#6B7280', textAlign: 'center' }}>{error}</Text>
             <TouchableOpacity
               onPress={() => { setIsLoading(true); fetchSlots(currentAddressId); }}
-              style={{ marginTop: SPACING.lg, backgroundColor: '#ff8800', borderRadius: 10, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.xl }}
+              style={{ marginTop: SPACING.lg, backgroundColor: '#FE8733', borderRadius: 10, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.xl }}
             >
               <Text style={{ color: 'white', fontWeight: '600', fontSize: FONT_SIZES.sm }}>Retry</Text>
             </TouchableOpacity>
@@ -489,11 +489,11 @@ const ScheduleMealScreen: React.FC<Props> = ({ navigation }) => {
                   <MaterialCommunityIcons
                     name={item.label === 'Home' ? 'home-outline' : item.label === 'Office' ? 'office-building-outline' : 'map-marker-outline'}
                     size={20}
-                    color={item.id === currentAddressId ? '#ff8800' : '#6B7280'}
+                    color={item.id === currentAddressId ? '#FE8733' : '#6B7280'}
                     style={{ marginRight: SPACING.md }}
                   />
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: item.id === currentAddressId ? '#ff8800' : '#1F2937' }}>
+                    <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: item.id === currentAddressId ? '#FE8733' : '#1F2937' }}>
                       {item.label}
                     </Text>
                     <Text style={{ fontSize: FONT_SIZES.xs, color: '#6B7280', marginTop: 2 }} numberOfLines={1}>
@@ -501,7 +501,7 @@ const ScheduleMealScreen: React.FC<Props> = ({ navigation }) => {
                     </Text>
                   </View>
                   {item.id === currentAddressId && (
-                    <MaterialCommunityIcons name="check-circle" size={20} color="#ff8800" />
+                    <MaterialCommunityIcons name="check-circle" size={20} color="#FE8733" />
                   )}
                 </TouchableOpacity>
               )}

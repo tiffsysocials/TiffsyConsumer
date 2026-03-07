@@ -88,8 +88,8 @@ const AutoOrderSettingsScreen: React.FC<Props> = ({ navigation }) => {
   if (autoOrderConfigsLoading && autoOrderConfigs.length === 0) {
     return (
       <SafeAreaView style={styles.container} className="flex-1 justify-center items-center bg-gray-50">
-        <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
-        <ActivityIndicator size="large" color="#ff8800" />
+        <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
+        <ActivityIndicator size="large" color="#FE8733" />
         <Text className="mt-4 text-gray-600">Loading auto-order settings...</Text>
       </SafeAreaView>
     );
@@ -97,8 +97,8 @@ const AutoOrderSettingsScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={styles.container} className="flex-1 bg-white">
-      <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
-      <SafeAreaView style={{ backgroundColor: '#ff8800' }} edges={['top']} />
+      <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
+      <SafeAreaView style={{ backgroundColor: '#FF6636' }} edges={['top']} />
 
       {/* Header */}
       <View
@@ -137,7 +137,7 @@ const AutoOrderSettingsScreen: React.FC<Props> = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: SPACING['4xl'] * 2, paddingTop: SPACING.lg }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#ff8800']} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FE8733']} />
         }
       >
         {/* Summary Card */}
@@ -151,7 +151,7 @@ const AutoOrderSettingsScreen: React.FC<Props> = ({ navigation }) => {
             elevation: 5,
           }}
         >
-          <View className="p-5" style={{ backgroundColor: '#ff8800' }}>
+          <View className="p-5" style={{ backgroundColor: '#FE8733' }}>
             <View className="flex-row items-center">
               <MaterialCommunityIcons name="refresh-auto" size={28} color="white" style={{ marginRight: 12 }} />
               <View className="flex-1">
@@ -209,7 +209,7 @@ const AutoOrderSettingsScreen: React.FC<Props> = ({ navigation }) => {
                   marginBottom: 12,
                 }}
               >
-                <MaterialCommunityIcons name="map-marker-plus-outline" size={28} color="#ff8800" />
+                <MaterialCommunityIcons name="map-marker-plus-outline" size={28} color="#FE8733" />
               </View>
               <Text style={{ fontSize: FONT_SIZES.lg, fontWeight: 'bold', color: '#111827', marginBottom: 4 }}>
                 No Addresses
@@ -220,7 +220,7 @@ const AutoOrderSettingsScreen: React.FC<Props> = ({ navigation }) => {
               <TouchableOpacity
                 onPress={() => navigation.navigate('Address' as any)}
                 style={{
-                  backgroundColor: '#ff8800',
+                  backgroundColor: '#FE8733',
                   borderRadius: 25,
                   paddingVertical: 12,
                   paddingHorizontal: 24,
@@ -274,7 +274,7 @@ const AutoOrderSettingsScreen: React.FC<Props> = ({ navigation }) => {
                           marginRight: 12,
                         }}
                       >
-                        <MaterialCommunityIcons name="map-marker" size={24} color="#ff8800" />
+                        <MaterialCommunityIcons name="map-marker" size={24} color="#FE8733" />
                       </View>
                       <View style={{ flex: 1 }}>
                         <View className="flex-row items-center justify-between mb-1">
@@ -333,8 +333,8 @@ const AutoOrderSettingsScreen: React.FC<Props> = ({ navigation }) => {
                           borderColor: '#FED7AA',
                         }}
                       >
-                        <MaterialCommunityIcons name="food-variant-plus" size={16} color="#ff8800" style={{ marginRight: 6 }} />
-                        <Text style={{ fontSize: FONT_SIZES.xs, fontWeight: '600', color: '#ff8800' }}>
+                        <MaterialCommunityIcons name="food-variant-plus" size={16} color="#FE8733" style={{ marginRight: 6 }} />
+                        <Text style={{ fontSize: FONT_SIZES.xs, fontWeight: '600', color: '#FE8733' }}>
                           Add Add-ons to Meals
                         </Text>
                       </TouchableOpacity>
@@ -384,7 +384,7 @@ const AutoOrderSettingsScreen: React.FC<Props> = ({ navigation }) => {
                         </Text>
                       </View>
                       <View style={{ backgroundColor: '#FFF7ED', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5 }}>
-                        <Text style={{ fontSize: FONT_SIZES.xs, fontWeight: '600', color: '#ff8800' }}>
+                        <Text style={{ fontSize: FONT_SIZES.xs, fontWeight: '600', color: '#FE8733' }}>
                           Set Up
                         </Text>
                       </View>

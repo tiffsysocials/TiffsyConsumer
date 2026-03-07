@@ -13,7 +13,7 @@ import {
 } from '../types/payment';
 
 const MERCHANT_NAME = 'TiffinDabba';
-const THEME_COLOR = '#ff8800';
+const THEME_COLOR = '#FE8733';
 
 class PaymentService {
   private razorpayKey: string | null = null;

@@ -63,7 +63,7 @@ const BulkOrdersScreen: React.FC<Props> = ({ navigation }) => {
         <TouchableOpacity
           onPress={() => navigation.navigate('MealCalendar')}
           style={{
-            backgroundColor: '#ff8800',
+            backgroundColor: '#FE8733',
             borderRadius: 12,
             paddingVertical: SPACING.md,
             paddingHorizontal: SPACING['2xl'],

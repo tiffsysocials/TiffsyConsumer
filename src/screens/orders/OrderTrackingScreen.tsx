@@ -396,7 +396,7 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
   if (loading) {
     return (
       <SafeAreaView className="flex-1 bg-gray-50 items-center justify-center">
-        <ActivityIndicator size="large" color="#ff8800" />
+        <ActivityIndicator size="large" color="#FE8733" />
         <Text className="text-gray-500 mt-4" style={{ fontSize: FONT_SIZES.base }}>Loading tracking info...</Text>
       </SafeAreaView>
     );
@@ -413,7 +413,7 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
             fetchTracking();
           }}
           className="rounded-full px-6"
-          style={{ backgroundColor: '#ff8800', minHeight: TOUCH_TARGETS.comfortable }}
+          style={{ backgroundColor: '#FE8733', minHeight: TOUCH_TARGETS.comfortable }}
         >
           <Text className="text-white font-semibold" style={{ fontSize: FONT_SIZES.base }}>Retry</Text>
         </TouchableOpacity>
@@ -522,7 +522,7 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
                     width: 40,
                     height: 40,
                     borderRadius: 20,
-                    backgroundColor: currentStep >= 2 ? '#ff8800' : '#9CA3AF',
+                    backgroundColor: currentStep >= 2 ? '#FE8733' : '#9CA3AF',
                   }}
                 >
                   <MaterialCommunityIcons
@@ -558,7 +558,7 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
                     width: 40,
                     height: 40,
                     borderRadius: 20,
-                    backgroundColor: currentStep >= 3 ? '#ff8800' : '#9CA3AF',
+                    backgroundColor: currentStep >= 3 ? '#FE8733' : '#9CA3AF',
                   }}
                 >
                   <MaterialCommunityIcons
@@ -647,7 +647,7 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  backgroundColor: '#ff8800',
+                  backgroundColor: '#FE8733',
                   paddingHorizontal: 12,
                   paddingVertical: 6,
                   borderRadius: 20,
@@ -678,7 +678,7 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
                 <View
                   key={index}
                   className="bg-orange-50 rounded-lg px-4 py-3 mb-2"
-                  style={{ borderLeftWidth: 3, borderLeftColor: '#ff8800' }}
+                  style={{ borderLeftWidth: 3, borderLeftColor: '#FE8733' }}
                 >
                   <Text className="text-sm text-gray-800">{note}</Text>
                 </View>
@@ -845,7 +845,7 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
             {/* Total Amount */}
             <View className="flex-row justify-between">
               <Text className="text-lg font-bold text-gray-900">Total Amount:</Text>
-              <Text className="text-lg font-bold" style={{ color: '#ff8800' }}>
+              <Text className="text-lg font-bold" style={{ color: '#FE8733' }}>
                 ₹{order.amountPaid.toFixed(2)}
               </Text>
             </View>
@@ -955,7 +955,7 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
                     <View
                       className="w-3 h-3 rounded-full"
                       style={{
-                        backgroundColor: isCurrentStatus ? '#ff8800' : '#D1D5DB',
+                        backgroundColor: isCurrentStatus ? '#FE8733' : '#D1D5DB',
                       }}
                     />
                     {index < tracking.timeline.length - 1 && (

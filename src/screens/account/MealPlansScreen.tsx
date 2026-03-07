@@ -231,7 +231,7 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
         className="flex-1 bg-gray-50"
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#ff8800']} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FE8733']} />
         }
       >
         {/* Background Image - positioned to extend behind Purchase Vouchers */}
@@ -291,7 +291,7 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                   style={{ width: SPACING.iconSize, height: SPACING.iconSize }}
                   resizeMode="contain"
                 />
-                <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'bold', color: '#ff8800' }}>{usableVouchers}</Text>
+                <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'bold', color: '#FE8733' }}>{usableVouchers}</Text>
               </TouchableOpacity>
             </View>
 
@@ -391,7 +391,7 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                   onPress={() => navigation.navigate('Vouchers')}
                   style={{ marginTop: 12 }}
                 >
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#ff8800' }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#FE8733' }}>
                     View All Vouchers →
                   </Text>
                 </TouchableOpacity>
@@ -457,7 +457,7 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                     minHeight: 130,
                     borderRadius: 28,
                     borderWidth: 1,
-                    borderColor: '#ff8800',
+                    borderColor: '#FE8733',
                     marginBottom: 16,
                     overflow: 'hidden',
                     position: 'relative',
@@ -915,7 +915,7 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                   flex: 1,
                   paddingVertical: 12,
                   borderRadius: 999,
-                  backgroundColor: '#ff8800',
+                  backgroundColor: '#FE8733',
                   alignItems: 'center',
                 }}
               >
@@ -1031,7 +1031,7 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
       {loading && !plansLoading && (
         <View className="absolute inset-0 bg-black/30 justify-center items-center">
           <View className="bg-white rounded-xl p-6">
-            <ActivityIndicator size="large" color="#ff8800" />
+            <ActivityIndicator size="large" color="#FE8733" />
             <Text className="mt-2 text-gray-600">Processing...</Text>
           </View>
         </View>

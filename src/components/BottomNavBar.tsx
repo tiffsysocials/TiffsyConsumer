@@ -47,14 +47,14 @@ const NavItem: React.FC<NavItemProps> = ({ label, icon, iconName, isActive, onPr
           <MaterialCommunityIcons
             name={iconName}
             size={SPACING.iconSize}
-            color={isActive ? '#ff8800' : '#9CA3AF'}
+            color={isActive ? '#FE8733' : '#9CA3AF'}
           />
         ) : (
           <Image
             source={icon}
             style={[
               styles.icon,
-              { tintColor: isActive ? '#ff8800' : '#9CA3AF' },
+              { tintColor: isActive ? '#FE8733' : '#9CA3AF' },
             ]}
             resizeMode="contain"
           />
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     height: 44,
   },
   navItemActive: {
-    backgroundColor: 'rgba(255, 245, 242, 1)',
+    backgroundColor: 'rgba(254, 243, 240, 1)',
     borderRadius: 22,
     overflow: 'hidden',
   },
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     height: SPACING.iconSize,
   },
   label: {
-    color: '#ff8800',
+    color: '#FE8733',
     fontSize: FONT_SIZES.base - 1,
     fontWeight: '600',
     marginLeft: 6,

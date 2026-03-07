@@ -360,16 +360,16 @@ const AutoOrderAddonScreen: React.FC<Props> = ({ navigation, route }) => {
   if (isLoading) {
     return (
       <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-        <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
-        <SafeAreaView style={{ backgroundColor: '#ff8800' }} edges={['top']} />
-        <View style={{ backgroundColor: '#ff8800', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
+        <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
+        <SafeAreaView style={{ backgroundColor: '#FF6636' }} edges={['top']} />
+        <View style={{ backgroundColor: '#FF6636', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: SPACING.md }}>
             <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
           </TouchableOpacity>
           <Text style={{ color: 'white', fontSize: FONT_SIZES.h4, fontWeight: 'bold' }}>Auto-Order Add-ons</Text>
         </View>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color="#ff8800" />
+          <ActivityIndicator size="large" color="#FE8733" />
           <Text style={{ marginTop: SPACING.md, fontSize: FONT_SIZES.sm, color: '#6B7280' }}>Loading upcoming slots...</Text>
         </View>
       </View>
@@ -379,9 +379,9 @@ const AutoOrderAddonScreen: React.FC<Props> = ({ navigation, route }) => {
   if (error) {
     return (
       <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-        <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
-        <SafeAreaView style={{ backgroundColor: '#ff8800' }} edges={['top']} />
-        <View style={{ backgroundColor: '#ff8800', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
+        <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
+        <SafeAreaView style={{ backgroundColor: '#FF6636' }} edges={['top']} />
+        <View style={{ backgroundColor: '#FF6636', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: SPACING.md }}>
             <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
           </TouchableOpacity>
@@ -392,7 +392,7 @@ const AutoOrderAddonScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text style={{ fontSize: FONT_SIZES.base, color: '#6B7280', textAlign: 'center', marginTop: SPACING.md }}>{error}</Text>
           <TouchableOpacity
             onPress={fetchSlots}
-            style={{ marginTop: SPACING.lg, backgroundColor: '#ff8800', borderRadius: 10, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.xl }}
+            style={{ marginTop: SPACING.lg, backgroundColor: '#FE8733', borderRadius: 10, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.xl }}
           >
             <Text style={{ color: 'white', fontWeight: '600' }}>Retry</Text>
           </TouchableOpacity>
@@ -406,11 +406,11 @@ const AutoOrderAddonScreen: React.FC<Props> = ({ navigation, route }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
-      <SafeAreaView style={{ backgroundColor: '#ff8800' }} edges={['top']} />
+      <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
+      <SafeAreaView style={{ backgroundColor: '#FF6636' }} edges={['top']} />
 
       {/* Header */}
-      <View style={{ backgroundColor: '#ff8800', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
+      <View style={{ backgroundColor: '#FF6636', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: SPACING.md }}>
           <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
         </TouchableOpacity>
@@ -425,7 +425,7 @@ const AutoOrderAddonScreen: React.FC<Props> = ({ navigation, route }) => {
       >
         {/* Info Banner */}
         <View style={{ margin: SPACING.lg, backgroundColor: '#FFF7ED', borderRadius: 12, padding: SPACING.md, flexDirection: 'row' }}>
-          <MaterialCommunityIcons name="information-outline" size={18} color="#ff8800" style={{ marginRight: SPACING.sm, marginTop: 1 }} />
+          <MaterialCommunityIcons name="information-outline" size={18} color="#FE8733" style={{ marginRight: SPACING.sm, marginTop: 1 }} />
           <Text style={{ fontSize: FONT_SIZES.xs, color: '#92400E', flex: 1, lineHeight: 18 }}>
             Select upcoming auto-order days and add paid extras. Add-ons are included when your meal is auto-ordered.
           </Text>
@@ -448,7 +448,7 @@ const AutoOrderAddonScreen: React.FC<Props> = ({ navigation, route }) => {
         {unpaidSlots.length > 0 && (
           <View style={{ marginHorizontal: SPACING.lg, marginBottom: SPACING.lg }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.md }}>
-              <View style={{ width: 4, height: 20, backgroundColor: '#ff8800', borderRadius: 2, marginRight: SPACING.sm }} />
+              <View style={{ width: 4, height: 20, backgroundColor: '#FE8733', borderRadius: 2, marginRight: SPACING.sm }} />
               <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '700', color: '#1F2937' }}>
                 Upcoming Meals ({unpaidSlots.length})
               </Text>
@@ -470,7 +470,7 @@ const AutoOrderAddonScreen: React.FC<Props> = ({ navigation, route }) => {
                     borderRadius: 14,
                     marginBottom: SPACING.sm,
                     borderWidth: isSelected ? 2 : 1,
-                    borderColor: isSelected ? '#ff8800' : '#E5E7EB',
+                    borderColor: isSelected ? '#FE8733' : '#E5E7EB',
                     overflow: 'hidden',
                   }}
                 >
@@ -483,7 +483,7 @@ const AutoOrderAddonScreen: React.FC<Props> = ({ navigation, route }) => {
                     <MaterialCommunityIcons
                       name={isSelected ? 'checkbox-marked' : 'checkbox-blank-outline'}
                       size={22}
-                      color={isSelected ? '#ff8800' : '#9CA3AF'}
+                      color={isSelected ? '#FE8733' : '#9CA3AF'}
                       style={{ marginRight: SPACING.sm }}
                     />
                     <MaterialCommunityIcons name={mealIcon} size={18} color={mealIconColor} style={{ marginRight: SPACING.sm }} />
@@ -500,7 +500,7 @@ const AutoOrderAddonScreen: React.FC<Props> = ({ navigation, route }) => {
                     {isSelected && slotAddons.length > 0 && pricingData && (() => {
                       const slotPricing = pricingData.slots.find(s => s.date === slot.date && s.mealWindow === slot.mealWindow);
                       return slotPricing ? (
-                        <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '700', color: '#ff8800' }}>
+                        <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '700', color: '#FE8733' }}>
                           {'\u20B9'}{slotPricing.addonsCost}
                         </Text>
                       ) : null;
@@ -604,7 +604,7 @@ const AutoOrderAddonScreen: React.FC<Props> = ({ navigation, route }) => {
             borderColor: '#E5E7EB',
           }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.md }}>
-              <MaterialCommunityIcons name="receipt" size={20} color="#ff8800" style={{ marginRight: SPACING.sm }} />
+              <MaterialCommunityIcons name="receipt" size={20} color="#FE8733" style={{ marginRight: SPACING.sm }} />
               <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '700', color: '#1F2937' }}>Summary</Text>
             </View>
 
@@ -632,7 +632,7 @@ const AutoOrderAddonScreen: React.FC<Props> = ({ navigation, route }) => {
             <View style={{ height: 1, backgroundColor: '#E5E7EB', marginVertical: SPACING.sm }} />
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '700', color: '#1F2937' }}>Total</Text>
-              <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '700', color: '#ff8800' }}>
+              <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '700', color: '#FE8733' }}>
                 {'\u20B9'}{grandTotal}
               </Text>
             </View>
@@ -663,7 +663,7 @@ const AutoOrderAddonScreen: React.FC<Props> = ({ navigation, route }) => {
             onPress={handleConfirmAndPay}
             disabled={isSubmitting || activeSlotCount === 0}
             style={{
-              backgroundColor: (isSubmitting || activeSlotCount === 0) ? '#fbb36b' : '#ff8800',
+              backgroundColor: (isSubmitting || activeSlotCount === 0) ? '#fbb36b' : '#FE8733',
               borderRadius: 12,
               paddingVertical: SPACING.md,
               alignItems: 'center',

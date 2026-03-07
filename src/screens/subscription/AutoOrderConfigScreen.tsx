@@ -308,8 +308,8 @@ const AutoOrderConfigScreen: React.FC<Props> = ({ route, navigation }) => {
   if (isLoading && !config && isEditMode) {
     return (
       <SafeAreaView style={styles.container} className="flex-1 justify-center items-center bg-gray-50">
-        <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
-        <ActivityIndicator size="large" color="#ff8800" />
+        <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
+        <ActivityIndicator size="large" color="#FE8733" />
         <Text className="mt-4 text-gray-600">Loading config...</Text>
       </SafeAreaView>
     );
@@ -317,8 +317,8 @@ const AutoOrderConfigScreen: React.FC<Props> = ({ route, navigation }) => {
 
   return (
     <View style={styles.container} className="flex-1 bg-white">
-      <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
-      <SafeAreaView style={{ backgroundColor: '#ff8800' }} edges={['top']} />
+      <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
+      <SafeAreaView style={{ backgroundColor: '#FF6636' }} edges={['top']} />
 
       {/* Header */}
       <View
@@ -378,7 +378,7 @@ const AutoOrderConfigScreen: React.FC<Props> = ({ route, navigation }) => {
               }}
             >
               <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#FFF7ED', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-                <MaterialCommunityIcons name="map-marker" size={24} color="#ff8800" />
+                <MaterialCommunityIcons name="map-marker" size={24} color="#FE8733" />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: FONT_SIZES.lg, fontWeight: 'bold', color: '#111827' }} numberOfLines={1}>
@@ -406,7 +406,7 @@ const AutoOrderConfigScreen: React.FC<Props> = ({ route, navigation }) => {
               }}
             >
               <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#FFF7ED', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-                <MaterialCommunityIcons name={addressDisplay ? 'map-marker' : 'map-marker-plus-outline'} size={24} color="#ff8800" />
+                <MaterialCommunityIcons name={addressDisplay ? 'map-marker' : 'map-marker-plus-outline'} size={24} color="#FE8733" />
               </View>
               <View style={{ flex: 1 }}>
                 {addressDisplay ? (
@@ -419,7 +419,7 @@ const AutoOrderConfigScreen: React.FC<Props> = ({ route, navigation }) => {
                     </Text>
                   </>
                 ) : (
-                  <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '600', color: '#ff8800' }}>
+                  <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '600', color: '#FE8733' }}>
                     Select Delivery Address
                   </Text>
                 )}
@@ -453,8 +453,8 @@ const AutoOrderConfigScreen: React.FC<Props> = ({ route, navigation }) => {
               <Switch
                 value={isEnabled}
                 onValueChange={handleToggleEnabled}
-                trackColor={{ false: '#E5E7EB', true: '#ff880060' }}
-                thumbColor={isEnabled ? '#ff8800' : '#f4f3f4'}
+                trackColor={{ false: '#E5E7EB', true: '#FE873360' }}
+                thumbColor={isEnabled ? '#FE8733' : '#f4f3f4'}
               />
             </View>
           </View>
@@ -605,7 +605,7 @@ const AutoOrderConfigScreen: React.FC<Props> = ({ route, navigation }) => {
               disabled={isSaving || (!hasChanges && isEditMode)}
               activeOpacity={0.7}
               style={{
-                backgroundColor: (isSaving || (!hasChanges && isEditMode)) ? '#D1D5DB' : '#ff8800',
+                backgroundColor: (isSaving || (!hasChanges && isEditMode)) ? '#D1D5DB' : '#FE8733',
                 borderRadius: 25,
                 paddingVertical: 16,
                 alignItems: 'center',
@@ -639,7 +639,7 @@ const AutoOrderConfigScreen: React.FC<Props> = ({ route, navigation }) => {
                     onPress={() => { setShowAddressPicker(false); navigation.navigate('Address'); }}
                     style={{ marginTop: 16 }}
                   >
-                    <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '600', color: '#ff8800' }}>
+                    <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '600', color: '#FE8733' }}>
                       Add New Address
                     </Text>
                   </TouchableOpacity>
@@ -660,7 +660,7 @@ const AutoOrderConfigScreen: React.FC<Props> = ({ route, navigation }) => {
                         backgroundColor: selectedAddressId === addr.id ? '#FFF7ED' : 'transparent',
                       }}
                     >
-                      <MaterialCommunityIcons name="map-marker-outline" size={24} color="#ff8800" style={{ marginRight: 12 }} />
+                      <MaterialCommunityIcons name="map-marker-outline" size={24} color="#FE8733" style={{ marginRight: 12 }} />
                       <View style={{ flex: 1 }}>
                         <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '600', color: '#111827' }} numberOfLines={1}>
                           {addr.label || addr.addressLine1}
@@ -670,7 +670,7 @@ const AutoOrderConfigScreen: React.FC<Props> = ({ route, navigation }) => {
                         </Text>
                       </View>
                       {selectedAddressId === addr.id && (
-                        <MaterialCommunityIcons name="check-circle" size={24} color="#ff8800" />
+                        <MaterialCommunityIcons name="check-circle" size={24} color="#FE8733" />
                       )}
                     </TouchableOpacity>
                   ))}
@@ -697,7 +697,7 @@ const AutoOrderConfigScreen: React.FC<Props> = ({ route, navigation }) => {
       {(isLoading || isSaving) && (
         <View style={styles.loadingOverlay}>
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#ff8800" />
+            <ActivityIndicator size="large" color="#FE8733" />
             <Text style={styles.loadingText}>{isSaving ? 'Saving...' : 'Loading...'}</Text>
           </View>
         </View>
@@ -771,7 +771,7 @@ const styles = StyleSheet.create({
     lineHeight: FONT_SIZES.base * 1.4,
   },
   modalButton: {
-    backgroundColor: '#ff8800',
+    backgroundColor: '#FE8733',
     minHeight: TOUCH_TARGETS.comfortable,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,

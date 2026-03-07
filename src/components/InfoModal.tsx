@@ -33,7 +33,7 @@ const InfoModal: React.FC<InfoModalProps> = ({
       case 'error':
         return { name: 'close', color: '#EF4444' };
       default:
-        return { name: 'information', color: '#ff8800' };
+        return { name: 'information', color: '#FE8733' };
     }
   };
 

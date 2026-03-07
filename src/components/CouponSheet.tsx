@@ -249,7 +249,7 @@ const CouponSheet: React.FC<CouponSheetProps> = ({
               disabled={!manualCode.trim() || validatingCode === manualCode}
               style={{
                 marginLeft: 10,
-                backgroundColor: manualCode.trim() ? '#ff8800' : '#E5E7EB',
+                backgroundColor: manualCode.trim() ? '#FE8733' : '#E5E7EB',
                 borderRadius: 12,
                 paddingHorizontal: 18,
                 paddingVertical: 11,
@@ -281,7 +281,7 @@ const CouponSheet: React.FC<CouponSheetProps> = ({
           {/* Coupon List */}
           {isLoading ? (
             <View style={{ alignItems: 'center', paddingVertical: 40 }}>
-              <ActivityIndicator size="small" color="#ff8800" />
+              <ActivityIndicator size="small" color="#FE8733" />
               <Text style={{ color: '#9CA3AF', fontSize: 13, marginTop: 8 }}>Loading coupons...</Text>
             </View>
           ) : coupons.length === 0 ? (
@@ -344,16 +344,16 @@ const CouponSheet: React.FC<CouponSheetProps> = ({
                         disabled={isValidating || isDisabled}
                         style={{
                           borderWidth: 1,
-                          borderColor: isDisabled ? '#D1D5DB' : '#ff8800',
+                          borderColor: isDisabled ? '#D1D5DB' : '#FE8733',
                           borderRadius: 8,
                           paddingHorizontal: 16,
                           paddingVertical: 6,
                         }}
                       >
                         {isValidating ? (
-                          <ActivityIndicator size="small" color="#ff8800" />
+                          <ActivityIndicator size="small" color="#FE8733" />
                         ) : (
-                          <Text style={{ fontSize: 13, fontWeight: '600', color: isDisabled ? '#D1D5DB' : '#ff8800' }}>APPLY</Text>
+                          <Text style={{ fontSize: 13, fontWeight: '600', color: isDisabled ? '#D1D5DB' : '#FE8733' }}>APPLY</Text>
                         )}
                       </TouchableOpacity>
                     </View>

@@ -48,16 +48,16 @@ const LOGO_SIZE = width * 0.6;
 
 // ── Fixed screen positions ──
 const POS_PHONE = {x: SVG_LEFT + 58 * SC, y: SVG_TOP + 0 * SC};
-const POS_PAN = {x: SVG_LEFT + 165 * SC, y: SVG_TOP + 178 * SC};
+const POS_PAN = {x: SVG_LEFT + 185 * SC, y: SVG_TOP + 178 * SC};
 const POS_LOGO = {x: width / 2, y: SVG_TOP + 285 * SC};
 const POS_DRIVER = {x: SVG_LEFT + 99 * SC, y: SVG_TOP + 517 * SC};
 
 // Static splash for loading states
 export const SplashView = () => (
   <LinearGradient
-    colors={['#ff6636', '#fd9e2f']}
-    start={{x: 0, y: 0}}
-    end={{x: 1, y: 1}}
+    colors={['#FD9E2F', '#FE8733', '#FF6636']}
+    start={{x: 0, y: 1}}
+    end={{x: 0, y: 0}}
     style={styles.container}>
     <Image
       source={require('../assets/images/logo.png')}
@@ -196,9 +196,9 @@ const SplashScreen = () => {
 
   return (
     <LinearGradient
-      colors={['#ff6636', '#fd9e2f']}
-      start={{x: 0, y: 0}}
-      end={{x: 1, y: 1}}
+      colors={['#FD9E2F', '#FE8733', '#FF6636']}
+      start={{x: 0, y: 1}}
+      end={{x: 0, y: 0}}
       style={styles.container}>
       {/* ── Both paths in one SVG, same stroke — looks like one continuous line ── */}
       <Svg

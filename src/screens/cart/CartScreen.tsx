@@ -1301,7 +1301,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
                     style={{
                       backgroundColor: 'white',
                       borderWidth: 1.5,
-                      borderColor: '#ff8800',
+                      borderColor: '#FE8733',
                     }}
                   >
                     <Text className="text-red-500 font-bold text-lg">×</Text>
@@ -1389,7 +1389,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
               <MaterialCommunityIcons
                 name={isSchedulingMode ? 'calendar-clock' : 'calendar-today'}
                 size={20}
-                color={isSchedulingMode ? '#3B82F6' : '#ff8800'}
+                color={isSchedulingMode ? '#3B82F6' : '#FE8733'}
                 style={{ marginRight: 10 }}
               />
               <View>
@@ -1418,8 +1418,8 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
                   borderColor: '#FDBA74',
                 }}
               >
-                <MaterialCommunityIcons name="calendar-month" size={16} color="#ff8800" style={{ marginRight: 4 }} />
-                <Text style={{ color: '#ff8800', fontSize: 12, fontWeight: '600' }}>Plan Ahead</Text>
+                <MaterialCommunityIcons name="calendar-month" size={16} color="#FE8733" style={{ marginRight: 4 }} />
+                <Text style={{ color: '#FE8733', fontSize: 12, fontWeight: '600' }}>Plan Ahead</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -1445,7 +1445,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
                     paddingHorizontal: 12,
                     borderRadius: 14,
                     borderWidth: 2,
-                    borderColor: isClosed ? '#E5E7EB' : isSelected ? '#ff8800' : '#E5E7EB',
+                    borderColor: isClosed ? '#E5E7EB' : isSelected ? '#FE8733' : '#E5E7EB',
                     backgroundColor: isClosed ? '#F9FAFB' : isSelected ? '#FFF7ED' : '#FFFFFF',
                     alignItems: 'center',
                     opacity: isClosed ? 0.5 : 1,
@@ -1453,16 +1453,16 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
                   activeOpacity={0.7}
                 >
                   {isSelected && (
-                    <View style={{ position: 'absolute', top: 8, right: 8, width: 20, height: 20, borderRadius: 10, backgroundColor: '#ff8800', alignItems: 'center', justifyContent: 'center' }}>
+                    <View style={{ position: 'absolute', top: 8, right: 8, width: 20, height: 20, borderRadius: 10, backgroundColor: '#FE8733', alignItems: 'center', justifyContent: 'center' }}>
                       <Text style={{ color: 'white', fontSize: 12, fontWeight: '700' }}>✓</Text>
                     </View>
                   )}
                   <MaterialCommunityIcons
                     name="white-balance-sunny"
                     size={28}
-                    color={isClosed ? '#D1D5DB' : isSelected ? '#ff8800' : '#9CA3AF'}
+                    color={isClosed ? '#D1D5DB' : isSelected ? '#FE8733' : '#9CA3AF'}
                   />
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: isClosed ? '#9CA3AF' : isSelected ? '#ff8800' : '#374151', marginTop: 6 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: isClosed ? '#9CA3AF' : isSelected ? '#FE8733' : '#374151', marginTop: 6 }}>
                     Lunch
                   </Text>
                   <Text style={{ fontSize: 11, color: isClosed ? '#D1D5DB' : isSelected ? '#EA580C' : '#9CA3AF', marginTop: 2 }}>
@@ -1502,7 +1502,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
                     paddingHorizontal: 12,
                     borderRadius: 14,
                     borderWidth: 2,
-                    borderColor: isClosed ? '#E5E7EB' : isSelected ? '#ff8800' : '#E5E7EB',
+                    borderColor: isClosed ? '#E5E7EB' : isSelected ? '#FE8733' : '#E5E7EB',
                     backgroundColor: isClosed ? '#F9FAFB' : isSelected ? '#FFF7ED' : '#FFFFFF',
                     alignItems: 'center',
                     opacity: isClosed ? 0.5 : 1,
@@ -1510,16 +1510,16 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
                   activeOpacity={0.7}
                 >
                   {isSelected && (
-                    <View style={{ position: 'absolute', top: 8, right: 8, width: 20, height: 20, borderRadius: 10, backgroundColor: '#ff8800', alignItems: 'center', justifyContent: 'center' }}>
+                    <View style={{ position: 'absolute', top: 8, right: 8, width: 20, height: 20, borderRadius: 10, backgroundColor: '#FE8733', alignItems: 'center', justifyContent: 'center' }}>
                       <Text style={{ color: 'white', fontSize: 12, fontWeight: '700' }}>✓</Text>
                     </View>
                   )}
                   <MaterialCommunityIcons
                     name="moon-waning-crescent"
                     size={28}
-                    color={isClosed ? '#D1D5DB' : isSelected ? '#ff8800' : '#9CA3AF'}
+                    color={isClosed ? '#D1D5DB' : isSelected ? '#FE8733' : '#9CA3AF'}
                   />
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: isClosed ? '#9CA3AF' : isSelected ? '#ff8800' : '#374151', marginTop: 6 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: isClosed ? '#9CA3AF' : isSelected ? '#FE8733' : '#374151', marginTop: 6 }}>
                     Dinner
                   </Text>
                   <Text style={{ fontSize: 11, color: isClosed ? '#D1D5DB' : isSelected ? '#EA580C' : '#9CA3AF', marginTop: 2 }}>
@@ -1600,7 +1600,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
               className="w-10 h-10 rounded-full items-center justify-center mr-3"
               style={{ backgroundColor: showCookingInput || cookingInstructions ? '#FFF7ED' : '#F3F4F6' }}
             >
-              <MaterialCommunityIcons name="note-edit-outline" size={20} color={showCookingInput || cookingInstructions ? '#ff8800' : '#6B7280'} />
+              <MaterialCommunityIcons name="note-edit-outline" size={20} color={showCookingInput || cookingInstructions ? '#FE8733' : '#6B7280'} />
             </View>
             <View className="flex-1">
               <Text className="text-base font-semibold text-gray-900">Cooking Instructions</Text>
@@ -1648,7 +1648,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
               className="w-10 h-10 rounded-full items-center justify-center mr-3"
               style={{ backgroundColor: leaveAtDoor ? '#FFF7ED' : '#F3F4F6' }}
             >
-              <MaterialCommunityIcons name="door-open" size={20} color={leaveAtDoor ? '#ff8800' : '#6B7280'} />
+              <MaterialCommunityIcons name="door-open" size={20} color={leaveAtDoor ? '#FE8733' : '#6B7280'} />
             </View>
             <View className="flex-1">
               <Text className="text-base font-semibold text-gray-900">Leave at Door</Text>
@@ -1658,8 +1658,8 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
               className="w-5 h-5 rounded items-center justify-center"
               style={{
                 borderWidth: 1.5,
-                borderColor: leaveAtDoor ? '#ff8800' : '#D1D5DB',
-                backgroundColor: leaveAtDoor ? '#ff8800' : 'white',
+                borderColor: leaveAtDoor ? '#FE8733' : '#D1D5DB',
+                backgroundColor: leaveAtDoor ? '#FE8733' : 'white',
               }}
             >
               {leaveAtDoor && (
@@ -1677,7 +1677,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
               className="w-10 h-10 rounded-full items-center justify-center mr-3"
               style={{ backgroundColor: doNotContact ? '#FFF7ED' : '#F3F4F6' }}
             >
-              <MaterialCommunityIcons name="bell-off-outline" size={20} color={doNotContact ? '#ff8800' : '#6B7280'} />
+              <MaterialCommunityIcons name="bell-off-outline" size={20} color={doNotContact ? '#FE8733' : '#6B7280'} />
             </View>
             <View className="flex-1">
               <Text className="text-base font-semibold text-gray-900">Do Not Contact</Text>
@@ -1687,8 +1687,8 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
               className="w-5 h-5 rounded items-center justify-center"
               style={{
                 borderWidth: 1.5,
-                borderColor: doNotContact ? '#ff8800' : '#D1D5DB',
-                backgroundColor: doNotContact ? '#ff8800' : 'white',
+                borderColor: doNotContact ? '#FE8733' : '#D1D5DB',
+                backgroundColor: doNotContact ? '#FE8733' : 'white',
               }}
             >
               {doNotContact && (
@@ -1743,7 +1743,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
                     borderRadius: 15,
                     backgroundColor: 'white',
                     borderWidth: 1.5,
-                    borderColor: '#ff8800',
+                    borderColor: '#FE8733',
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
@@ -1763,7 +1763,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
                 paddingVertical: 14,
                 flexDirection: 'row',
                 alignItems: 'center',
-                backgroundColor: '#ff8800',
+                backgroundColor: '#FE8733',
               }}
             >
               <MaterialCommunityIcons name="ticket-percent" size={24} color="white" />
@@ -1781,7 +1781,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
                 paddingHorizontal: 16,
                 paddingVertical: 8,
               }}>
-                <Text style={{ color: '#ff8800', fontWeight: '700', fontSize: 13 }}>Apply</Text>
+                <Text style={{ color: '#FE8733', fontWeight: '700', fontSize: 13 }}>Apply</Text>
               </View>
             </TouchableOpacity>
           )}
@@ -1806,7 +1806,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               {isCalculating ? (
-                <ActivityIndicator size="small" color="#ff8800" />
+                <ActivityIndicator size="small" color="#FE8733" />
               ) : (
                 <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827' }}>₹{amountToPay.toFixed(2)}</Text>
               )}
@@ -1829,14 +1829,14 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
             <View style={{ marginTop: 14 }}>
               {isCalculating ? (
                 <View style={{ alignItems: 'center', paddingVertical: 16 }}>
-                  <ActivityIndicator size="small" color="#ff8800" />
+                  <ActivityIndicator size="small" color="#FE8733" />
                   <Text style={{ color: '#6B7280', fontSize: 12, marginTop: 8 }}>Calculating...</Text>
                 </View>
               ) : pricingError ? (
                 <View style={{ alignItems: 'center', paddingVertical: 16 }}>
                   <Text style={{ color: '#EF4444', fontSize: 14, fontWeight: '600', marginBottom: 8 }}>Pricing Error</Text>
                   <Text style={{ color: '#6B7280', textAlign: 'center', marginBottom: 12 }}>{pricingError}</Text>
-                  <TouchableOpacity onPress={calculatePricing} style={{ backgroundColor: '#ff8800', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20 }}>
+                  <TouchableOpacity onPress={calculatePricing} style={{ backgroundColor: '#FE8733', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20 }}>
                     <Text style={{ color: 'white', fontWeight: '600' }}>Retry</Text>
                   </TouchableOpacity>
                 </View>
@@ -1939,7 +1939,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
       >
         <View
           style={{
-            backgroundColor: '#ff8800',
+            backgroundColor: '#FE8733',
             borderRadius: 28,
             flexDirection: 'row',
             alignItems: 'center',
@@ -1972,10 +1972,10 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
             activeOpacity={0.8}
           >
             {isPlacingOrder ? (
-              <ActivityIndicator size="small" color="#ff8800" />
+              <ActivityIndicator size="small" color="#FE8733" />
             ) : (
               <>
-                <Text style={{ color: '#ff8800', fontWeight: '700', fontSize: 15, marginRight: 6 }}>
+                <Text style={{ color: '#FE8733', fontWeight: '700', fontSize: 15, marginRight: 6 }}>
                   {addresses.length === 0 ? 'Add Address' : isSchedulingMode ? (amountToPay === 0 ? 'Schedule' : 'Schedule & Pay') : (amountToPay === 0 ? 'Place Order' : 'Pay Now')}
                 </Text>
                 <Image

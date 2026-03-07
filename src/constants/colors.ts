@@ -1,7 +1,7 @@
 export const Colors = {
-  primary: '#ff8800',  // Orange - rgba(255, 136, 0, 1)
-  primaryDark: '#cc6d00',
-  primaryLight: '#ffe6cc',
+  primary: '#FE8733',
+  primaryDark: '#FF6636',
+  primaryLight: '#FD9E2F',
 
   secondary: '#10B981',  // Green
   secondaryDark: '#059669',

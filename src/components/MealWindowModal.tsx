@@ -59,7 +59,7 @@ const MealWindowModal: React.FC<MealWindowModalProps> = ({
               width: 80,
               height: 80,
               borderRadius: 40,
-              backgroundColor: 'rgba(255, 136, 0, 0.1)',
+              backgroundColor: 'rgba(254, 135, 51, 0.1)',
               alignItems: 'center',
               justifyContent: 'center',
               marginBottom: 20,
@@ -97,7 +97,7 @@ const MealWindowModal: React.FC<MealWindowModalProps> = ({
           {/* Next Window Info */}
           <View
             style={{
-              backgroundColor: 'rgba(255, 136, 0, 0.08)',
+              backgroundColor: 'rgba(254, 135, 51, 0.08)',
               borderRadius: 12,
               padding: 16,
               width: '100%',
@@ -118,7 +118,7 @@ const MealWindowModal: React.FC<MealWindowModalProps> = ({
               style={{
                 fontSize: 20,
                 fontWeight: 'bold',
-                color: '#ff8800',
+                color: '#FE8733',
                 textAlign: 'center',
               }}
             >
@@ -131,7 +131,7 @@ const MealWindowModal: React.FC<MealWindowModalProps> = ({
             <TouchableOpacity
               onPress={onSchedule}
               style={{
-                backgroundColor: '#ff8800',
+                backgroundColor: '#FE8733',
                 borderRadius: 30,
                 paddingVertical: 14,
                 paddingHorizontal: 40,
@@ -157,19 +157,19 @@ const MealWindowModal: React.FC<MealWindowModalProps> = ({
           <TouchableOpacity
             onPress={onClose}
             style={{
-              backgroundColor: onSchedule ? 'transparent' : '#ff8800',
+              backgroundColor: onSchedule ? 'transparent' : '#FE8733',
               borderRadius: 30,
               paddingVertical: 14,
               paddingHorizontal: 40,
               width: '100%',
               borderWidth: onSchedule ? 2 : 0,
-              borderColor: '#ff8800',
+              borderColor: '#FE8733',
             }}
             activeOpacity={0.8}
           >
             <Text
               style={{
-                color: onSchedule ? '#ff8800' : 'white',
+                color: onSchedule ? '#FE8733' : 'white',
                 fontSize: 16,
                 fontWeight: '600',
                 textAlign: 'center',

@@ -176,7 +176,7 @@ const OnboardingSwiper: React.FC<Props> = ({ navigation }) => {
 
   return (
     <SafeAreaView className="flex-1 bg-orange-400">
-      <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
+      <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
       <View className="flex-1">
         {/* Skip button - top right */}
         <TouchableOpacity
@@ -253,7 +253,7 @@ const OnboardingSwiper: React.FC<Props> = ({ navigation }) => {
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                 <Text
                   style={{
-                    color: '#ff8800',
+                    color: '#FE8733',
                     fontSize: FONT_SIZES.h4,
                     fontWeight: '700',
                     textAlign: 'center',
@@ -266,7 +266,7 @@ const OnboardingSwiper: React.FC<Props> = ({ navigation }) => {
               {currentIndex < SLIDES.length - 1 && (
                 <View
                   style={{
-                    backgroundColor: '#ff8800',
+                    backgroundColor: '#FE8733',
                     borderRadius: SPACING.iconXl / 2,
                     width: SPACING.iconXl + 4,
                     height: SPACING.iconXl + 4,

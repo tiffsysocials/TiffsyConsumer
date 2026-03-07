@@ -47,7 +47,7 @@ const AuthErrorView: React.FC<{
         onPress={handleRetry}
         disabled={retrying}
         style={{
-          backgroundColor: '#ff8800',
+          backgroundColor: '#FE8733',
           borderRadius: 100,
           paddingVertical: 14,
           paddingHorizontal: 48,
@@ -97,12 +97,12 @@ const AppNavigator = () => {
       theme={{
         dark: false,
         colors: {
-          primary: '#ff8800',
+          primary: '#FE8733',
           background: '#FFFFFF',
           card: '#FFFFFF',
           text: '#000000',
           border: '#FFFFFF',
-          notification: '#ff8800',
+          notification: '#FE8733',
         },
         fonts: {
           regular: {

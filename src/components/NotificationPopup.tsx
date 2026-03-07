@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   viewButton: {
-    backgroundColor: '#ff8800',
+    backgroundColor: '#FE8733',
   },
   viewButtonText: {
     fontSize: 15,

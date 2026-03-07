@@ -604,8 +604,8 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
           }}
           className="rounded-full py-2.5 flex-row items-center justify-center"
           style={{
-            backgroundColor: '#ff8800',
-            shadowColor: '#ff8800',
+            backgroundColor: '#FE8733',
+            shadowColor: '#FE8733',
             shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.2,
             shadowRadius: 4,
@@ -626,7 +626,7 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
   // Render loading state
   const renderLoading = () => (
     <View className="items-center justify-center py-20">
-      <ActivityIndicator size="large" color="#ff8800" />
+      <ActivityIndicator size="large" color="#FE8733" />
       <Text className="text-base text-gray-500 mt-4">Loading orders...</Text>
     </View>
   );
@@ -659,10 +659,10 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: 'white' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
+      <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
 
       {/* Status bar background */}
-      <SafeAreaView style={{ backgroundColor: '#ff8800' }} edges={['top']} />
+      <SafeAreaView style={{ backgroundColor: '#FF6636' }} edges={['top']} />
 
       {/* Header and Tabs Container */}
       <View className="bg-orange-400 pb-6" style={{ position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30 }}>
@@ -714,7 +714,7 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
               style={{ width: 24, height: 24 }}
               resizeMode="contain"
             />
-            <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#ff8800' }}>
+            <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#FE8733' }}>
               {usableVouchers}
             </Text>
           </TouchableOpacity>
@@ -812,8 +812,8 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#ff8800']}
-            tintColor="#ff8800"
+            colors={['#FE8733']}
+            tintColor="#FE8733"
           />
         }
       >
@@ -851,7 +851,7 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
                     disabled={historyLoading}
                   >
                     {historyLoading ? (
-                      <ActivityIndicator size="small" color="#ff8800" />
+                      <ActivityIndicator size="small" color="#FE8733" />
                     ) : (
                       <>
                         <Image
@@ -888,7 +888,7 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
                 <TouchableOpacity
                   onPress={() => navigation.navigate('Account')}
                   className="rounded-full px-6 py-2.5"
-                  style={{ backgroundColor: '#ff8800' }}
+                  style={{ backgroundColor: '#FE8733' }}
                 >
                   <Text className="text-white font-semibold text-sm">Go to Auto-Order Settings</Text>
                 </TouchableOpacity>

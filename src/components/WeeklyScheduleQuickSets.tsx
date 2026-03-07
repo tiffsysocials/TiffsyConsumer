@@ -51,7 +51,7 @@ const WeeklyScheduleQuickSets: React.FC<WeeklyScheduleQuickSetsProps> = ({
     {
       label: 'Lunch Only',
       icon: 'white-balance-sunny',
-      color: '#F97316',
+      color: '#FE8733',
       schedule: () => createPattern(ALL_DAYS, true, false),
       description: 'Every day, lunch',
     },

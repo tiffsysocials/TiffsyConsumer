@@ -198,7 +198,7 @@ const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
                   style={{
                     fontSize: 16,
                     fontWeight: '600',
-                    color: '#ff8800',
+                    color: '#FE8733',
                     textAlign: 'center',
                     marginBottom: 8,
                   }}
@@ -223,7 +223,7 @@ const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
                     style={{
                       fontSize: 14,
                       fontWeight: '600',
-                      color: '#ff8800',
+                      color: '#FE8733',
                       textAlign: 'center',
                     }}
                   >
@@ -274,13 +274,13 @@ const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
               <TouchableOpacity
                 onPress={onGoHome}
                 style={{
-                  backgroundColor: 'rgba(255, 136, 0, 1)',
+                  backgroundColor: 'rgba(254, 135, 51, 1)',
                   borderRadius: 28,
                   paddingVertical: 14,
                   paddingHorizontal: 32,
                   alignItems: 'center',
                   marginBottom: 12,
-                  shadowColor: 'rgba(255, 136, 0, 1)',
+                  shadowColor: 'rgba(254, 135, 51, 1)',
                   shadowOffset: { width: 0, height: 4 },
                   shadowOpacity: 0.3,
                   shadowRadius: 8,
@@ -303,7 +303,7 @@ const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
                 onPress={onTrackOrder}
                 style={{
                   borderWidth: 2,
-                  borderColor: 'rgba(255, 136, 0, 1)',
+                  borderColor: 'rgba(254, 135, 51, 1)',
                   borderRadius: 28,
                   paddingVertical: 12,
                   paddingHorizontal: 32,
@@ -317,13 +317,13 @@ const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
                   style={{
                     fontSize: 16,
                     fontWeight: '600',
-                    color: 'rgba(255, 136, 0, 1)',
+                    color: 'rgba(254, 135, 51, 1)',
                     marginRight: 4,
                   }}
                 >
                   {isMultiOrder ? 'View your orders' : 'Track your order'}
                 </Text>
-                <Text style={{ fontSize: 16, color: 'rgba(255, 136, 0, 1)' }}>→</Text>
+                <Text style={{ fontSize: 16, color: 'rgba(254, 135, 51, 1)' }}>→</Text>
               </TouchableOpacity>
 
               {/* Cancel Order Button with Countdown */}

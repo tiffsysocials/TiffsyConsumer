@@ -39,7 +39,7 @@ const AddonSelector: React.FC<AddonSelectorProps> = ({
   if (loading) {
     return (
       <View style={{ paddingVertical: 12, alignItems: 'center' }}>
-        <ActivityIndicator size="small" color="#ff8800" />
+        <ActivityIndicator size="small" color="#FE8733" />
         <Text style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>Loading add-ons...</Text>
       </View>
     );
@@ -62,7 +62,7 @@ const AddonSelector: React.FC<AddonSelectorProps> = ({
             <View
               className="items-center justify-center mr-2"
               style={{
-                backgroundColor: '#ff8800',
+                backgroundColor: '#FE8733',
                 borderRadius: 10,
                 width: 20,
                 height: 20,
@@ -111,7 +111,7 @@ const AddonSelector: React.FC<AddonSelectorProps> = ({
                 {' · '}
                 <Text className="font-semibold text-gray-700">₹{addon.price}</Text>
                 {selected && (
-                  <Text className="font-semibold" style={{ color: '#ff8800' }}>
+                  <Text className="font-semibold" style={{ color: '#FE8733' }}>
                     {' '}· ₹{(addon.price * selected.quantity).toFixed(0)}
                   </Text>
                 )}
@@ -127,7 +127,7 @@ const AddonSelector: React.FC<AddonSelectorProps> = ({
                   paddingVertical: 4,
                   paddingHorizontal: 6,
                   borderWidth: 1,
-                  borderColor: '#ff8800',
+                  borderColor: '#FE8733',
                 }}
               >
                 <TouchableOpacity
@@ -146,12 +146,12 @@ const AddonSelector: React.FC<AddonSelectorProps> = ({
                     alignItems: 'center',
                     justifyContent: 'center',
                     borderWidth: 1,
-                    borderColor: '#ff8800',
+                    borderColor: '#FE8733',
                   }}
                 >
-                  <Text style={{ color: '#ff8800', fontSize: 13, fontWeight: '600' }}>−</Text>
+                  <Text style={{ color: '#FE8733', fontSize: 13, fontWeight: '600' }}>−</Text>
                 </TouchableOpacity>
-                <Text style={{ color: '#ff8800', fontSize: 13, fontWeight: '700', marginHorizontal: 6 }}>
+                <Text style={{ color: '#FE8733', fontSize: 13, fontWeight: '700', marginHorizontal: 6 }}>
                   {selected.quantity}
                 </Text>
                 <TouchableOpacity
@@ -160,7 +160,7 @@ const AddonSelector: React.FC<AddonSelectorProps> = ({
                     width: 20,
                     height: 20,
                     borderRadius: 10,
-                    backgroundColor: '#ff8800',
+                    backgroundColor: '#FE8733',
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}

@@ -1,6 +1,6 @@
 // src/screens/onboarding/OnboardingScreen1.tsx
 import React, { useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StatusBar, Animated, Easing, ImageBackground, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StatusBar, Animated, Easing, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { OnboardingScreenProps } from '../../types/navigation';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -51,16 +51,15 @@ const OnboardingScreen1: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-orange-400">
-      <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#FD9E2F' }}>
+      <StatusBar barStyle="light-content" backgroundColor="#FD9E2F" />
       <View className="flex-1 px-10">
         <View className="flex-1 justify-center" style={{ width: '100%' }}>
           {/* Background Image */}
-          <ImageBackground
+          <Image
             source={require('../../assets/images/onboarding/fastfood.png')}
-            style={{ width: 220, height: 230, paddingLeft: 0, marginLeft:-45, paddingRight: 8, marginTop: -21, justifyContent: 'center', position: 'absolute', top: 0, left: 0 }}
+            style={{ width: 220, height: 230, marginLeft: -45, marginTop: -21, position: 'absolute', top: 0, left: 0, opacity: 0.04 }}
             resizeMode="cover"
-            imageStyle={{ opacity: 0.8, }}
           />
 
           {/* Text */}
@@ -76,6 +75,9 @@ const OnboardingScreen1: React.FC<Props> = ({ navigation }) => {
               lineHeight: 57,
               fontFamily: 'arbutusslab',
               letterSpacing: 0,
+              textShadowColor: 'rgba(0, 0, 0, 0.3)',
+              textShadowOffset: { width: 0, height: 2 },
+              textShadowRadius: 4,
             }}
           >
             Taste{'\n'}Tasty Meals{'\n'}Every Days
@@ -171,7 +173,7 @@ const OnboardingScreen1: React.FC<Props> = ({ navigation }) => {
             >
               <Text
                 style={{
-                  color: '#ff8800',
+                  color: '#FE8733',
                   fontSize: FONT_SIZES.h4,
                   fontWeight: '600',
                   flex: 1,
@@ -183,7 +185,7 @@ const OnboardingScreen1: React.FC<Props> = ({ navigation }) => {
               </Text>
               <View
                 style={{
-                  backgroundColor: '#ff8800',
+                  backgroundColor: '#FE8733',
                   borderRadius: SPACING.iconXl / 2,
                   width: SPACING.iconXl + 4,
                   height: SPACING.iconXl + 4,

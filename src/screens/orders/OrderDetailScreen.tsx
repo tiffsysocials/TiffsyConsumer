@@ -35,9 +35,9 @@ const getStatusColor = (status: OrderStatus): string => {
     case 'ACCEPTED':
       return '#06B6D4'; // Cyan
     case 'PREPARING':
-      return '#F97316'; // Orange
+      return '#FE8733'; // Orange
     case 'READY':
-      return '#F97316'; // Orange
+      return '#FE8733'; // Orange
     case 'PICKED_UP':
       return '#8B5CF6'; // Purple
     case 'OUT_FOR_DELIVERY':
@@ -314,7 +314,7 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   if (loading) {
     return (
       <SafeAreaView className="flex-1 bg-gray-50 items-center justify-center">
-        <ActivityIndicator size="large" color="#ff8800" />
+        <ActivityIndicator size="large" color="#FE8733" />
         <Text className="text-gray-500 mt-4" style={{ fontSize: FONT_SIZES.base }}>
           Loading order details...
         </Text>
@@ -335,7 +335,7 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             fetchOrder();
           }}
           className="rounded-full px-6 mb-4"
-          style={{ backgroundColor: '#ff8800', minHeight: TOUCH_TARGETS.comfortable }}
+          style={{ backgroundColor: '#FE8733', minHeight: TOUCH_TARGETS.comfortable }}
         >
           <Text className="text-white font-semibold" style={{ fontSize: FONT_SIZES.base }}>
             Retry
@@ -382,7 +382,7 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#ff8800']}
+            colors={['#FE8733']}
           />
         }
       >
@@ -489,7 +489,7 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               </Text>
               {kitchen.phone && (
                 <TouchableOpacity onPress={handleCallKitchen} style={{ minHeight: TOUCH_TARGETS.minimum }}>
-                  <Text className="mt-1" style={{ color: '#ff8800', fontSize: FONT_SIZES.sm }}>
+                  <Text className="mt-1" style={{ color: '#FE8733', fontSize: FONT_SIZES.sm }}>
                     Tap to call
                   </Text>
                 </TouchableOpacity>
@@ -654,7 +654,7 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
           <View className="flex-row justify-between mt-2">
             <Text className="text-gray-600" style={{ fontSize: FONT_SIZES.sm }}>Amount Paid</Text>
-            <Text className="font-semibold" style={{ color: '#ff8800', fontSize: FONT_SIZES.sm }}>
+            <Text className="font-semibold" style={{ color: '#FE8733', fontSize: FONT_SIZES.sm }}>
               ₹{order.amountPaid.toFixed(2)}
             </Text>
           </View>
@@ -715,7 +715,7 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             <TouchableOpacity
               onPress={handleTrackOrder}
               className="rounded-full items-center justify-center mb-3"
-              style={{ backgroundColor: '#ff8800', minHeight: TOUCH_TARGETS.comfortable }}
+              style={{ backgroundColor: '#FE8733', minHeight: TOUCH_TARGETS.comfortable }}
             >
               <Text className="text-white font-bold" style={{ fontSize: FONT_SIZES.base }}>Track Order</Text>
             </TouchableOpacity>
@@ -754,10 +754,10 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             >
               <Image
                 source={require('../../assets/icons/reorder2.png')}
-                style={{ width: SPACING.iconSm, height: SPACING.iconSm, tintColor: '#ff8800', marginRight: 8 }}
+                style={{ width: SPACING.iconSm, height: SPACING.iconSm, tintColor: '#FE8733', marginRight: 8 }}
                 resizeMode="contain"
               />
-              <Text className="font-bold" style={{ color: '#ff8800', fontSize: FONT_SIZES.base }}>
+              <Text className="font-bold" style={{ color: '#FE8733', fontSize: FONT_SIZES.base }}>
                 Reorder
               </Text>
             </TouchableOpacity>

@@ -137,7 +137,7 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
       case 'ADMIN_PUSH':
         return { iconName: 'notifications', iconType: 'Ionicons', color: '#8B5CF6' };
       default:
-        return { iconName: 'notifications', iconType: 'Ionicons', color: '#ff8800' };
+        return { iconName: 'notifications', iconType: 'Ionicons', color: '#FE8733' };
     }
   };
 
@@ -229,7 +229,7 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
 
     return (
       <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color="#ff8800" />
+        <ActivityIndicator size="small" color="#FE8733" />
       </View>
     );
   };
@@ -278,8 +278,8 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={handleRefresh}
-            colors={['#ff8800']}
-            tintColor="#ff8800"
+            colors={['#FE8733']}
+            tintColor="#FE8733"
           />
         }
         contentContainerStyle={
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#ff8800',
+    backgroundColor: '#FE8733',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
   markAllText: {
     fontSize: FONT_SIZES.base,
     fontWeight: '600',
-    color: '#ff8800',
+    color: '#FE8733',
   },
   placeholder: {
     width: SPACING['4xl'] * 2,

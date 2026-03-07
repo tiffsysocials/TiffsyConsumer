@@ -88,7 +88,7 @@ const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
           <Text style={styles.headerText}>Day</Text>
         </View>
         <View style={styles.mealHeaderCell}>
-          <MaterialCommunityIcons name="white-balance-sunny" size={18} color="#F97316" />
+          <MaterialCommunityIcons name="white-balance-sunny" size={18} color="#FE8733" />
           <Text style={[styles.headerText, { marginLeft: 4 }]}>Lunch</Text>
         </View>
         <View style={styles.mealHeaderCell}>
@@ -246,8 +246,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkboxButtonActive: {
-    backgroundColor: '#ff8800',
-    borderColor: '#ff8800',
+    backgroundColor: '#FE8733',
+    borderColor: '#FE8733',
   },
   checkboxButtonDisabled: {
     opacity: 0.5,

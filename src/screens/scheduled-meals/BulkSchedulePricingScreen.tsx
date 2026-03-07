@@ -557,9 +557,9 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
   if (error && !pricingData) {
     return (
       <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-        <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
-        <SafeAreaView style={{ backgroundColor: '#ff8800' }} edges={['top']} />
-        <View style={{ backgroundColor: '#ff8800', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
+        <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
+        <SafeAreaView style={{ backgroundColor: '#FF6636' }} edges={['top']} />
+        <View style={{ backgroundColor: '#FF6636', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: SPACING.md }}>
             <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
           </TouchableOpacity>
@@ -570,7 +570,7 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text style={{ fontSize: FONT_SIZES.base, color: '#6B7280', textAlign: 'center', marginTop: SPACING.md }}>{error}</Text>
           <TouchableOpacity
             onPress={() => fetchPricing(vouchersToUse)}
-            style={{ marginTop: SPACING.lg, backgroundColor: '#ff8800', borderRadius: 10, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.xl }}
+            style={{ marginTop: SPACING.lg, backgroundColor: '#FE8733', borderRadius: 10, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.xl }}
           >
             <Text style={{ color: 'white', fontWeight: '600' }}>Retry</Text>
           </TouchableOpacity>
@@ -581,11 +581,11 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
-      <SafeAreaView style={{ backgroundColor: '#ff8800' }} edges={['top']} />
+      <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
+      <SafeAreaView style={{ backgroundColor: '#FF6636' }} edges={['top']} />
 
       {/* Header */}
-      <View style={{ backgroundColor: '#ff8800', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
+      <View style={{ backgroundColor: '#FF6636', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: SPACING.md }}>
           <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
         </TouchableOpacity>
@@ -594,7 +594,7 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
 
       {isLoading && !pricingData ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color="#ff8800" />
+          <ActivityIndicator size="large" color="#FE8733" />
           <Text style={{ marginTop: SPACING.md, fontSize: FONT_SIZES.sm, color: '#6B7280' }}>Calculating pricing...</Text>
         </View>
       ) : pricingData ? (
@@ -615,8 +615,8 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
                 alignItems: 'center',
                 alignSelf: 'flex-start',
               }}>
-                <MaterialCommunityIcons name="calendar-multiple" size={18} color="#ff8800" style={{ marginRight: SPACING.xs }} />
-                <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: '#ff8800' }}>
+                <MaterialCommunityIcons name="calendar-multiple" size={18} color="#FE8733" style={{ marginRight: SPACING.xs }} />
+                <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: '#FE8733' }}>
                   {pricingData.totalSlots} meal{pricingData.totalSlots > 1 ? 's' : ''} selected
                 </Text>
               </View>
@@ -655,10 +655,10 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
                         width: 36, height: 36, borderRadius: 18,
                         backgroundColor: vouchersToUse <= 0 ? '#F3F4F6' : '#FFF7ED',
                         alignItems: 'center', justifyContent: 'center',
-                        borderWidth: 1, borderColor: vouchersToUse <= 0 ? '#E5E7EB' : '#ff8800',
+                        borderWidth: 1, borderColor: vouchersToUse <= 0 ? '#E5E7EB' : '#FE8733',
                       }}
                     >
-                      <MaterialCommunityIcons name="minus" size={20} color={vouchersToUse <= 0 ? '#D1D5DB' : '#ff8800'} />
+                      <MaterialCommunityIcons name="minus" size={20} color={vouchersToUse <= 0 ? '#D1D5DB' : '#FE8733'} />
                     </TouchableOpacity>
                     <Text style={{
                       fontSize: FONT_SIZES.lg, fontWeight: '700', color: '#1F2937',
@@ -673,10 +673,10 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
                         width: 36, height: 36, borderRadius: 18,
                         backgroundColor: vouchersToUse >= maxVouchers ? '#F3F4F6' : '#FFF7ED',
                         alignItems: 'center', justifyContent: 'center',
-                        borderWidth: 1, borderColor: vouchersToUse >= maxVouchers ? '#E5E7EB' : '#ff8800',
+                        borderWidth: 1, borderColor: vouchersToUse >= maxVouchers ? '#E5E7EB' : '#FE8733',
                       }}
                     >
-                      <MaterialCommunityIcons name="plus" size={20} color={vouchersToUse >= maxVouchers ? '#D1D5DB' : '#ff8800'} />
+                      <MaterialCommunityIcons name="plus" size={20} color={vouchersToUse >= maxVouchers ? '#D1D5DB' : '#FE8733'} />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -754,10 +754,10 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
                 <MaterialCommunityIcons
                   name={customizePerSlot ? 'checkbox-marked' : 'checkbox-blank-outline'}
                   size={22}
-                  color={customizePerSlot ? '#ff8800' : '#9CA3AF'}
+                  color={customizePerSlot ? '#FE8733' : '#9CA3AF'}
                   style={{ marginRight: SPACING.sm }}
                 />
-                <Text style={{ fontSize: FONT_SIZES.sm, color: customizePerSlot ? '#ff8800' : '#6B7280', fontWeight: '500' }}>
+                <Text style={{ fontSize: FONT_SIZES.sm, color: customizePerSlot ? '#FE8733' : '#6B7280', fontWeight: '500' }}>
                   Customize add-ons per day
                 </Text>
               </TouchableOpacity>
@@ -774,12 +774,12 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
               borderColor: '#E5E7EB',
             }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.sm }}>
-                <MaterialCommunityIcons name="format-list-bulleted" size={20} color="#ff8800" style={{ marginRight: SPACING.sm }} />
+                <MaterialCommunityIcons name="format-list-bulleted" size={20} color="#FE8733" style={{ marginRight: SPACING.sm }} />
                 <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '700', color: '#1F2937' }}>Per-Meal Breakdown</Text>
               </View>
               {isLoading && (
                 <View style={{ position: 'absolute', top: 0, right: SPACING.lg, bottom: 0, justifyContent: 'center' }}>
-                  <ActivityIndicator size="small" color="#ff8800" />
+                  <ActivityIndicator size="small" color="#FE8733" />
                 </View>
               )}
               {pricingData.perSlotBreakdown.map((slot, index) => renderSlotBreakdown(slot, index))}
@@ -796,7 +796,7 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
               borderColor: '#E5E7EB',
             }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.md }}>
-                <MaterialCommunityIcons name="receipt" size={20} color="#ff8800" style={{ marginRight: SPACING.sm }} />
+                <MaterialCommunityIcons name="receipt" size={20} color="#FE8733" style={{ marginRight: SPACING.sm }} />
                 <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '700', color: '#1F2937' }}>Summary</Text>
               </View>
 
@@ -913,7 +913,7 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
                         borderRadius: 15,
                         backgroundColor: 'white',
                         borderWidth: 1.5,
-                        borderColor: '#ff8800',
+                        borderColor: '#FE8733',
                         alignItems: 'center',
                         justifyContent: 'center',
                       }}
@@ -933,7 +933,7 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
                     paddingVertical: 14,
                     flexDirection: 'row',
                     alignItems: 'center',
-                    backgroundColor: '#ff8800',
+                    backgroundColor: '#FE8733',
                   }}
                 >
                   <MaterialCommunityIcons name="ticket-percent" size={24} color="white" />
@@ -951,7 +951,7 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
                     paddingHorizontal: 16,
                     paddingVertical: 8,
                   }}>
-                    <Text style={{ color: '#ff8800', fontWeight: '700', fontSize: 13 }}>Apply</Text>
+                    <Text style={{ color: '#FE8733', fontWeight: '700', fontSize: 13 }}>Apply</Text>
                   </View>
                 </TouchableOpacity>
               )}
@@ -998,7 +998,7 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
                       <MaterialCommunityIcons
                         name={allowDuplicates ? 'checkbox-marked' : 'checkbox-blank-outline'}
                         size={22}
-                        color={allowDuplicates ? '#ff8800' : '#9CA3AF'}
+                        color={allowDuplicates ? '#FE8733' : '#9CA3AF'}
                         style={{ marginRight: SPACING.sm }}
                       />
                       <Text style={{ fontSize: FONT_SIZES.sm, color: '#92400E' }}>Allow duplicate scheduling</Text>
@@ -1012,7 +1012,7 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
                       <MaterialCommunityIcons
                         name={allowAutoOrderConflict ? 'checkbox-marked' : 'checkbox-blank-outline'}
                         size={22}
-                        color={allowAutoOrderConflict ? '#ff8800' : '#9CA3AF'}
+                        color={allowAutoOrderConflict ? '#FE8733' : '#9CA3AF'}
                         style={{ marginRight: SPACING.sm }}
                       />
                       <Text style={{ fontSize: FONT_SIZES.sm, color: '#92400E' }}>Allow auto-order conflicts</Text>
@@ -1078,7 +1078,7 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
               onPress={handleScheduleAndPay}
               disabled={isSubmitting || isLoading || (hasConflicts && !allowDuplicates && pricingData.conflicts.duplicates.length > 0) || (hasConflicts && !allowAutoOrderConflict && pricingData.conflicts.autoOrderConflicts.length > 0)}
               style={{
-                backgroundColor: isSubmitting || isLoading ? '#fbb36b' : '#ff8800',
+                backgroundColor: isSubmitting || isLoading ? '#fbb36b' : '#FE8733',
                 borderRadius: 12,
                 paddingVertical: SPACING.md,
                 alignItems: 'center',

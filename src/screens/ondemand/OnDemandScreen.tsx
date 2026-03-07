@@ -26,10 +26,10 @@ const OnDemandScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: 'white' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
+      <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
 
       {/* Status bar background */}
-      <SafeAreaView style={{ backgroundColor: '#ff8800' }} edges={['top']} />
+      <SafeAreaView style={{ backgroundColor: '#FF6636' }} edges={['top']} />
 
       {/* Header */}
       <View
@@ -95,7 +95,7 @@ const OnDemandScreen: React.FC<Props> = ({ navigation }) => {
               style={{ width: SPACING.iconSm + 2, height: SPACING.iconSm + 2 }}
               resizeMode="contain"
             />
-            <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: 'bold', color: '#ff8800' }}>{usableVouchers}</Text>
+            <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: 'bold', color: '#FE8733' }}>{usableVouchers}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -112,7 +112,7 @@ const OnDemandScreen: React.FC<Props> = ({ navigation }) => {
             style={{
               width: isSmallDevice ? SPACING['4xl'] * 1.5 : SPACING['4xl'] * 2,
               height: isSmallDevice ? SPACING['4xl'] * 1.5 : SPACING['4xl'] * 2,
-              tintColor: '#ff8800',
+              tintColor: '#FE8733',
               marginBottom: SPACING['2xl'],
             }}
             resizeMode="contain"

@@ -979,17 +979,17 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: 'white' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#fb923c" />
+      <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
 
       {/* Status bar background */}
-      <SafeAreaView style={{ backgroundColor: '#fb923c' }} edges={['top']} />
+      <SafeAreaView style={{ backgroundColor: '#FF6636' }} edges={['top']} />
 
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
         style={{ backgroundColor: 'white' }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#ff8800']} tintColor="#FFFFFF" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FE8733']} tintColor="#FFFFFF" />
         }
       >
         {/* Background behind header curves */}
@@ -1080,7 +1080,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
                     style={{ width: SPACING.iconSm, height: SPACING.iconSm }}
                     resizeMode="contain"
                   />
-                  <Text style={{ fontSize: FONT_SIZES.xs, fontWeight: 'bold', color: '#ff8800' }}>
+                  <Text style={{ fontSize: FONT_SIZES.xs, fontWeight: 'bold', color: '#FE8733' }}>
                     {usableVouchers}
                   </Text>
                 </TouchableOpacity>
@@ -1163,7 +1163,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
                   width: activeCarouselIndex === index ? 20 : 8,
                   height: 8,
                   borderRadius: 4,
-                  backgroundColor: activeCarouselIndex === index ? '#ff8800' : '#D1D5DB',
+                  backgroundColor: activeCarouselIndex === index ? '#FE8733' : '#D1D5DB',
                   marginHorizontal: 3,
                 }}
               />
@@ -1201,7 +1201,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
               elevation: 2,
             }}
           >
-            <MaterialCommunityIcons name="calendar-clock" size={24} color="#ff8800" style={{ marginRight: SPACING.xs }} />
+            <MaterialCommunityIcons name="calendar-clock" size={24} color="#FE8733" style={{ marginRight: SPACING.xs }} />
             <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: '#1F2937', flex: 1 }} numberOfLines={1}>
               Schedule Order
             </Text>
@@ -1229,7 +1229,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
               elevation: 2,
             }}
           >
-            <MaterialCommunityIcons name="toggle-switch-outline" size={24} color="#ff8800" style={{ marginRight: SPACING.xs }} />
+            <MaterialCommunityIcons name="toggle-switch-outline" size={24} color="#FE8733" style={{ marginRight: SPACING.xs }} />
             <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: '#1F2937', flex: 1 }} numberOfLines={1}>
               Auto Orders
             </Text>
@@ -1273,7 +1273,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
           {/* Loading State */}
           {isLoadingMenu && (
             <View className="items-center justify-center py-8">
-              <ActivityIndicator size="large" color="#ff8800" />
+              <ActivityIndicator size="large" color="#FE8733" />
               <Text className="text-gray-500 mt-3">Loading menu...</Text>
             </View>
           )}
@@ -1362,7 +1362,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
             {/* Left: Meal Name and Price */}
             <View className="flex-1 pr-4">
               {!mealWindowInfo.isWindowOpen && (
-                <Text style={{ fontSize: FONT_SIZES.xs, color: '#ff8800', fontWeight: '600', marginBottom: 4 }}>
+                <Text style={{ fontSize: FONT_SIZES.xs, color: '#FE8733', fontWeight: '600', marginBottom: 4 }}>
                   Tomorrow's Menu
                 </Text>
               )}
@@ -1538,7 +1538,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
                         paddingVertical: 4,
                         paddingHorizontal: 6,
                         borderWidth: 1,
-                        borderColor: '#ff8800',
+                        borderColor: '#FE8733',
                       }}
                     >
                       <TouchableOpacity
@@ -1551,19 +1551,19 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
                           alignItems: 'center',
                           justifyContent: 'center',
                           borderWidth: 1,
-                          borderColor: '#ff8800',
+                          borderColor: '#FE8733',
                         }}
                       >
-                        <Text style={{ color: '#ff8800', fontSize: 13, fontWeight: '600' }}>−</Text>
+                        <Text style={{ color: '#FE8733', fontSize: 13, fontWeight: '600' }}>−</Text>
                       </TouchableOpacity>
-                      <Text style={{ color: '#ff8800', fontSize: 13, fontWeight: '700', marginHorizontal: 6 }}>{item.count}</Text>
+                      <Text style={{ color: '#FE8733', fontSize: 13, fontWeight: '700', marginHorizontal: 6 }}>{item.count}</Text>
                       <TouchableOpacity
                         onPress={() => updateQuantity(item.id, true)}
                         style={{
                           width: 20,
                           height: 20,
                           borderRadius: 10,
-                          backgroundColor: '#ff8800',
+                          backgroundColor: '#FE8733',
                           alignItems: 'center',
                           justifyContent: 'center',
                         }}

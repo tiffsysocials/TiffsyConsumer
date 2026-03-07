@@ -10,7 +10,6 @@ import {
   Share,
   TextInput,
 } from 'react-native';
-import Clipboard from '@react-native-clipboard/clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StackScreenProps } from '@react-navigation/stack';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -73,10 +72,13 @@ const ReferAndEarnScreen: React.FC<Props> = ({ navigation }) => {
     setRefreshing(false);
   }, [fetchData]);
 
-  const handleCopyCode = () => {
+  const handleCopyCode = async () => {
     if (referralCode) {
-      Clipboard.setString(referralCode);
-      showAlert('Copied!', 'Referral code copied to clipboard', undefined, 'success');
+      try {
+        await Share.share({ message: referralCode });
+      } catch {
+        // user cancelled
+      }
     }
   };
 
@@ -183,7 +185,7 @@ const ReferAndEarnScreen: React.FC<Props> = ({ navigation }) => {
           marginHorizontal: SPACING.lg,
           marginTop: SPACING.lg,
           borderWidth: 2,
-          borderColor: '#ff8800',
+          borderColor: '#FE8733',
         }}
       >
         <Text style={{ fontSize: FONT_SIZES.sm, color: '#6B7280', textAlign: 'center', marginBottom: SPACING.xs }}>
@@ -193,7 +195,7 @@ const ReferAndEarnScreen: React.FC<Props> = ({ navigation }) => {
           style={{
             fontSize: FONT_SIZES.h1,
             fontWeight: 'bold',
-            color: '#ff8800',
+            color: '#FE8733',
             textAlign: 'center',
             letterSpacing: 3,
             marginBottom: SPACING.md,
@@ -213,11 +215,11 @@ const ReferAndEarnScreen: React.FC<Props> = ({ navigation }) => {
               borderRadius: 14,
               paddingVertical: SPACING.md,
               borderWidth: 1.5,
-              borderColor: '#ff8800',
+              borderColor: '#FE8733',
             }}
           >
-            <MaterialCommunityIcons name="content-copy" size={18} color="#ff8800" style={{ marginRight: 6 }} />
-            <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: '#ff8800' }}>Copy</Text>
+            <MaterialCommunityIcons name="content-copy" size={18} color="#FE8733" style={{ marginRight: 6 }} />
+            <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: '#FE8733' }}>Copy</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={handleShare}
@@ -226,7 +228,7 @@ const ReferAndEarnScreen: React.FC<Props> = ({ navigation }) => {
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: '#ff8800',
+              backgroundColor: '#FE8733',
               borderRadius: 14,
               paddingVertical: SPACING.md,
             }}
@@ -291,7 +293,7 @@ const ReferAndEarnScreen: React.FC<Props> = ({ navigation }) => {
             <View
               style={{
                 height: '100%',
-                backgroundColor: '#ff8800',
+                backgroundColor: '#FE8733',
                 borderRadius: 4,
                 width: `${Math.min(
                   ((stats.totalConverted / stats.nextMilestone.referralCount) * 100),
@@ -348,7 +350,7 @@ const ReferAndEarnScreen: React.FC<Props> = ({ navigation }) => {
               onPress={handleApplyCode}
               disabled={applyLoading}
               style={{
-                backgroundColor: '#ff8800',
+                backgroundColor: '#FE8733',
                 borderRadius: 12,
                 paddingHorizontal: SPACING.lg,
                 justifyContent: 'center',
@@ -393,7 +395,7 @@ const ReferAndEarnScreen: React.FC<Props> = ({ navigation }) => {
                 marginRight: SPACING.md,
               }}
             >
-              <MaterialCommunityIcons name={step.icon} size={22} color="#ff8800" />
+              <MaterialCommunityIcons name={step.icon} size={22} color="#FE8733" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: '#111827' }}>{step.title}</Text>
@@ -432,10 +434,10 @@ const ReferAndEarnScreen: React.FC<Props> = ({ navigation }) => {
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: 'white' }}>
-        <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
-        <SafeAreaView style={{ backgroundColor: '#ff8800' }} edges={['top']} />
+        <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
+        <SafeAreaView style={{ backgroundColor: '#FF6636' }} edges={['top']} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color="#ff8800" />
+          <ActivityIndicator size="large" color="#FE8733" />
           <Text style={{ marginTop: SPACING.md, color: '#6B7280' }}>Loading...</Text>
         </View>
       </View>
@@ -444,13 +446,13 @@ const ReferAndEarnScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: 'white' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#ff8800" />
-      <SafeAreaView style={{ backgroundColor: '#ff8800' }} edges={['top']} />
+      <StatusBar barStyle="light-content" backgroundColor="#FF6636" />
+      <SafeAreaView style={{ backgroundColor: '#FF6636' }} edges={['top']} />
 
       {/* Header */}
       <View
         style={{
-          backgroundColor: '#ff8800',
+          backgroundColor: '#FF6636',
           paddingBottom: SPACING.xl,
           borderBottomLeftRadius: 30,
           borderBottomRightRadius: 30,
@@ -486,7 +488,7 @@ const ReferAndEarnScreen: React.FC<Props> = ({ navigation }) => {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: 40 }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#ff8800']} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FE8733']} />
         }
       />
     </View>
