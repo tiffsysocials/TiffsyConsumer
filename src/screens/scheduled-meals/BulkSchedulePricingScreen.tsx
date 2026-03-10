@@ -376,8 +376,11 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
 
       const result = response.data;
 
+      const mealCount = result.totalOrders;
+      const mealText = `${mealCount} meal${mealCount > 1 ? 's' : ''}`;
+
       if (result.paymentRequired && result.payment) {
-        // Process payment via Razorpay
+        // Payment required - orders not created yet, process payment first
         const paymentResult = await paymentService.processBulkPayment({
           razorpayOrderId: result.payment.razorpayOrderId,
           amount: result.payment.amount,
@@ -385,15 +388,14 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
           currency: result.payment.currency || 'INR',
           prefill: result.payment.prefill,
           batchId: result.batchId,
-          totalOrders: result.totalOrders,
+          totalOrders: mealCount,
         });
 
         if (paymentResult.success) {
-          // Refresh voucher counts
           fetchVouchers?.();
           showAlert(
             'Meals Scheduled!',
-            `${result.totalOrders} meal${result.totalOrders > 1 ? 's' : ''} scheduled and paid successfully.`,
+            `${mealText} scheduled and paid successfully.`,
             [
               { text: 'View Scheduled Meals', onPress: () => navigation.navigate('MyScheduledMeals') },
               { text: 'OK', onPress: () => navigation.navigate('MealCalendar') },
@@ -402,10 +404,9 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
           );
         } else if (paymentResult.error === 'Payment cancelled') {
           showAlert(
-            'Payment Pending',
-            `${result.totalOrders} meal${result.totalOrders > 1 ? 's' : ''} created but payment is pending. Complete payment from Your Orders to avoid auto-cancellation.`,
+            'Payment Cancelled',
+            `${mealText} not scheduled. You can try again.`,
             [
-              { text: 'View Orders', onPress: () => navigation.navigate('MyScheduledMeals') },
               { text: 'OK' },
             ],
             'warning'
@@ -413,20 +414,19 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
         } else {
           showAlert(
             'Payment Failed',
-            paymentResult.error || 'Payment failed. Your orders are created but unpaid. Please complete payment soon.',
+            paymentResult.error || 'Payment could not be completed. Please try again.',
             [
-              { text: 'View Orders', onPress: () => navigation.navigate('MyScheduledMeals') },
               { text: 'OK' },
             ],
             'error'
           );
         }
       } else {
-        // Fully covered by vouchers — no payment needed
+        // Fully covered by vouchers — no payment needed, orders already created
         fetchVouchers?.();
         showAlert(
           'Meals Scheduled!',
-          `${result.totalOrders} meal${result.totalOrders > 1 ? 's' : ''} scheduled successfully — fully covered by vouchers!`,
+          `${mealText} scheduled successfully — fully covered by vouchers!`,
           [
             { text: 'View Scheduled Meals', onPress: () => navigation.navigate('MyScheduledMeals') },
             { text: 'OK', onPress: () => navigation.navigate('MealCalendar') },

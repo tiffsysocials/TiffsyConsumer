@@ -425,6 +425,75 @@ class PaymentService {
   }
 
   /**
+   * Process a direct payment where Razorpay order details are already available.
+   * Used for scheduled meal creation where the backend creates the Razorpay order
+   * during the scheduling API call (order is only created after payment succeeds).
+   */
+  async processDirectPayment(paymentData: {
+    razorpayOrderId: string;
+    amount: number;
+    key: string;
+    prefill?: { name?: string; contact?: string; email?: string };
+    description?: string;
+  }): Promise<OrderPaymentResult> {
+    try {
+      console.log('[PaymentService] Processing direct payment, razorpayOrderId:', paymentData.razorpayOrderId);
+
+      const checkoutOptions: RazorpayOptions = {
+        key: paymentData.key,
+        amount: paymentData.amount,
+        currency: 'INR',
+        name: MERCHANT_NAME,
+        description: paymentData.description || 'Scheduled Meal',
+        order_id: paymentData.razorpayOrderId,
+        prefill: paymentData.prefill,
+        theme: { color: THEME_COLOR },
+      };
+
+      const paymentResponse = await this.openCheckout(checkoutOptions);
+
+      console.log('[PaymentService] Verifying direct payment...');
+      const verifyResponse = await apiService.verifyPayment({
+        razorpayOrderId: paymentResponse.razorpay_order_id,
+        razorpayPaymentId: paymentResponse.razorpay_payment_id,
+        razorpaySignature: paymentResponse.razorpay_signature,
+      });
+
+      if (!verifyResponse.success || !verifyResponse.data.success) {
+        throw new Error(verifyResponse.message || 'Payment verification failed');
+      }
+
+      console.log('[PaymentService] Direct payment completed successfully');
+      return { success: true, paymentId: paymentResponse.razorpay_payment_id };
+    } catch (error: any) {
+      console.error('[PaymentService] Direct payment failed:', error);
+
+      const isRealError = error?.description?.includes('BAD_REQUEST_ERROR')
+        || error?.error?.code === 'BAD_REQUEST_ERROR'
+        || error?.error?.reason === 'payment_error';
+
+      if ((error.code === 0 || error.code === 2) && !isRealError) {
+        console.log('[PaymentService] User cancelled direct payment');
+        return { success: false, error: 'Payment cancelled' };
+      }
+
+      let errorMessage = 'Payment failed. Please try again.';
+      if (isRealError) {
+        const reason = error?.error?.reason || error?.error?.description;
+        if (reason && reason !== 'undefined') {
+          errorMessage = `Payment failed: ${reason.replace(/_/g, ' ')}`;
+        }
+      } else if (error.description && error.description !== 'undefined') {
+        errorMessage = error.description;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
    * Process bulk scheduled meal payment.
    * Unlike processOrderPayment, Razorpay details come from the bulk creation response
    * (no separate initiate step needed).

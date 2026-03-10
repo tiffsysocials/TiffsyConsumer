@@ -17,6 +17,7 @@ import { MainTabParamList } from '../../types/navigation';
 import { usePayment } from '../../context/PaymentContext';
 import { useAlert } from '../../context/AlertContext';
 import apiService, { ScheduledMealPricingData, AddonItem } from '../../services/api.service';
+import paymentService from '../../services/payment.service';
 import AddonSelector, { SelectedAddon } from '../../components/AddonSelector';
 import { useResponsive, useScaling } from '../../hooks/useResponsive';
 import { SPACING } from '../../constants/spacing';
@@ -245,26 +246,20 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
         return;
       }
 
-      const { order, paymentRequired } = response.data;
-      const orderId = order.id || order._id;
+      const { paymentRequired, payment, order } = response.data;
 
-      console.log('[ScheduledMealPricing] Order created:', {
-        orderId,
-        orderNumber: order.orderNumber,
-        status: order.status,
-        paymentRequired,
-      });
+      if (paymentRequired && payment) {
+        // Payment required - order not created yet, process payment first
+        console.log('[ScheduledMealPricing] Payment required, opening Razorpay:', payment.razorpayOrderId);
 
-      if (paymentRequired) {
-        if (!orderId) {
-          console.error('[ScheduledMealPricing] No order ID found in response:', JSON.stringify(order));
-          showAlert('Error', 'Could not retrieve order ID for payment. Please try again.', undefined, 'error');
-          setIsCreating(false);
-          return;
-        }
+        const paymentResult = await paymentService.processDirectPayment({
+          razorpayOrderId: payment.razorpayOrderId,
+          amount: payment.amount,
+          key: payment.key,
+          prefill: payment.prefill,
+          description: `Scheduled ${mealWindow.toLowerCase()} meal`,
+        });
 
-        console.log('[ScheduledMealPricing] Initiating Razorpay payment for orderId:', orderId);
-        const paymentResult = await processOrderPayment(orderId);
         console.log('[ScheduledMealPricing] Payment result:', JSON.stringify(paymentResult));
 
         if (paymentResult.success) {
@@ -278,6 +273,8 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
           showAlert('Payment Failed', paymentResult.error || 'Payment could not be completed. Please try again.', undefined, 'error');
         }
       } else {
+        // No payment needed (voucher-only) - order already created
+        console.log('[ScheduledMealPricing] No payment required, order created:', order?.orderNumber);
         showAlert('Meal Scheduled!', `Your ${mealWindow.toLowerCase()} thali for ${formatDate(scheduledDate)} has been scheduled.`, [
           { text: 'View Scheduled Meals', onPress: () => navigation.navigate('MyScheduledMeals') },
           { text: 'OK', style: 'cancel', onPress: () => navigation.goBack() },
@@ -288,7 +285,7 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
     } finally {
       setIsCreating(false);
     }
-  }, [pricingData, isCreating, deliveryAddressId, mealWindow, scheduledDate, voucherCount, appliedCoupon, specialInstructions, deliveryNotes, processOrderPayment, showAlert, navigation, buildItemsWithAddons]);
+  }, [pricingData, isCreating, deliveryAddressId, mealWindow, scheduledDate, voucherCount, appliedCoupon, specialInstructions, deliveryNotes, showAlert, navigation, buildItemsWithAddons]);
 
   if (isLoading) {
     return (
