@@ -10,7 +10,8 @@ import {
   Modal,
   FlatList,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import { Calendar, DateData } from 'react-native-calendars';
 import { StackScreenProps } from '@react-navigation/stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -560,14 +561,13 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
   if (addresses.length === 0) {
     return (
       <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-        <StatusBar barStyle="light-content" backgroundColor="#FE8733" />
-        <SafeAreaView style={{ backgroundColor: '#FE8733' }} edges={['top']} />
-        <View style={{ backgroundColor: '#FE8733', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+        <LinearGradient colors={['#FD9E2F', '#FF6636']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center', paddingTop: (StatusBar.currentHeight ?? 0) + SPACING.md }}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: SPACING.md }}>
             <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
           </TouchableOpacity>
           <Text style={{ color: 'white', fontSize: FONT_SIZES.h4, fontWeight: 'bold', flex: 1 }}>Meal Calendar</Text>
-        </View>
+        </LinearGradient>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACING.xl }}>
           <MaterialCommunityIcons name="map-marker-plus-outline" size={64} color="#D1D5DB" />
           <Text style={{ fontSize: FONT_SIZES.lg, fontWeight: '600', color: '#374151', marginTop: SPACING.lg, textAlign: 'center' }}>
@@ -595,11 +595,10 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#FE8733" />
-      <SafeAreaView style={{ backgroundColor: '#FE8733' }} edges={['top']} />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {/* Header */}
-      <View style={{ backgroundColor: '#FE8733', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
+      <LinearGradient colors={['#FD9E2F', '#FF6636']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center', paddingTop: (StatusBar.currentHeight ?? 0) + SPACING.md }}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: SPACING.md }}>
           <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
         </TouchableOpacity>
@@ -635,7 +634,7 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
           <MaterialCommunityIcons name="format-list-bulleted" size={16} color="white" style={{ marginRight: 4 }} />
           <Text style={{ color: 'white', fontSize: FONT_SIZES.xs, fontWeight: '600' }}>List</Text>
         </TouchableOpacity>
-      </View>
+      </LinearGradient>
 
       <ScrollView style={{ flex: 1 }}>
         {/* Address Selector */}
@@ -976,6 +975,24 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
                 </TouchableOpacity>
               )}
             />
+            <TouchableOpacity
+              onPress={() => {
+                setShowAddressPicker(false);
+                navigation.navigate('Address');
+              }}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: SPACING.lg,
+                paddingVertical: SPACING.md,
+                marginTop: SPACING.xs,
+                borderTopWidth: 1,
+                borderTopColor: '#F3F4F6',
+              }}
+            >
+              <MaterialCommunityIcons name="plus-circle-outline" size={20} color="#FE8733" style={{ marginRight: SPACING.md }} />
+              <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: '#FE8733' }}>Add new address</Text>
+            </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>

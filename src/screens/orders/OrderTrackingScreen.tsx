@@ -10,8 +10,10 @@ import {
   TextInput,
   ActivityIndicator,
   Linking,
+  Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Clipboard from '@react-native-clipboard/clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StackScreenProps } from '@react-navigation/stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -21,6 +23,7 @@ import apiService, { OrderTrackingData, Order, OrderStatus } from '../../service
 import CancelOrderModal from '../../components/CancelOrderModal';
 import RateOrderModal from '../../components/RateOrderModal';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import Svg, { Path } from 'react-native-svg';
 import { useResponsive } from '../../hooks/useResponsive';
 import { SPACING, TOUCH_TARGETS } from '../../constants/spacing';
 import { FONT_SIZES } from '../../constants/typography';
@@ -109,6 +112,8 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
   const [pickupNotes, setPickupNotes] = useState('');
   const [savedNotes, setSavedNotes] = useState<string[]>([]);
   const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const [leaveAtDoor, setLeaveAtDoor] = useState(false);
+  const [doNotContact, setDoNotContact] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showRateModal, setShowRateModal] = useState(false);
@@ -430,14 +435,24 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
         <View className="flex-row items-center" style={{ backgroundColor: 'rgba(237, 239, 241, 1)', paddingHorizontal: isSmallDevice ? SPACING.lg : SPACING.xl, paddingVertical: SPACING.md }}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
-            className="rounded-full bg-orange-400 items-center justify-center"
-            style={{ minWidth: TOUCH_TARGETS.minimum, minHeight: TOUCH_TARGETS.minimum }}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: '#FE8733',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
           >
-            <Image
-              source={require('../../assets/icons/arrow.png')}
-              style={{ width: SPACING.iconLg, height: SPACING.iconLg }}
-              resizeMode="contain"
-            />
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+              <Path
+                d="M15 18l-6-6 6-6"
+                stroke="#FFFFFF"
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
           </TouchableOpacity>
 
           <Text className="flex-1 text-center font-bold text-gray-900 mr-10" style={{ fontSize: isSmallDevice ? FONT_SIZES.h4 : FONT_SIZES.h3 }}>
@@ -461,9 +476,24 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
             <Text className="text-xl font-bold text-gray-900">
               {tracking ? getStatusDisplayText(tracking.status) : 'Loading...'}
             </Text>
-            <Text className="text-sm text-gray-500">
-              Order ID - #{order?.orderNumber || '...'}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text className="text-sm text-gray-500">
+                Order ID - #{order?.orderNumber || '...'}
+              </Text>
+              {order?.orderNumber && (
+                <TouchableOpacity
+                  onPress={() => {
+                    Clipboard.setString(order.orderNumber);
+                    Alert.alert('Copied!', 'Order ID copied to clipboard');
+                  }}
+                  style={{ marginLeft: 4, padding: 2 }}
+                >
+                  <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
+                    <Path d="M16 1H4C2.9 1 2 1.9 2 3v14h2V3h12V1zm3 4H8C6.9 5 6 5.9 6 7v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" fill="rgba(145,145,145,1)" />
+                  </Svg>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
 
           {/* Estimated Delivery */}
@@ -484,20 +514,26 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
             <View className="flex-row items-center justify-between mb-6">
               {/* Preparing */}
               <View className="items-center" style={{ width: 80 }}>
-                <View className="w-12 h-12 rounded-full items-center justify-center mb-2">
-                  <Image
-                    source={require('../../assets/icons/prepared2.png')}
-                    style={{
-                      width: 40,
-                      height: 40,
-                      opacity: currentStep >= 0 ? 1 : 0.4,
-                    }}
-                    resizeMode="contain"
-                  />
+                <View
+                  className="items-center justify-center mb-2"
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: currentStep >= 0 ? '#FE8733' : '#9CA3AF',
+                  }}
+                >
+                  {/* Fork & knife / restaurant icon */}
+                  <Svg width={22} height={22} viewBox="0 0 24 24">
+                    <Path
+                      d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z"
+                      fill="#FFFFFF"
+                    />
+                  </Svg>
                 </View>
                 <Text
                   className="text-xs font-semibold"
-                  style={{ color: currentStep >= 0 ? '#FDB766' : '#9CA3AF' }}
+                  style={{ color: currentStep >= 0 ? '#FE8733' : '#9CA3AF' }}
                 >
                   Preparing
                 </Text>
@@ -525,15 +561,17 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
                     backgroundColor: currentStep >= 2 ? '#FE8733' : '#9CA3AF',
                   }}
                 >
-                  <MaterialCommunityIcons
-                    name="truck-delivery"
-                    size={24}
-                    color="#FFFFFF"
-                  />
+                  {/* Delivery truck icon */}
+                  <Svg width={22} height={22} viewBox="0 0 24 24">
+                    <Path
+                      d="M20 8h-3V4H3C1.9 4 1 4.9 1 6v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"
+                      fill="#FFFFFF"
+                    />
+                  </Svg>
                 </View>
                 <Text
                   className="text-xs font-semibold text-center"
-                  style={{ color: currentStep >= 2 ? '#FDB766' : '#9CA3AF' }}
+                  style={{ color: currentStep >= 2 ? '#FE8733' : '#9CA3AF' }}
                 >
                   Out For Delivery
                 </Text>
@@ -561,15 +599,17 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
                     backgroundColor: currentStep >= 3 ? '#FE8733' : '#9CA3AF',
                   }}
                 >
-                  <MaterialCommunityIcons
-                    name="check-circle"
-                    size={23}
-                    color="#FFFFFF"
-                  />
+                  {/* Checkmark icon */}
+                  <Svg width={22} height={22} viewBox="0 0 24 24">
+                    <Path
+                      d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"
+                      fill="#FFFFFF"
+                    />
+                  </Svg>
                 </View>
                 <Text
                   className="text-xs font-semibold"
-                  style={{ color: currentStep >= 3 ? '#FDB766' : '#9CA3AF' }}
+                  style={{ color: currentStep >= 3 ? '#FE8733' : '#9CA3AF' }}
                 >
                   Delivered
                 </Text>
@@ -683,6 +723,69 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
                   <Text className="text-sm text-gray-800">{note}</Text>
                 </View>
               ))}
+            </View>
+          )}
+
+          {/* Leave at Door & Do Not Contact */}
+          {!isCancelledOrRejected && tracking?.status !== 'DELIVERED' && (
+            <View className="mb-6">
+              {/* Leave at Door */}
+              <TouchableOpacity
+                onPress={() => setLeaveAtDoor(!leaveAtDoor)}
+                className="flex-row items-center py-3 border-b border-gray-100"
+              >
+                <View
+                  className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                  style={{ backgroundColor: leaveAtDoor ? '#FFF7ED' : '#F3F4F6' }}
+                >
+                  <MaterialCommunityIcons name="door-open" size={20} color={leaveAtDoor ? '#FE8733' : '#6B7280'} />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-base font-semibold text-gray-900">Leave at Door</Text>
+                  <Text className="text-xs text-gray-500 mt-0.5">Drop off without ringing the bell</Text>
+                </View>
+                <View
+                  className="w-5 h-5 rounded items-center justify-center"
+                  style={{
+                    borderWidth: 1.5,
+                    borderColor: leaveAtDoor ? '#FE8733' : '#D1D5DB',
+                    backgroundColor: leaveAtDoor ? '#FE8733' : 'white',
+                  }}
+                >
+                  {leaveAtDoor && (
+                    <Text style={{ color: 'white', fontSize: 11, fontWeight: '700' }}>✓</Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+
+              {/* Do Not Contact */}
+              <TouchableOpacity
+                onPress={() => setDoNotContact(!doNotContact)}
+                className="flex-row items-center py-3"
+              >
+                <View
+                  className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                  style={{ backgroundColor: doNotContact ? '#FFF7ED' : '#F3F4F6' }}
+                >
+                  <MaterialCommunityIcons name="bell-off-outline" size={20} color={doNotContact ? '#FE8733' : '#6B7280'} />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-base font-semibold text-gray-900">Do Not Contact</Text>
+                  <Text className="text-xs text-gray-500 mt-0.5">Avoid calls or messages on delivery</Text>
+                </View>
+                <View
+                  className="w-5 h-5 rounded items-center justify-center"
+                  style={{
+                    borderWidth: 1.5,
+                    borderColor: doNotContact ? '#FE8733' : '#D1D5DB',
+                    backgroundColor: doNotContact ? '#FE8733' : 'white',
+                  }}
+                >
+                  {doNotContact && (
+                    <Text style={{ color: 'white', fontSize: 11, fontWeight: '700' }}>✓</Text>
+                  )}
+                </View>
+              </TouchableOpacity>
             </View>
           )}
 

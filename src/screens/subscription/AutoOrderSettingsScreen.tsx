@@ -6,11 +6,12 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
-  Image,
   StatusBar,
   RefreshControl,
 } from 'react-native';
+import Svg, { Polyline } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import { StackScreenProps } from '@react-navigation/stack';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSubscription } from '../../context/SubscriptionContext';
@@ -97,29 +98,30 @@ const AutoOrderSettingsScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={styles.container} className="flex-1 bg-white">
-      <StatusBar barStyle="light-content" backgroundColor="#FE8733" />
-      <SafeAreaView style={{ backgroundColor: '#FE8733' }} edges={['top']} />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {/* Header */}
-      <View
-        className="bg-orange-400 px-5 py-4"
-        style={{ borderBottomLeftRadius: 30, borderBottomRightRadius: 30 }}
+      <LinearGradient
+        colors={['#FD9E2F', '#FF6636']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={{ borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingHorizontal: 20, paddingTop: (StatusBar.currentHeight ?? 0) + 16, paddingBottom: 16 }}
       >
         <View className="flex-row items-center justify-between">
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={{
-              minWidth: TOUCH_TARGETS.minimum,
-              minHeight: TOUCH_TARGETS.minimum,
+              width: TOUCH_TARGETS.minimum,
+              height: TOUCH_TARGETS.minimum,
+              borderRadius: TOUCH_TARGETS.minimum / 2,
+              backgroundColor: 'white',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Image
-              source={require('../../assets/icons/backarrow3.png')}
-              style={{ width: SPACING.iconLg, height: SPACING.iconLg }}
-              resizeMode="contain"
-            />
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+              <Polyline points="15,18 9,12 15,6" stroke="#FE8733" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
           </TouchableOpacity>
           <Text
             className="font-bold text-white flex-1 text-center"
@@ -130,7 +132,7 @@ const AutoOrderSettingsScreen: React.FC<Props> = ({ navigation }) => {
           </Text>
           <View style={{ width: SPACING.iconLg }} />
         </View>
-      </View>
+      </LinearGradient>
 
       <ScrollView
         className="flex-1 bg-gray-50"

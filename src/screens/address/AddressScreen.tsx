@@ -18,7 +18,7 @@ import { StackScreenProps } from '@react-navigation/stack';
 import { MainTabParamList } from '../../types/navigation';
 import { useAddress, Address } from '../../context/AddressContext';
 import { useAlert } from '../../context/AlertContext';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import Svg, { Path } from 'react-native-svg';
 import locationService from '../../services/location.service';
 import { useResponsive } from '../../hooks/useResponsive';
 import { SPACING, TOUCH_TARGETS } from '../../constants/spacing';
@@ -565,10 +565,11 @@ const AddressScreen: React.FC<Props> = ({ navigation }) => {
           <View className="flex-row items-center mb-2">
             <TouchableOpacity
               onPress={() => navigation.goBack()}
-              className="rounded-full items-center justify-center"
-              style={{ minWidth: TOUCH_TARGETS.minimum, minHeight: TOUCH_TARGETS.minimum, backgroundColor: '#FE8733' }}
+              style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#FE8733', alignItems: 'center', justifyContent: 'center' }}
             >
-              <MaterialCommunityIcons name="arrow-left" size={22} color="#FFFFFF" />
+              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+                <Path d="M15 18l-6-6 6-6" stroke="#FFFFFF" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
             </TouchableOpacity>
             <View className="flex-1 ml-3">
               <Text className="font-bold text-gray-900" style={{ fontSize: isSmallDevice ? FONT_SIZES.h4 : FONT_SIZES.h3 }}>My Addresses</Text>
@@ -594,11 +595,15 @@ const AddressScreen: React.FC<Props> = ({ navigation }) => {
               backgroundColor: 'rgba(255, 255, 255, 1)',
             }}
           >
-            <Image
-              source={require('../../assets/icons/search.png')}
-              style={{ width: 20, height: 20 }}
-              resizeMode="contain"
-            />
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+              <Path
+                d="M21 21l-6-6m2-5a7 7 0 1 1-14 0 7 7 0 0 1 14 0z"
+                stroke="#FE8733"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
             <TextInput
               placeholder="Search for an address"
               placeholderTextColor="#9CA3AF"
@@ -639,13 +644,15 @@ const AddressScreen: React.FC<Props> = ({ navigation }) => {
               elevation: 3,
             }}
           >
-            <View style={{ width: 32, height: 32, marginRight: 12 }}>
-              <Image
-                source={require('../../assets/icons/Add.png')}
-                style={{ width: 35, height: 35 }}
-                resizeMode="contain"
+            <Svg width={32} height={32} viewBox="0 0 24 24" fill="none" style={{ marginRight: 12 }}>
+              <Path
+                d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"
+                stroke="#FE8733"
+                strokeWidth={1.6}
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
-            </View>
+            </Svg>
             <View>
               <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>Add New</Text>
               <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>Address</Text>
@@ -737,12 +744,15 @@ const AddressScreen: React.FC<Props> = ({ navigation }) => {
               <ActivityIndicator size="small" color="#FE8733" />
             ) : (
               <>
-                <View style={{ width: 32, height: 32, marginRight: 12 }}>
-                  <Image
-                    source={require('../../assets/icons/location3.png')}
-                    style={{ width: 35, height: 35 }}
+                <Svg width={32} height={32} viewBox="0 0 24 24" fill="none" style={{ marginRight: 12 }}>
+                  <Path
+                    d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"
+                    stroke="#FE8733"
+                    strokeWidth={1.6}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   />
-                </View>
+                </Svg>
                 <View>
                   <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>Use Current</Text>
                   <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>Location</Text>

@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import { StackScreenProps } from '@react-navigation/stack';
 import { MainTabParamList } from '../../types/navigation';
 import { useSubscription } from '../../context/SubscriptionContext';
@@ -230,22 +230,20 @@ const VouchersScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: 'white' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#FE8733" />
-
-      {/* Status bar background */}
-      <SafeAreaView style={{ backgroundColor: '#FE8733' }} edges={['top']} />
-
-      {/* Orange background for pull-to-refresh/bounce area */}
-      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 300, backgroundColor: '#FDB766', zIndex: -1 }} />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {/* Header */}
-      <View
-        className="bg-orange-400 pb-6"
+      <LinearGradient
+        colors={['#FD9E2F', '#FF6636']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
         style={{
           position: 'relative',
           overflow: 'hidden',
           borderBottomLeftRadius: 30,
           borderBottomRightRadius: 30,
+          paddingBottom: 24,
+          paddingTop: StatusBar.currentHeight,
         }}
       >
         {/* Decorative Background Elements */}
@@ -312,7 +310,7 @@ const VouchersScreen: React.FC<Props> = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Content Area */}
       <View className="flex-1 bg-gray-50">

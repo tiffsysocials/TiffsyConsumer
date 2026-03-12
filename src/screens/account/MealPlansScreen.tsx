@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StackScreenProps } from '@react-navigation/stack';
+import Svg, { Path } from 'react-native-svg';
 import { MainTabParamList } from '../../types/navigation';
 import { useSubscription } from '../../context/SubscriptionContext';
 import { useUser } from '../../context/UserContext';
@@ -255,19 +256,24 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
               {/* Back Button */}
               <TouchableOpacity
                 onPress={() => navigation.goBack()}
-                className="rounded-full bg-orange-400"
                 style={{
-                  minWidth: TOUCH_TARGETS.minimum,
-                  minHeight: TOUCH_TARGETS.minimum,
+                  width: SPACING.iconXl,
+                  height: SPACING.iconXl,
+                  borderRadius: SPACING.iconXl / 2,
+                  backgroundColor: '#FE8733',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <Image
-                  source={require('../../assets/icons/arrow.png')}
-                  style={{ width: SPACING.iconLg, height: SPACING.iconLg }}
-                  resizeMode="contain"
-                />
+                <Svg width={SPACING.iconSize - 2} height={SPACING.iconSize - 2} viewBox="0 0 24 24" fill="none">
+                  <Path
+                    d="M15.75 19.5 8.25 12l7.5-7.5"
+                    stroke="#FFFFFF"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </Svg>
               </TouchableOpacity>
 
               <View className="flex-1" />
@@ -650,11 +656,17 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
 
           <View>
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 20 }}>
-              <Image
-                source={require('../../assets/icons/order2.png')}
-                style={{ width: 32, height: 32, marginRight: 12, marginTop: 2 }}
-                resizeMode="contain"
-              />
+              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#FE8733', alignItems: 'center', justifyContent: 'center', marginRight: 12, marginTop: 2 }}>
+                <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+                  <Path
+                    d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 0 0-2 2v3a2 2 0 1 1 0 4v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3a2 2 0 1 1 0-4V7a2 2 0 0 0-2-2H5z"
+                    stroke="#FFFFFF"
+                    strokeWidth={1.8}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </Svg>
+              </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 16, fontWeight: '500', color: '#1F2937', marginBottom: 4 }}>
                   1 Voucher = 1 Meal
@@ -666,11 +678,17 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
             </View>
 
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 20 }}>
-              <Image
-                source={require('../../assets/icons/address2.png')}
-                style={{ width: 32, height: 32, marginRight: 12, marginTop: 2 }}
-                resizeMode="contain"
-              />
+              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#FE8733', alignItems: 'center', justifyContent: 'center', marginRight: 12, marginTop: 2 }}>
+                <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+                  <Path
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z"
+                    stroke="#FFFFFF"
+                    strokeWidth={1.8}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </Svg>
+              </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 16, fontWeight: '500', color: '#1F2937', marginBottom: 4 }}>
                   Valid for Plan Duration
@@ -682,11 +700,17 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
             </View>
 
             <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-              <Image
-                source={require('../../assets/icons/mealplan.png')}
-                style={{ width: 32, height: 32, marginRight: 12, marginTop: 2 }}
-                resizeMode="contain"
-              />
+              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#FE8733', alignItems: 'center', justifyContent: 'center', marginRight: 12, marginTop: 2 }}>
+                <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+                  <Path
+                    d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"
+                    stroke="#FFFFFF"
+                    strokeWidth={1.8}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </Svg>
+              </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 16, fontWeight: '500', color: '#1F2937', marginBottom: 4 }}>
                   Add-ons available

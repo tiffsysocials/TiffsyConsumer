@@ -149,3 +149,23 @@ export const isAutoOrderNotification = (type: NotificationType): boolean => {
          type === NotificationType.AUTO_ORDER_PAYMENT_REQUIRED ||
          type === NotificationType.AUTO_ORDER_PAYMENT_EXPIRED;
 };
+
+/**
+ * Helper to check if notification type is scheduled meal related
+ */
+export const isScheduledNotification = (type: NotificationType): boolean => {
+  return type === NotificationType.SCHEDULED_MEAL_CREATED ||
+         type === NotificationType.SCHEDULED_MEAL_PLACED ||
+         type === NotificationType.SCHEDULED_MEAL_CANCELLED ||
+         type === NotificationType.SCHEDULED_MEAL_ISSUE;
+};
+
+/**
+ * Helper to check if a notification should be automatically pinned.
+ * Only success notifications are pinned to the top.
+ */
+export const isPinnedNotification = (type: NotificationType): boolean => {
+  return type === NotificationType.AUTO_ORDER_SUCCESS ||
+         type === NotificationType.SCHEDULED_MEAL_CREATED ||
+         type === NotificationType.SCHEDULED_MEAL_PLACED;
+};

@@ -9,7 +9,11 @@ import {
   StatusBar,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from 'react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
+import Svg, { Path } from 'react-native-svg';
+import LinearGradient from 'react-native-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackScreenProps } from '@react-navigation/stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -416,10 +420,22 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
           </View>
 
           {/* Row 2: Order ID */}
-          <View className="mb-1">
+          <View className="flex-row items-center mb-1">
             <Text className="text-sm" style={{ color: 'rgba(145, 145, 145, 1)' }} numberOfLines={1}>
               Order ID - #{order.orderNumber}
             </Text>
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                Clipboard.setString(order.orderNumber);
+                Alert.alert('Copied!', 'Order ID copied to clipboard');
+              }}
+              style={{ marginLeft: 4, padding: 2 }}
+            >
+              <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
+                <Path d="M16 1H4C2.9 1 2 1.9 2 3v14h2V3h12V1zm3 4H8C6.9 5 6 5.9 6 7v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" fill="rgba(145,145,145,1)" />
+              </Svg>
+            </TouchableOpacity>
           </View>
 
           {/* Row 3: Date & Time | Auto Badge */}
@@ -454,8 +470,8 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
               <View
                 className="px-2.5 py-1 rounded-full flex-row items-center"
                 style={{
-                  backgroundColor: '#3B82F6',
-                  shadowColor: '#3B82F6',
+                  backgroundColor: '#642714',
+                  shadowColor: '#642714',
                   shadowOffset: { width: 0, height: 1 },
                   shadowOpacity: 0.3,
                   shadowRadius: 2,
@@ -526,9 +542,23 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
             </Text>
             <Text className="text-base font-bold text-gray-900">₹{order.amountPaid.toFixed(2)}</Text>
           </View>
-          <Text className="text-sm" style={{ color: 'rgba(145, 145, 145, 1)' }} numberOfLines={1}>
-            Order ID - #{order.orderNumber}
-          </Text>
+          <View className="flex-row items-center">
+            <Text className="text-sm" style={{ color: 'rgba(145, 145, 145, 1)' }} numberOfLines={1}>
+              Order ID - #{order.orderNumber}
+            </Text>
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                Clipboard.setString(order.orderNumber);
+                Alert.alert('Copied!', 'Order ID copied to clipboard');
+              }}
+              style={{ marginLeft: 4, padding: 2 }}
+            >
+              <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
+                <Path d="M16 1H4C2.9 1 2 1.9 2 3v14h2V3h12V1zm3 4H8C6.9 5 6 5.9 6 7v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" fill="rgba(145,145,145,1)" />
+              </Svg>
+            </TouchableOpacity>
+          </View>
           <View className="flex-row items-center justify-between mt-2">
             <View className="flex-1">
               <Text className="text-sm" style={{ color: 'rgba(145, 145, 145, 1)' }}>
@@ -560,8 +590,8 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
               <View
                 className="px-2.5 py-1.5 rounded-full flex-row items-center"
                 style={{
-                  backgroundColor: '#3B82F6',
-                  shadowColor: '#3B82F6',
+                  backgroundColor: '#642714',
+                  shadowColor: '#642714',
                   shadowOffset: { width: 0, height: 1 },
                   shadowOpacity: 0.3,
                   shadowRadius: 2,
@@ -659,13 +689,10 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: 'white' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#FE8733" />
-
-      {/* Status bar background */}
-      <SafeAreaView style={{ backgroundColor: '#FE8733' }} edges={['top']} />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {/* Header and Tabs Container */}
-      <View className="bg-orange-400 pb-6" style={{ position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30 }}>
+      <LinearGradient colors={['#FD9E2F', '#FF6636']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingBottom: 24, paddingTop: StatusBar.currentHeight }}>
         {/* Decorative Background Elements */}
         <Image
           source={require('../../assets/images/homepage/halfcircle.png')}
@@ -802,7 +829,7 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Orders List */}
       <ScrollView

@@ -18,6 +18,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNotifications } from '../../context/NotificationContext';
 import { NotificationData } from '../../context/NotificationContext';
+import { isPinnedNotification, NotificationType } from '../../constants/notificationTypes';
 import NotificationDetailModal from '../../components/NotificationDetailModal';
 import { useResponsive } from '../../hooks/useResponsive';
 import { SPACING, TOUCH_TARGETS } from '../../constants/spacing';
@@ -136,6 +137,20 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
         return { iconName: 'ticket', iconType: 'MaterialCommunityIcons', color: '#F59E0B' };
       case 'ADMIN_PUSH':
         return { iconName: 'notifications', iconType: 'Ionicons', color: '#8B5CF6' };
+      case 'AUTO_ORDER_SUCCESS':
+        return { iconName: 'autorenew', iconType: 'MaterialCommunityIcons', color: '#10B981' };
+      case 'AUTO_ORDER_FAILED':
+        return { iconName: 'autorenew', iconType: 'MaterialCommunityIcons', color: '#EF4444' };
+      case 'AUTO_ORDER_PAYMENT_REQUIRED':
+      case 'AUTO_ORDER_PAYMENT_EXPIRED':
+        return { iconName: 'credit-card-clock', iconType: 'MaterialCommunityIcons', color: '#F59E0B' };
+      case 'SCHEDULED_MEAL_CREATED':
+      case 'SCHEDULED_MEAL_PLACED':
+        return { iconName: 'calendar-check', iconType: 'MaterialCommunityIcons', color: '#6366F1' };
+      case 'SCHEDULED_MEAL_CANCELLED':
+        return { iconName: 'calendar-remove', iconType: 'MaterialCommunityIcons', color: '#EF4444' };
+      case 'SCHEDULED_MEAL_ISSUE':
+        return { iconName: 'calendar-alert', iconType: 'MaterialCommunityIcons', color: '#F59E0B' };
       default:
         return { iconName: 'notifications', iconType: 'Ionicons', color: '#FE8733' };
     }
@@ -155,7 +170,7 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   // Render notification item
-  const renderNotificationItem = ({ item }: { item: NotificationData }) => {
+  const renderNotificationItem = ({ item, pinned = false }: { item: NotificationData; pinned?: boolean }) => {
     const { iconName, iconType, color } = getNotificationIcon(item.type);
     const IconComponent = iconType === 'Ionicons' ? Ionicons : MaterialCommunityIcons;
 
@@ -168,6 +183,7 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
           style={[
             styles.notificationItem,
             !item.isRead && styles.unreadNotification,
+            pinned && styles.pinnedNotification,
           ]}
           onPress={() => handleNotificationPress(item)}
           activeOpacity={0.7}
@@ -201,8 +217,38 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
             {/* Timestamp */}
             <Text style={styles.timestamp}>{formatTime(item.createdAt)}</Text>
           </View>
+
+          {/* Pin badge */}
+          {pinned && (
+            <View style={styles.pinBadge}>
+              <Ionicons name="pin" size={12} color="#FD9E2F" />
+            </View>
+          )}
         </TouchableOpacity>
       </Swipeable>
+    );
+  };
+
+  // Render pinned section header + items
+  const renderPinnedSection = (pinned: NotificationData[]) => {
+    if (pinned.length === 0) return null;
+    return (
+      <View>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="pin" size={14} color="#FD9E2F" />
+          <Text style={styles.sectionHeaderText}>Pinned</Text>
+        </View>
+        {pinned.map(item => (
+          <View key={item._id}>
+            {renderNotificationItem({ item, pinned: true })}
+          </View>
+        ))}
+        <View style={styles.sectionDivider} />
+        <View style={styles.sectionHeader}>
+          <Ionicons name="notifications-outline" size={14} color="#9CA3AF" />
+          <Text style={[styles.sectionHeaderText, { color: '#9CA3AF' }]}>All Notifications</Text>
+        </View>
+      </View>
     );
   };
 
@@ -236,6 +282,20 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
 
   const hasUnreadNotifications = notifications.some((n) => !n.isRead);
 
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const visibleNotifications = notifications.filter(n =>
+    new Date(n.createdAt) > sevenDaysAgo
+  );
+
+  const pinnedNotifications = visibleNotifications.filter(n =>
+    isPinnedNotification(n.type as NotificationType)
+  );
+  const regularNotifications = visibleNotifications.filter(n =>
+    !isPinnedNotification(n.type as NotificationType)
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor="white" />
@@ -267,10 +327,11 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
 
       {/* Notifications List */}
       <FlatList
-        data={notifications}
+        data={regularNotifications}
         keyExtractor={(item) => item._id}
         renderItem={renderNotificationItem}
-        ListEmptyComponent={renderEmptyState}
+        ListHeaderComponent={() => renderPinnedSection(pinnedNotifications)}
+        ListEmptyComponent={pinnedNotifications.length === 0 ? renderEmptyState : null}
         ListFooterComponent={renderFooter}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
@@ -406,6 +467,36 @@ const styles = StyleSheet.create({
   timestamp: {
     fontSize: FONT_SIZES.xs,
     color: '#9CA3AF',
+  },
+  pinnedNotification: {
+    borderLeftWidth: 3,
+    borderLeftColor: '#FD9E2F',
+  },
+  pinBadge: {
+    position: 'absolute',
+    top: SPACING.sm,
+    right: SPACING.sm,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.xs,
+  },
+  sectionHeaderText: {
+    fontSize: FONT_SIZES.xs,
+    fontWeight: '600',
+    color: '#FD9E2F',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginHorizontal: SPACING.md,
+    marginTop: SPACING.sm,
   },
   deleteAction: {
     backgroundColor: '#EF4444',

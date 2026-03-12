@@ -12,11 +12,12 @@ import {
   Platform,
   Linking,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { StackScreenProps } from '@react-navigation/stack';
 import { MainTabParamList } from '../../types/navigation';
-import { SPACING, TOUCH_TARGETS } from '../../constants/spacing';
+import { TOUCH_TARGETS } from '../../constants/spacing';
 import { FONT_SIZES } from '../../constants/typography';
+import LinearGradient from 'react-native-linear-gradient';
+import Svg, { Polyline } from 'react-native-svg';
 
 type Props = StackScreenProps<MainTabParamList, 'ChatSupport'>;
 
@@ -422,9 +423,36 @@ function getResponse(input: string): { text: string; quickReplies?: string[] } {
 // COMPONENT
 // ============================================
 
+type FeedbackState = null | 'pending' | 'yes' | 'no';
+
 const ChatSupportScreen: React.FC<Props> = ({ navigation }) => {
   const scrollViewRef = useRef<ScrollView>(null);
+  const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [inputText, setInputText] = useState('');
+  const [feedbackState, setFeedbackState] = useState<FeedbackState>(null);
+  const feedbackStateRef = useRef<FeedbackState>(null);
+
+  const resetInactivityTimer = (hasExchange: boolean) => {
+    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+    if (!hasExchange) return;
+    inactivityTimer.current = setTimeout(() => {
+      if (feedbackStateRef.current === null) {
+        setFeedbackState('pending');
+        feedbackStateRef.current = 'pending';
+      }
+    }, 4000);
+  };
+
+  // Keep ref in sync with state
+  const handleSetFeedbackState = (state: FeedbackState) => {
+    feedbackStateRef.current = state;
+    setFeedbackState(state);
+    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+  };
+
+  useEffect(() => {
+    return () => { if (inactivityTimer.current) clearTimeout(inactivityTimer.current); };
+  }, []);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '0',
@@ -447,6 +475,7 @@ const ChatSupportScreen: React.FC<Props> = ({ navigation }) => {
 
   const sendMessage = (text: string) => {
     if (!text.trim()) return;
+    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -468,7 +497,16 @@ const ChatSupportScreen: React.FC<Props> = ({ navigation }) => {
         timestamp: new Date(),
         quickReplies,
       };
-      setMessages(prev => [...prev, botMessage]);
+      setMessages(prev => {
+        const updated = [...prev, botMessage];
+        const isBye = BYE_KEYWORDS.some(k => text.toLowerCase().trim() === k || text.toLowerCase().startsWith(k + ' ') || text.toLowerCase().startsWith(k + '!'));
+        if (isBye) {
+          setTimeout(() => handleSetFeedbackState('pending'), 800);
+        } else {
+          resetInactivityTimer(updated.length > 2);
+        }
+        return updated;
+      });
     }, 600);
   };
 
@@ -493,7 +531,16 @@ const ChatSupportScreen: React.FC<Props> = ({ navigation }) => {
         timestamp: new Date(),
         quickReplies,
       };
-      setMessages(prev => [...prev, botMessage]);
+      setMessages(prev => {
+        const updated = [...prev, botMessage];
+        const isBye = BYE_KEYWORDS.some(k => reply.toLowerCase().trim() === k || reply.toLowerCase().startsWith(k + ' '));
+        if (isBye) {
+          setTimeout(() => handleSetFeedbackState('pending'), 800);
+        } else {
+          resetInactivityTimer(updated.length > 2);
+        }
+        return updated;
+      });
     }, 600);
   };
 
@@ -510,15 +557,18 @@ const ChatSupportScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#F3F4F6' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#FE8733" />
+    <View style={{ flex: 1, backgroundColor: '#F3F4F6' }}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {/* Header */}
-      <View
+      <LinearGradient
+        colors={['#FD9E2F', '#FF6636']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
         style={{
-          backgroundColor: '#FE8733',
+          paddingTop: (StatusBar.currentHeight ?? 0) + 14,
+          paddingBottom: 14,
           paddingHorizontal: 20,
-          paddingVertical: 14,
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -537,16 +587,14 @@ const ChatSupportScreen: React.FC<Props> = ({ navigation }) => {
             width: TOUCH_TARGETS.minimum,
             height: TOUCH_TARGETS.minimum,
             borderRadius: TOUCH_TARGETS.minimum / 2,
-            backgroundColor: 'rgba(255,255,255,0.2)',
+            backgroundColor: 'white',
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Image
-            source={require('../../assets/icons/backarrow2.png')}
-            style={{ width: SPACING.iconLg, height: SPACING.iconLg }}
-            resizeMode="contain"
-          />
+          <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+            <Polyline points="15,18 9,12 15,6" stroke="#FE8733" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+          </Svg>
         </TouchableOpacity>
 
         <View style={{ alignItems: 'center', flex: 1 }}>
@@ -597,7 +645,7 @@ const ChatSupportScreen: React.FC<Props> = ({ navigation }) => {
             />
           </TouchableOpacity>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Chat Messages */}
       <KeyboardAvoidingView
@@ -728,6 +776,82 @@ const ChatSupportScreen: React.FC<Props> = ({ navigation }) => {
               )}
             </View>
           ))}
+
+          {/* Feedback Card */}
+          {feedbackState === 'pending' && (
+            <View style={{ alignItems: 'flex-start', marginTop: 12, marginBottom: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#FE8733', alignItems: 'center', justifyContent: 'center', marginRight: 8, marginTop: 4 }}>
+                  <Image source={require('../../assets/icons/Tiffsy.png')} style={{ width: 22, height: 14 }} resizeMode="contain" />
+                </View>
+                <View style={{ backgroundColor: '#FFFFFF', borderRadius: 18, borderTopLeftRadius: 4, paddingHorizontal: 14, paddingVertical: 12, maxWidth: '75%', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3, elevation: 1 }}>
+                  <Text style={{ fontSize: FONT_SIZES.base, color: '#111827', lineHeight: FONT_SIZES.base * 1.5, marginBottom: 12 }}>
+                    Was this conversation helpful? 😊
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <TouchableOpacity
+                      onPress={() => handleSetFeedbackState('yes')}
+                      style={{ flex: 1, backgroundColor: '#FE8733', borderRadius: 20, paddingVertical: 8, alignItems: 'center' }}
+                    >
+                      <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: FONT_SIZES.sm }}>👍  Yes</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleSetFeedbackState('no')}
+                      style={{ flex: 1, borderWidth: 1.5, borderColor: '#FE8733', borderRadius: 20, paddingVertical: 8, alignItems: 'center' }}
+                    >
+                      <Text style={{ color: '#FE8733', fontWeight: '700', fontSize: FONT_SIZES.sm }}>👎  No</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {feedbackState === 'yes' && (
+            <View style={{ alignItems: 'flex-start', marginTop: 12, marginBottom: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#FE8733', alignItems: 'center', justifyContent: 'center', marginRight: 8, marginTop: 4 }}>
+                  <Image source={require('../../assets/icons/Tiffsy.png')} style={{ width: 22, height: 14 }} resizeMode="contain" />
+                </View>
+                <View style={{ backgroundColor: '#FFFFFF', borderRadius: 18, borderTopLeftRadius: 4, paddingHorizontal: 14, paddingVertical: 12, maxWidth: '75%', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3, elevation: 1 }}>
+                  <Text style={{ fontSize: FONT_SIZES.base, color: '#111827', lineHeight: FONT_SIZES.base * 1.5 }}>
+                    Thank you for your feedback! 🙏{'\n'}We're glad we could help. Have a great day!
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {feedbackState === 'no' && (
+            <View style={{ alignItems: 'flex-start', marginTop: 12, marginBottom: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#FE8733', alignItems: 'center', justifyContent: 'center', marginRight: 8, marginTop: 4 }}>
+                  <Image source={require('../../assets/icons/Tiffsy.png')} style={{ width: 22, height: 14 }} resizeMode="contain" />
+                </View>
+                <View style={{ backgroundColor: '#FFFFFF', borderRadius: 18, borderTopLeftRadius: 4, paddingHorizontal: 14, paddingVertical: 12, maxWidth: '80%', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3, elevation: 1 }}>
+                  <Text style={{ fontSize: FONT_SIZES.base, color: '#111827', lineHeight: FONT_SIZES.base * 1.5, marginBottom: 12 }}>
+                    We're sorry we couldn't fully help! Please reach out to our team for better support:
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <TouchableOpacity
+                      onPress={handleCall}
+                      style={{ flex: 1, backgroundColor: '#FE8733', borderRadius: 20, paddingVertical: 9, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
+                    >
+                      <Text style={{ fontSize: 14 }}>📞</Text>
+                      <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: FONT_SIZES.sm }}>Call Us</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={handleEmail}
+                      style={{ flex: 1, borderWidth: 1.5, borderColor: '#FE8733', borderRadius: 20, paddingVertical: 9, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
+                    >
+                      <Text style={{ fontSize: 14 }}>✉️</Text>
+                      <Text style={{ color: '#FE8733', fontWeight: '700', fontSize: FONT_SIZES.sm }}>Email Us</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </View>
+          )}
         </ScrollView>
 
         {/* Input Bar */}
@@ -794,7 +918,7 @@ const ChatSupportScreen: React.FC<Props> = ({ navigation }) => {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 

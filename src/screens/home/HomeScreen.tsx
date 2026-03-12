@@ -13,7 +13,7 @@ import {
   Animated,
   Easing,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackScreenProps } from '@react-navigation/stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { MainTabParamList } from '../../types/navigation';
@@ -31,6 +31,7 @@ import { SPACING } from '../../constants/spacing';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { FONT_SIZES } from '../../constants/typography';
 import VoucherPaymentModal from '../../components/VoucherPaymentModal';
+import LinearGradient from 'react-native-linear-gradient';
 
 type Props = StackScreenProps<MainTabParamList, 'Home'>;
 
@@ -979,10 +980,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: 'white' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#FE8733" />
-
-      {/* Status bar background */}
-      <SafeAreaView style={{ backgroundColor: '#FE8733' }} edges={['top']} />
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
       <ScrollView
         className="flex-1"
@@ -996,7 +994,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 300, backgroundColor: 'white' }} />
 
         {/* Header */}
-        <View className="bg-orange-400" style={{ position: 'relative', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, overflow: 'hidden', zIndex: 10 }}>
+        <LinearGradient colors={['#FD9E2F', '#FF6636']} start={{x: 0, y: 0}} end={{x: 1, y: 0}} style={{ position: 'relative', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, overflow: 'hidden', zIndex: 10, paddingTop: StatusBar.currentHeight }}>
           {/* Decorative Background Elements */}
           <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden' }} pointerEvents="none">
             <Image
@@ -1088,7 +1086,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
             </View>
 
           </View>
-        </View>
+        </LinearGradient>
 
         {/* Content area with background design */}
         <View style={{ position: 'relative', marginTop: -30 }}>

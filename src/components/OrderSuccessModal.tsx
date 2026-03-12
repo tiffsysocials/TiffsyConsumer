@@ -9,8 +9,10 @@ import {
   Dimensions,
   TouchableWithoutFeedback,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
-import { Image } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
+import Clipboard from '@react-native-clipboard/clipboard';
 
 interface OrderSuccessModalProps {
   visible: boolean;
@@ -172,11 +174,18 @@ const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
 
               {/* Success Icon */}
               <View style={{ alignItems: 'center', marginBottom: 16 }}>
-                <Image
-                  source={require('../assets/icons/success.png')}
-                  style={{ width: 100, height: 100 }}
-                  resizeMode="contain"
-                />
+                <Svg width={50} height={50} viewBox="0 0 70 70">
+                  {/* Green circle background */}
+                  <Path
+                    d="M35 0C15.67 0 0 15.67 0 35s15.67 35 35 35 35-15.67 35-35S54.33 0 35 0z"
+                    fill="#22C55E"
+                  />
+                  {/* White checkmark */}
+                  <Path
+                    d="M29.17 46.25L18.75 35.83l2.92-2.91 7.5 7.5 19.16-19.17 2.92 2.92z"
+                    fill="#FFFFFF"
+                  />
+                </Svg>
               </View>
 
               {/* Success Text */}
@@ -194,17 +203,28 @@ const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
 
               {/* Order Number(s) */}
               {orderNumber && (
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontWeight: '600',
-                    color: '#FE8733',
-                    textAlign: 'center',
-                    marginBottom: 8,
-                  }}
-                >
-                  {isMultiOrder ? `Orders #${orderNumber}` : `Order #${orderNumber}`}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: '600',
+                      color: '#FE8733',
+                    }}
+                  >
+                    {isMultiOrder ? `Orders #${orderNumber}` : `Order #${orderNumber}`}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      Clipboard.setString(orderNumber);
+                      Alert.alert('Copied!', 'Order ID copied to clipboard');
+                    }}
+                    style={{ marginLeft: 6, padding: 2 }}
+                  >
+                    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                      <Path d="M16 1H4C2.9 1 2 1.9 2 3v14h2V3h12V1zm3 4H8C6.9 5 6 5.9 6 7v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" fill="#FE8733" />
+                    </Svg>
+                  </TouchableOpacity>
+                </View>
               )}
 
               {/* Amount to Pay */}

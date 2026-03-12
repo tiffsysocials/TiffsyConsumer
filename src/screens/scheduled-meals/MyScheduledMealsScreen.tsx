@@ -9,7 +9,8 @@ import {
   RefreshControl,
   TextInput,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import { StackScreenProps } from '@react-navigation/stack';
 import { useFocusEffect } from '@react-navigation/native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -317,11 +318,10 @@ const MyScheduledMealsScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#FE8733" />
-      <SafeAreaView style={{ backgroundColor: '#FE8733' }} edges={['top']} />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {/* Header */}
-      <View style={{ backgroundColor: '#FE8733', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
+      <LinearGradient colors={['#FD9E2F', '#FF6636']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center', paddingTop: (StatusBar.currentHeight ?? 0) + SPACING.md }}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: SPACING.md }}>
           <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
         </TouchableOpacity>
@@ -340,7 +340,7 @@ const MyScheduledMealsScreen: React.FC<Props> = ({ navigation }) => {
           <MaterialCommunityIcons name="plus" size={16} color="white" style={{ marginRight: 4 }} />
           <Text style={{ color: 'white', fontSize: FONT_SIZES.xs, fontWeight: '600' }}>New</Text>
         </TouchableOpacity>
-      </View>
+      </LinearGradient>
 
       {isLoading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>

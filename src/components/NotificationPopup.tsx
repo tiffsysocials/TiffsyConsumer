@@ -116,6 +116,9 @@ const NotificationPopup: React.FC<NotificationPopupProps> = ({
           onPress={(e) => e.stopPropagation()}
         >
           <View style={styles.content}>
+            {/* Branding Header */}
+            <Text style={styles.brandLabel}>Tiffsy</Text>
+
             {/* Icon and Close Button */}
             <View style={styles.header}>
               <View style={styles.iconContainer}>
@@ -196,6 +199,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  brandLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FE8733',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 10,
   },
   iconContainer: {
     width: 48,

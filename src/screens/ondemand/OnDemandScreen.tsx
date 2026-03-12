@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   StatusBar,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Path, Circle } from 'react-native-svg';
+import LinearGradient from 'react-native-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackScreenProps } from '@react-navigation/stack';
 import { MainTabParamList } from '../../types/navigation';
 import { useSubscription } from '../../context/SubscriptionContext';
@@ -26,19 +28,20 @@ const OnDemandScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: 'white' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#FE8733" />
-
-      {/* Status bar background */}
-      <SafeAreaView style={{ backgroundColor: '#FE8733' }} edges={['top']} />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {/* Header */}
-      <View
-        className="bg-orange-400 pb-6"
+      <LinearGradient
+        colors={['#FD9E2F', '#FF6636']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
         style={{
           position: 'relative',
           overflow: 'hidden',
           borderBottomLeftRadius: 30,
           borderBottomRightRadius: 30,
+          paddingBottom: 24,
+          paddingTop: StatusBar.currentHeight,
         }}
       >
         {/* Decorative Background Elements */}
@@ -98,7 +101,7 @@ const OnDemandScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: 'bold', color: '#FE8733' }}>{usableVouchers}</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Content Area */}
       <View
@@ -107,16 +110,21 @@ const OnDemandScreen: React.FC<Props> = ({ navigation }) => {
       >
         {/* Coming Soon Content */}
         <View className="items-center px-8">
-          <Image
-            source={require('../../assets/icons/kitchen.png')}
-            style={{
-              width: isSmallDevice ? SPACING['4xl'] * 1.5 : SPACING['4xl'] * 2,
-              height: isSmallDevice ? SPACING['4xl'] * 1.5 : SPACING['4xl'] * 2,
-              tintColor: '#FE8733',
-              marginBottom: SPACING['2xl'],
-            }}
-            resizeMode="contain"
-          />
+          <Svg
+            width={isSmallDevice ? SPACING['4xl'] * 1.5 : SPACING['4xl'] * 2}
+            height={isSmallDevice ? SPACING['4xl'] * 1.5 : SPACING['4xl'] * 2}
+            viewBox="0 0 24 24"
+            fill="none"
+            style={{ marginBottom: SPACING['2xl'] }}
+          >
+            <Path
+              d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+              stroke="#FE8733"
+              strokeWidth={1.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
           <Text
             className="font-bold text-gray-900 mb-4"
             style={{ fontSize: isSmallDevice ? FONT_SIZES.h2 : FONT_SIZES.h1 }}

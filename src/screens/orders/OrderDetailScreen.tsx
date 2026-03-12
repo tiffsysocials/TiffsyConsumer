@@ -10,9 +10,12 @@ import {
   ActivityIndicator,
   RefreshControl,
   Linking,
+  Alert,
 } from 'react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StackScreenProps } from '@react-navigation/stack';
+import Svg, { Path } from 'react-native-svg';
 import { useFocusEffect } from '@react-navigation/native';
 import { MainTabParamList } from '../../types/navigation';
 import { useAlert } from '../../context/AlertContext';
@@ -31,7 +34,7 @@ const getStatusColor = (status: OrderStatus): string => {
     case 'PENDING_KITCHEN_ACCEPTANCE':
       return '#D97706'; // Amber
     case 'PLACED':
-      return '#3B82F6'; // Blue
+      return '#A0522D'; // Light brown
     case 'ACCEPTED':
       return '#06B6D4'; // Cyan
     case 'PREPARING':
@@ -361,14 +364,24 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       <View className="bg-white flex-row items-center border-b border-gray-100" style={{ paddingHorizontal: isSmallDevice ? SPACING.lg : SPACING.xl, paddingVertical: SPACING.md }}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          className="rounded-full bg-orange-400 items-center justify-center"
-          style={{ minWidth: TOUCH_TARGETS.minimum, minHeight: TOUCH_TARGETS.minimum }}
+          style={{
+            width: SPACING.iconXl,
+            height: SPACING.iconXl,
+            borderRadius: SPACING.iconXl / 2,
+            backgroundColor: '#FE8733',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
         >
-          <Image
-            source={require('../../assets/icons/arrow.png')}
-            style={{ width: SPACING.iconLg, height: SPACING.iconLg }}
-            resizeMode="contain"
-          />
+          <Svg width={SPACING.iconSize - 2} height={SPACING.iconSize - 2} viewBox="0 0 24 24" fill="none">
+            <Path
+              d="M15.75 19.5 8.25 12l7.5-7.5"
+              stroke="#FFFFFF"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
         </TouchableOpacity>
         <Text className="flex-1 text-center font-bold text-gray-900 mr-10" style={{ fontSize: isSmallDevice ? FONT_SIZES.h5 : FONT_SIZES.h4 }}>
           Order Details
@@ -389,9 +402,22 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         {/* Order Header */}
         <View className="bg-white mb-2" style={{ padding: isSmallDevice ? SPACING.lg : SPACING.xl }}>
           <View className="flex-row items-center justify-between mb-2">
-            <Text className="font-bold text-gray-900" style={{ fontSize: FONT_SIZES.lg }}>
-              #{order.orderNumber}
-            </Text>
+            <View className="flex-row items-center">
+              <Text className="font-bold text-gray-900" style={{ fontSize: FONT_SIZES.lg }}>
+                #{order.orderNumber}
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  Clipboard.setString(order.orderNumber);
+                  Alert.alert('Copied!', 'Order ID copied to clipboard');
+                }}
+                style={{ marginLeft: 6, padding: 2 }}
+              >
+                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                  <Path d="M16 1H4C2.9 1 2 1.9 2 3v14h2V3h12V1zm3 4H8C6.9 5 6 5.9 6 7v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" fill="#6B7280" />
+                </Svg>
+              </TouchableOpacity>
+            </View>
             <View
               className="rounded-full"
               style={{ backgroundColor: `${getStatusColor(order.status)}20`, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm }}

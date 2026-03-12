@@ -11,6 +11,7 @@ import {
   TextInput,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import Svg, { Path } from 'react-native-svg';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackScreenProps } from '@react-navigation/stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -1094,13 +1095,25 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
           <View className="flex-row items-center mb-2">
             <TouchableOpacity
               onPress={() => navigation.goBack()}
-              className="w-10 h-10 rounded-full bg-orange-400 items-center justify-center mr-4"
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: '#FE8733',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 16,
+              }}
             >
-              <Image
-                source={require('../../assets/icons/arrow.png')}
-                style={{ width: 32, height: 32 }}
-                resizeMode="contain"
-              />
+              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M15 18l-6-6 6-6"
+                  stroke="#FFFFFF"
+                  strokeWidth={2.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
             </TouchableOpacity>
             <View className="flex-1">
               <Text className="text-2xl font-bold text-gray-900 text-center">My Cart</Text>
@@ -1132,13 +1145,25 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
         <View className="flex-row items-center mb-2">
           <TouchableOpacity
             onPress={() => navigation.goBack()}
-            className="w-10 h-10 rounded-full bg-orange-400 items-center justify-center mr-4"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: '#FE8733',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: 16,
+            }}
           >
-            <Image
-              source={require('../../assets/icons/arrow.png')}
-              style={{ width: 32, height: 32 }}
-              resizeMode="contain"
-            />
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+              <Path
+                d="M15 18l-6-6 6-6"
+                stroke="#FFFFFF"
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
           </TouchableOpacity>
           <View className="flex-1">
             <Text className="text-2xl font-bold text-gray-900 text-center">My Cart</Text>

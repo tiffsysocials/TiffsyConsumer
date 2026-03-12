@@ -11,6 +11,7 @@ import {
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import { StackScreenProps } from '@react-navigation/stack';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { MainTabParamList } from '../../types/navigation';
@@ -434,8 +435,7 @@ const ReferAndEarnScreen: React.FC<Props> = ({ navigation }) => {
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: 'white' }}>
-        <StatusBar barStyle="light-content" backgroundColor="#FE8733" />
-        <SafeAreaView style={{ backgroundColor: '#FE8733' }} edges={['top']} />
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" color="#FE8733" />
           <Text style={{ marginTop: SPACING.md, color: '#6B7280' }}>Loading...</Text>
@@ -446,16 +446,18 @@ const ReferAndEarnScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: 'white' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#FE8733" />
-      <SafeAreaView style={{ backgroundColor: '#FE8733' }} edges={['top']} />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {/* Header */}
-      <View
+      <LinearGradient
+        colors={['#FD9E2F', '#FF6636']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
         style={{
-          backgroundColor: '#FE8733',
           paddingBottom: SPACING.xl,
           borderBottomLeftRadius: 30,
           borderBottomRightRadius: 30,
+          paddingTop: StatusBar.currentHeight,
         }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingTop: SPACING.md }}>
@@ -477,7 +479,7 @@ const ReferAndEarnScreen: React.FC<Props> = ({ navigation }) => {
           </Text>
           <View style={{ width: TOUCH_TARGETS.minimum }} />
         </View>
-      </View>
+      </LinearGradient>
 
       <FlatList
         data={stats?.referrals || []}

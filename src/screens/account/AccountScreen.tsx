@@ -10,7 +10,8 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import { StackScreenProps } from '@react-navigation/stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { MainTabParamList } from '../../types/navigation';
@@ -103,11 +104,9 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
   if (loading && !isGuest) {
     return (
       <View style={{ flex: 1, backgroundColor: 'white' }}>
-        <StatusBar barStyle="light-content" backgroundColor="#FE8733" />
-        {/* Status bar background */}
-        <SafeAreaView style={{ backgroundColor: '#FE8733' }} edges={['top']} />
-        {/* Header with orange background */}
-        <View className="bg-orange-400 pb-6" style={{ position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30 }}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+        {/* Header with gradient background */}
+        <LinearGradient colors={['#FD9E2F', '#FF6636']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingBottom: 24, paddingTop: StatusBar.currentHeight }}>
           <View className="flex-row items-center justify-between px-5 pt-4 pb-6">
             <View style={{ width: isSmallDevice ? SPACING.iconXl * 1.2 : SPACING.iconXl * 1.45 }}>
               <Image
@@ -123,7 +122,7 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
             <Text className="text-white text-xl font-bold">My Profile</Text>
             <View style={{ width: isSmallDevice ? SPACING.iconXl * 1.2 : SPACING.iconXl * 1.45 }} />
           </View>
-        </View>
+        </LinearGradient>
         {/* Loading indicator */}
         <View className="flex-1 justify-center items-center bg-white">
           <ActivityIndicator size="large" color="#FE8733" />
@@ -225,13 +224,11 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: 'white' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#FE8733" />
-      {/* Status bar background */}
-      <SafeAreaView style={{ backgroundColor: '#FE8733' }} edges={['top']} />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       <ScrollView className="flex-1 bg-white" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
         {/* Header */}
-        <View className="bg-orange-400 pb-6" style={{ position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30 }}>
+        <LinearGradient colors={['#FD9E2F', '#FF6636']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingBottom: 24, paddingTop: StatusBar.currentHeight }}>
           {/* Decorative Background Elements */}
           <Image
             source={require('../../assets/images/homepage/halfcircle.png')}
@@ -289,7 +286,7 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: 'bold', color: '#FE8733' }}>{usableVouchers}</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </LinearGradient>
 
         {/* White Container with Profile and Voucher */}
         <View className="bg-white px-5" style={{ marginTop: 10, paddingTop: 10, paddingBottom: 16 }}>

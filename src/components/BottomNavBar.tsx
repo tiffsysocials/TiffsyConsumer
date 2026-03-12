@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, TouchableOpacity, Image, Text, Animated, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import Svg, { Path } from 'react-native-svg';
 import { SPACING } from '../constants/spacing';
 import { FONT_SIZES } from '../constants/typography';
 import { navigateToMainScreen } from '../navigation/navigationRef';
@@ -14,11 +15,12 @@ interface NavItemProps {
   label: string;
   icon?: any;
   iconName?: string;
+  svgIcon?: React.ReactNode;
   isActive: boolean;
   onPress: () => void;
 }
 
-const NavItem: React.FC<NavItemProps> = ({ label, icon, iconName, isActive, onPress }) => {
+const NavItem: React.FC<NavItemProps> = ({ label, icon, iconName, svgIcon, isActive, onPress }) => {
   const scaleAnim = useRef(new Animated.Value(isActive ? 1 : 0)).current;
 
   useEffect(() => {
@@ -43,7 +45,9 @@ const NavItem: React.FC<NavItemProps> = ({ label, icon, iconName, isActive, onPr
       style={styles.navItem}
     >
       <View style={[styles.navItemInner, isActive && styles.navItemActive]}>
-        {iconName ? (
+        {svgIcon ? (
+          svgIcon
+        ) : iconName ? (
           <MaterialCommunityIcons
             name={iconName}
             size={SPACING.iconSize}
@@ -121,7 +125,17 @@ const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeTab }) => {
       />
       <NavItem
         label="On-Demand"
-        iconName="food"
+        svgIcon={
+          <Svg width={SPACING.iconSize} height={SPACING.iconSize} viewBox="0 0 24 24" fill="none">
+            <Path
+              d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"
+              stroke={activeTab === 'meals' ? '#FE8733' : '#9CA3AF'}
+              strokeWidth={1.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
+        }
         isActive={activeTab === 'meals'}
         onPress={() => handleNavigation('meals')}
       />

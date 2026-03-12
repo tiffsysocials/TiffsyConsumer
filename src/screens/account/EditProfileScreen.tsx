@@ -21,6 +21,8 @@ import apiService from '../../services/api.service';
 import { useResponsive } from '../../hooks/useResponsive';
 import { SPACING, TOUCH_TARGETS } from '../../constants/spacing';
 import { FONT_SIZES } from '../../constants/typography';
+import LinearGradient from 'react-native-linear-gradient';
+import Svg, { Polyline } from 'react-native-svg';
 
 type Props = StackScreenProps<MainTabParamList, 'EditProfile'>;
 
@@ -274,11 +276,17 @@ const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#FE8733' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#FE8733" />
+    <View style={{ flex: 1, backgroundColor: '#FD9E2F' }}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {/* Header */}
-      <View className="pb-6" style={{ position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, backgroundColor: '#FE8733' }}>
+      <LinearGradient
+        colors={['#FD9E2F', '#FF6636']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        className="pb-6"
+        style={{ position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingTop: StatusBar.currentHeight ?? 0 }}
+      >
         {/* Decorative Background Elements */}
         <Image
           source={require('../../assets/images/homepage/halfcircle.png')}
@@ -295,14 +303,18 @@ const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
           {/* Back Button */}
           <TouchableOpacity
             onPress={() => navigation.goBack()}
-            className="items-center justify-center"
-            style={{ minWidth: TOUCH_TARGETS.minimum, minHeight: TOUCH_TARGETS.minimum }}
+            style={{
+              width: TOUCH_TARGETS.minimum,
+              height: TOUCH_TARGETS.minimum,
+              borderRadius: TOUCH_TARGETS.minimum / 2,
+              backgroundColor: 'white',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
           >
-            <Image
-              source={require('../../assets/icons/backarrow.png')}
-              style={{ width: SPACING.iconLg, height: SPACING.iconLg }}
-              resizeMode="contain"
-            />
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+              <Polyline points="15,18 9,12 15,6" stroke="#FE8733" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
           </TouchableOpacity>
 
           {/* Title */}
@@ -310,7 +322,7 @@ const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
             Edit Profile
           </Text>
         </View>
-      </View>
+      </LinearGradient>
 
       <ScrollView
         className="flex-1 bg-white"
@@ -481,7 +493,7 @@ const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
           )}
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

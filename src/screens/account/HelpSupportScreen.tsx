@@ -11,6 +11,7 @@ import {
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
 import { StackScreenProps } from '@react-navigation/stack';
 import { MainTabParamList } from '../../types/navigation';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -153,17 +154,24 @@ const HelpSupportScreen: React.FC<Props> = ({ navigation }) => {
       <View className="bg-white px-5 py-4 flex-row items-center justify-between">
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          className="rounded-full bg-orange-400 items-center justify-center"
+          className="items-center justify-center"
           style={{
-            minWidth: TOUCH_TARGETS.minimum,
-            minHeight: TOUCH_TARGETS.minimum,
+            width: SPACING.iconXl,
+            height: SPACING.iconXl,
+            borderRadius: SPACING.iconXl / 2,
+            backgroundColor: '#FE8733',
           }}
         >
-          <Image
-            source={require('../../assets/icons/backarrow2.png')}
-            style={{ width: SPACING.iconLg, height: SPACING.iconLg }}
-            resizeMode="contain"
-          />
+          {/* Chevron-left icon (Heroicons outline) */}
+          <Svg width={SPACING.iconSize - 2} height={SPACING.iconSize - 2} viewBox="0 0 24 24" fill="none">
+            <Path
+              d="M15.75 19.5 8.25 12l7.5-7.5"
+              stroke="#FFFFFF"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
         </TouchableOpacity>
 
         <Text className="font-bold text-gray-900" style={{ fontSize: isSmallDevice ? FONT_SIZES.h4 : FONT_SIZES.h3 }}>Help & Support</Text>
@@ -226,11 +234,15 @@ const HelpSupportScreen: React.FC<Props> = ({ navigation }) => {
               marginRight: 14,
             }}
           >
-            <Image
-              source={require('../../assets/icons/help2.png')}
-              style={{ width: 28, height: 28, tintColor: 'white' }}
-              resizeMode="contain"
-            />
+            <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
+              <Path
+                d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                stroke="white"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ color: 'white', fontSize: FONT_SIZES.lg, fontWeight: 'bold' }}>

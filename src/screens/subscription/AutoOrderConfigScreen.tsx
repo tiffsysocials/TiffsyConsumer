@@ -9,10 +9,11 @@ import {
   Modal,
   Pressable,
   StyleSheet,
-  Image,
   StatusBar,
 } from 'react-native';
+import Svg, { Polyline } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import { StackScreenProps } from '@react-navigation/stack';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSubscription } from '../../context/SubscriptionContext';
@@ -317,40 +318,41 @@ const AutoOrderConfigScreen: React.FC<Props> = ({ route, navigation }) => {
 
   return (
     <View style={styles.container} className="flex-1 bg-white">
-      <StatusBar barStyle="light-content" backgroundColor="#FE8733" />
-      <SafeAreaView style={{ backgroundColor: '#FE8733' }} edges={['top']} />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {/* Header */}
-      <View
-        className="bg-orange-400 px-5 py-4"
-        style={{ borderBottomLeftRadius: 30, borderBottomRightRadius: 30 }}
+      <LinearGradient
+        colors={['#FD9E2F', '#FF6636']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={{ borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingHorizontal: 20, paddingTop: (StatusBar.currentHeight ?? 0) + 16, paddingBottom: 16 }}
       >
         <View className="flex-row items-center justify-between">
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={{
-              minWidth: TOUCH_TARGETS.minimum,
-              minHeight: TOUCH_TARGETS.minimum,
+              width: TOUCH_TARGETS.minimum,
+              height: TOUCH_TARGETS.minimum,
+              borderRadius: TOUCH_TARGETS.minimum / 2,
+              backgroundColor: 'white',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Image
-              source={require('../../assets/icons/backarrow3.png')}
-              style={{ width: SPACING.iconLg, height: SPACING.iconLg }}
-              resizeMode="contain"
-            />
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+              <Polyline points="15,18 9,12 15,6" stroke="#FE8733" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
           </TouchableOpacity>
           <Text
             className="font-bold text-white flex-1 text-center"
             style={{ fontSize: FONT_SIZES.h4 }}
             numberOfLines={1}
           >
-            {isEditMode ? 'Edit Config' : 'New Config'}
+            {isEditMode ? 'Manage Auto-Ordering' : 'New Config'}
           </Text>
           <View style={{ width: SPACING.iconLg }} />
         </View>
-      </View>
+      </LinearGradient>
 
       <ScrollView
         className="flex-1 bg-gray-50"
@@ -443,8 +445,8 @@ const AutoOrderConfigScreen: React.FC<Props> = ({ route, navigation }) => {
               }}
             >
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: FONT_SIZES.lg, fontWeight: 'bold', color: '#111827' }}>
-                  Auto-Order Enabled
+                <Text style={{ fontSize: FONT_SIZES.lg, fontWeight: 'bold', color: isEnabled ? '#111827' : '#6B7280' }}>
+                  {isEnabled ? 'Auto-Order Enabled' : 'Auto-Order Disabled'}
                 </Text>
                 <Text style={{ fontSize: FONT_SIZES.sm, color: '#6B7280', marginTop: 2 }}>
                   {isEnabled ? 'Orders will be placed automatically' : 'Auto-ordering is off for this address'}
@@ -569,30 +571,19 @@ const AutoOrderConfigScreen: React.FC<Props> = ({ route, navigation }) => {
             <TouchableOpacity
               onPress={() => setShowDeleteConfirm(true)}
               activeOpacity={0.7}
+              style={{
+                backgroundColor: 'white',
+                borderRadius: 25,
+                paddingVertical: 16,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 2,
+                borderColor: '#FE8733',
+              }}
             >
-              <View
-                style={{
-                  backgroundColor: 'white',
-                  borderRadius: 16,
-                  padding: 16,
-                  borderWidth: 2,
-                  borderColor: '#FCA5A5',
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                }}
-              >
-                <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#FEF2F2', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-                  <MaterialCommunityIcons name="delete-outline" size={24} color="#EF4444" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: FONT_SIZES.lg, fontWeight: 'bold', color: '#EF4444' }}>
-                    Delete Config
-                  </Text>
-                  <Text style={{ fontSize: FONT_SIZES.xs, color: '#6B7280', marginTop: 2 }}>
-                    Remove auto-ordering for this address
-                  </Text>
-                </View>
-              </View>
+              <Text style={{ fontSize: FONT_SIZES.lg, fontWeight: 'bold', color: '#FE8733' }}>
+                Restore Setting
+              </Text>
             </TouchableOpacity>
           </View>
         )}
