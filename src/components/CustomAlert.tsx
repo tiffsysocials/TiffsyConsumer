@@ -173,8 +173,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FE8733',
     borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -192,8 +192,9 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
+    textAlign: 'center',
   },
   cancelButtonText: {
     color: '#6B7280',

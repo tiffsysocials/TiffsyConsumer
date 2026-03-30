@@ -19,6 +19,7 @@ import { MainTabParamList } from '../../types/navigation';
 import { useAddress, Address } from '../../context/AddressContext';
 import { useAlert } from '../../context/AlertContext';
 import Svg, { Path } from 'react-native-svg';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import locationService from '../../services/location.service';
 import { useResponsive } from '../../hooks/useResponsive';
 import { SPACING, TOUCH_TARGETS } from '../../constants/spacing';
@@ -27,9 +28,9 @@ import { FONT_SIZES } from '../../constants/typography';
 type Props = StackScreenProps<MainTabParamList, 'Address'>;
 
 const ADDRESS_LABELS = [
-  { id: 'HOME', label: 'Home', icon: '🏠' },
-  { id: 'OFFICE', label: 'Office', icon: '🏢' },
-  { id: 'OTHER', label: 'Other', icon: '📍' },
+  { id: 'HOME', label: 'Home', icon: 'home' },
+  { id: 'OFFICE', label: 'Office', icon: 'office-building' },
+  { id: 'OTHER', label: 'Other', icon: 'map-marker' },
 ];
 
 interface AddressFormData {
@@ -387,7 +388,7 @@ const AddressScreen: React.FC<Props> = ({ navigation }) => {
                 borderColor: formData.label === item.id ? '#FE8733' : '#E5E7EB',
               }}
             >
-              <Text className="text-lg mb-1">{item.icon}</Text>
+              <MaterialCommunityIcons name={item.icon} size={22} color={formData.label === item.id ? '#FFFFFF' : '#6B7280'} style={{ marginBottom: 4 }} />
               <Text
                 className="text-xs font-medium"
                 style={{ color: formData.label === item.id ? '#FFFFFF' : '#374151' }}
@@ -776,7 +777,7 @@ const AddressScreen: React.FC<Props> = ({ navigation }) => {
 
           {!isLoadingAddresses && filteredAddresses.length === 0 ? (
             <View className="items-center justify-center py-12">
-              <Text className="text-6xl mb-4">📍</Text>
+              <MaterialCommunityIcons name="map-marker-outline" size={56} color="#D1D5DB" style={{ marginBottom: 16 }} />
               <Text className="text-lg font-semibold text-gray-900 mb-2">No Address Found</Text>
               <Text className="text-sm text-gray-500 text-center">
                 {searchQuery ? 'No addresses match your search' : 'Add your first delivery address'}

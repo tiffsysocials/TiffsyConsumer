@@ -453,7 +453,8 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
           else setDinnerPricing(slotPricing);
         }
       } else if (result.status === 'rejected') {
-        console.error('[CartScreen] Error calculating pricing for slot:', result.reason);
+        const errorMsg = result.reason?.message || result.reason?.error || JSON.stringify(result.reason);
+        console.error('[CartScreen] Error calculating pricing for slot:', errorMsg, result.reason);
       }
     });
 

@@ -71,7 +71,7 @@ const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
         setEmail(userData.email || '');
         setPhone(userData.phone || '');
         setProfileImage(userData.profileImage || null);
-        setDietaryPreferences(userData.dietaryPreferences || []);
+        setDietaryPreferences(Array.isArray(userData.dietaryPreferences) ? userData.dietaryPreferences : []);
       }
     } catch (error: any) {
       console.error('[EditProfile] Error loading profile:', error.message || error);
@@ -81,7 +81,7 @@ const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
         setEmail(user.email || '');
         setPhone(user.phone || '');
         setProfileImage(user.profileImage || null);
-        setDietaryPreferences(user.dietaryPreferences || []);
+        setDietaryPreferences(Array.isArray(user.dietaryPreferences) ? user.dietaryPreferences : []);
       }
     } finally {
       setIsLoading(false);
@@ -236,8 +236,8 @@ const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
         updateData.email = email.trim() || undefined;
       }
 
-      const currentPrefs = user?.dietaryPreferences || [];
-      if (JSON.stringify(dietaryPreferences.sort()) !== JSON.stringify(currentPrefs.sort())) {
+      const currentPrefs = Array.isArray(user?.dietaryPreferences) ? user.dietaryPreferences : [];
+      if (JSON.stringify([...dietaryPreferences].sort()) !== JSON.stringify([...currentPrefs].sort())) {
         updateData.dietaryPreferences = dietaryPreferences;
       }
 

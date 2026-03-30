@@ -1,5 +1,5 @@
 // src/screens/account/AccountScreen.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -89,19 +89,30 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
   const activeConfigCount = autoOrderConfigs.filter(c => c.enabled).length;
   const totalConfigCount = autoOrderConfigs.length;
 
+  // Track last fetch time to avoid re-fetching too frequently on screen focus
+  const lastFetchTime = useRef<number>(0);
+  const REFETCH_COOLDOWN_MS = 30000; // 30 seconds
+
   // Refresh subscriptions and auto-order configs when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       if (!isGuest) {
+        const now = Date.now();
+        if (now - lastFetchTime.current < REFETCH_COOLDOWN_MS) {
+          console.log('[AccountScreen] Screen focused, skipping refresh (cooldown active)');
+          return;
+        }
         console.log('[AccountScreen] Screen focused, refreshing subscriptions and auto-order configs');
+        lastFetchTime.current = now;
         fetchSubscriptions();
         fetchAllAutoOrderConfigs();
       }
     }, [isGuest, fetchSubscriptions, fetchAllAutoOrderConfigs])
   );
 
-  // Show loading state while fetching subscriptions
-  if (loading && !isGuest) {
+  // Show loading state only on initial load (no data yet)
+  const hasData = subscriptions.length > 0 || activeSubscription !== null;
+  if (loading && !isGuest && !hasData) {
     return (
       <View style={{ flex: 1, backgroundColor: 'white' }}>
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />

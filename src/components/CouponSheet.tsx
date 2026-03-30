@@ -297,76 +297,104 @@ const CouponSheet: React.FC<CouponSheetProps> = ({
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
-              {coupons.map((coupon) => {
-                const badge = getDiscountBadge(coupon.discountType);
-                const isValidating = validatingCode === coupon.code;
-                const isAddonCoupon = coupon.discountType === 'FREE_ADDON_COUNT' || coupon.discountType === 'FREE_ADDON_VALUE';
-                const isDisabled = isAddonCoupon && !hasAddons;
+              {(() => {
+                const availableCoupons: Coupon[] = [];
+                const unavailableCoupons: Coupon[] = [];
+
+                coupons.forEach((coupon) => {
+                  const isAddonCoupon = coupon.discountType === 'FREE_ADDON_COUNT' || coupon.discountType === 'FREE_ADDON_VALUE';
+                  const isDisabled = isAddonCoupon && !hasAddons;
+                  if (isDisabled) {
+                    unavailableCoupons.push(coupon);
+                  } else {
+                    availableCoupons.push(coupon);
+                  }
+                });
+
+                const renderCouponCard = (coupon: Coupon, isDisabled: boolean) => {
+                  const badge = getDiscountBadge(coupon.discountType);
+                  const isValidating = validatingCode === coupon.code;
+
+                  return (
+                    <View
+                      key={coupon.code}
+                      style={{
+                        borderWidth: 1,
+                        borderColor: isDisabled ? '#F3F4F6' : '#E5E7EB',
+                        borderRadius: 14,
+                        padding: 14,
+                        marginBottom: 10,
+                        opacity: isDisabled ? 0.5 : 1,
+                      }}
+                    >
+                      {/* Top Row: Badge + Code */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                        <View style={{ backgroundColor: badge.bg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, marginRight: 8 }}>
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: badge.color }}>{badge.label}</Text>
+                        </View>
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: '#111827', letterSpacing: 0.5 }}>{coupon.code}</Text>
+                      </View>
+
+                      {/* Name */}
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827', marginBottom: 2 }}>{coupon.name}</Text>
+
+                      {/* Description */}
+                      <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 8 }}>
+                        {getCouponDescription(coupon)}
+                      </Text>
+
+                      {/* Bottom Row: Valid Till + Apply */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text style={{ fontSize: 11, color: '#9CA3AF' }}>
+                          {isDisabled
+                            ? 'Add add-ons to use this coupon'
+                            : `Valid till ${new Date(coupon.validTill).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}${coupon.minOrderValue > 0 ? ` · Min ₹${coupon.minOrderValue}` : ''}`
+                          }
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => handleApplyCoupon(coupon.code)}
+                          disabled={isValidating || isDisabled}
+                          style={{
+                            borderWidth: 1,
+                            borderColor: isDisabled ? '#D1D5DB' : '#FE8733',
+                            borderRadius: 8,
+                            paddingHorizontal: 16,
+                            paddingVertical: 6,
+                          }}
+                        >
+                          {isValidating ? (
+                            <ActivityIndicator size="small" color="#FE8733" />
+                          ) : (
+                            <Text style={{ fontSize: 13, fontWeight: '600', color: isDisabled ? '#D1D5DB' : '#FE8733' }}>APPLY</Text>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* T&C */}
+                      {coupon.termsAndConditions && (
+                        <Text style={{ fontSize: 10, color: '#9CA3AF', marginTop: 6 }}>
+                          {coupon.termsAndConditions}
+                        </Text>
+                      )}
+                    </View>
+                  );
+                };
 
                 return (
-                  <View
-                    key={coupon.code}
-                    style={{
-                      borderWidth: 1,
-                      borderColor: isDisabled ? '#F3F4F6' : '#E5E7EB',
-                      borderRadius: 14,
-                      padding: 14,
-                      marginBottom: 10,
-                      opacity: isDisabled ? 0.5 : 1,
-                    }}
-                  >
-                    {/* Top Row: Badge + Code */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                      <View style={{ backgroundColor: badge.bg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, marginRight: 8 }}>
-                        <Text style={{ fontSize: 10, fontWeight: '700', color: badge.color }}>{badge.label}</Text>
-                      </View>
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: '#111827', letterSpacing: 0.5 }}>{coupon.code}</Text>
-                    </View>
+                  <>
+                    {availableCoupons.map((coupon) => renderCouponCard(coupon, false))}
 
-                    {/* Name */}
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827', marginBottom: 2 }}>{coupon.name}</Text>
-
-                    {/* Description */}
-                    <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 8 }}>
-                      {getCouponDescription(coupon)}
-                    </Text>
-
-                    {/* Bottom Row: Valid Till + Apply */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Text style={{ fontSize: 11, color: '#9CA3AF' }}>
-                        {isDisabled
-                          ? 'Add add-ons to use this coupon'
-                          : `Valid till ${new Date(coupon.validTill).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}${coupon.minOrderValue > 0 ? ` · Min ₹${coupon.minOrderValue}` : ''}`
-                        }
-                      </Text>
-                      <TouchableOpacity
-                        onPress={() => handleApplyCoupon(coupon.code)}
-                        disabled={isValidating || isDisabled}
-                        style={{
-                          borderWidth: 1,
-                          borderColor: isDisabled ? '#D1D5DB' : '#FE8733',
-                          borderRadius: 8,
-                          paddingHorizontal: 16,
-                          paddingVertical: 6,
-                        }}
-                      >
-                        {isValidating ? (
-                          <ActivityIndicator size="small" color="#FE8733" />
-                        ) : (
-                          <Text style={{ fontSize: 13, fontWeight: '600', color: isDisabled ? '#D1D5DB' : '#FE8733' }}>APPLY</Text>
-                        )}
-                      </TouchableOpacity>
-                    </View>
-
-                    {/* T&C */}
-                    {coupon.termsAndConditions && (
-                      <Text style={{ fontSize: 10, color: '#9CA3AF', marginTop: 6 }}>
-                        {coupon.termsAndConditions}
-                      </Text>
+                    {unavailableCoupons.length > 0 && (
+                      <>
+                        <Text style={{ fontSize: 13, fontWeight: '600', color: '#9CA3AF', marginTop: 6, marginBottom: 10 }}>
+                          Unavailable Coupons
+                        </Text>
+                        {unavailableCoupons.map((coupon) => renderCouponCard(coupon, true))}
+                      </>
                     )}
-                  </View>
+                  </>
                 );
-              })}
+              })()}
               {/* Bottom padding */}
               <View style={{ height: 20 }} />
             </ScrollView>
