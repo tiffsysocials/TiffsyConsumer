@@ -64,8 +64,7 @@ const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
       const response = await apiService.getProfile();
       console.log('[EditProfile] Profile loaded:', JSON.stringify(response, null, 2));
 
-      // Handle response format
-      const userData = response.data?.user || (response as any).error?.user;
+      const userData = response.data?.user;
       if (userData) {
         setName(userData.name || '');
         setEmail(userData.email || '');
