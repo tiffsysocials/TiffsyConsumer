@@ -96,49 +96,32 @@ const AutoOrderAddonScreen: React.FC<Props> = ({ navigation, route }) => {
   // Fetch slots + resolve kitchen on mount
   // ---------------------------------------------------------------------------
 
+  // Map backend reason codes to local empty-state keys
+  const REASON_MAP: Record<string, 'not_enabled' | 'no_config' | 'no_upcoming' | 'no_subscription'> = {
+    NOT_ENABLED: 'not_enabled',
+    NO_CONFIG: 'no_config',
+    NO_UPCOMING: 'no_upcoming',
+    NO_SUBSCRIPTION: 'no_subscription',
+  };
+
   const fetchSlots = useCallback(async () => {
     try {
       setError(null);
       setEmptyReason(null);
       const response = await apiService.getAutoOrderAddonSlots(addressId);
-      if (response.success) {
-        const slots = response.data?.slots ?? [];
-        setSlots(slots);
-        if (slots.length === 0) {
-          const msg = (response.message || '').toLowerCase();
-          if (msg.includes('not enabled') || msg.includes('auto-ordering is not')) {
-            setEmptyReason('not_enabled');
-          } else if (msg.includes('no active auto-order') || msg.includes('no auto-order config')) {
-            setEmptyReason('no_config');
-          } else {
-            setEmptyReason('no_upcoming');
-          }
-        }
-      } else {
-        const msg = (response.message || '').toLowerCase();
-        if (msg.includes('subscription')) {
-          setEmptyReason('no_subscription');
-          setSlots([]);
-        } else if (msg.includes('config') || msg.includes('auto-order')) {
-          setEmptyReason('no_config');
-          setSlots([]);
-        } else {
-          setError(response.message || 'Failed to load upcoming slots');
-        }
+      const slots = response.data?.slots ?? [];
+      setSlots(slots);
+      if (slots.length === 0) {
+        const reason = response.data?.reason;
+        setEmptyReason(reason ? REASON_MAP[reason] ?? 'no_upcoming' : 'no_upcoming');
       }
     } catch (err: any) {
-      const msg = (err.message || '').toLowerCase();
       const isNetworkError =
         err.data?.error === 'NETWORK_ERROR' || err.data?.error === 'UNKNOWN_ERROR';
+      const reason = err.data?.reason;
 
-      if (msg.includes('subscription')) {
-        setEmptyReason('no_subscription');
-        setSlots([]);
-      } else if (msg.includes('not enabled') || msg.includes('auto-ordering is not')) {
-        setEmptyReason('not_enabled');
-        setSlots([]);
-      } else if (msg.includes('config') || msg.includes('auto-order') || msg.includes('auto order')) {
-        setEmptyReason('no_config');
+      if (reason && REASON_MAP[reason]) {
+        setEmptyReason(REASON_MAP[reason]);
         setSlots([]);
       } else if (!isNetworkError && err.success === false) {
         // Other API-level rejection — treat as not set up

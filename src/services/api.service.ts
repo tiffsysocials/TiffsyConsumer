@@ -2541,11 +2541,18 @@ class ApiService {
   // AUTO-ORDER ADDON ENDPOINTS
   // ============================================
 
-  // Get all upcoming auto-order slots with existing paid selections
+  // Get all upcoming auto-order slots with existing paid selections.
+  // Empty results include a `reason` code: NOT_ENABLED | NO_CONFIG | NO_UPCOMING
+  // Error responses (404 from rejected Promise) carry `data.reason`: NO_SUBSCRIPTION | NO_CONFIG
   async getAutoOrderAddonSlots(addressId?: string): Promise<{
     success: boolean;
     message: string;
-    data: { slots: AutoOrderAddonSlot[]; totalSlots: number; paidSlots: number };
+    data: {
+      slots: AutoOrderAddonSlot[];
+      totalSlots?: number;
+      paidSlots?: number;
+      reason?: 'NOT_ENABLED' | 'NO_CONFIG' | 'NO_UPCOMING';
+    };
   }> {
     return this.api.get('/api/auto-order/addon-slots', { params: addressId ? { addressId } : {} });
   }
