@@ -188,16 +188,9 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
       const response = await apiService.getMyOrders({ limit: 50 });
       console.log('[YourOrdersScreen] API Response:', JSON.stringify(response, null, 2));
 
-      // Handle different response formats from backend
-      // Backend may return {success: true, data: {...}} or {message: true, data: '...', error: {...}}
-      const isSuccess = response.success === true || (response as any).message === true;
-      const responseData = response.data && typeof response.data === 'object' && 'orders' in response.data
-        ? response.data
-        : (response as any).error || response.data;
+      const responseData = response.data;
 
-      console.log('[YourOrdersScreen] isSuccess:', isSuccess, 'responseData:', responseData);
-
-      if (isSuccess && responseData && responseData.orders) {
+      if (response.success && responseData?.orders) {
         // Use activeOrders from API if available, otherwise filter by status
         let current: Order[];
         if (responseData.activeOrders && responseData.activeOrders.length > 0) {
@@ -211,18 +204,9 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
         }
         console.log('[YourOrdersScreen] Current orders count:', current.length);
         setCurrentOrders(current);
-      } else if (isSuccess && responseData && Array.isArray(responseData)) {
-        // Handle case where data is directly an array of orders
-        const current = responseData.filter((order: Order) =>
-          CURRENT_STATUSES.includes(order.status)
-        );
-        console.log('[YourOrdersScreen] Current orders count (array):', current.length);
-        setCurrentOrders(current);
       } else {
         console.log('[YourOrdersScreen] Failed to load current orders - Response:', response);
-        const errorMessage = typeof response.data === 'string' ? response.data :
-          (response.message && typeof response.message === 'string' ? response.message : 'Failed to load orders');
-        setCurrentError(errorMessage);
+        setCurrentError(response.message || 'Failed to load orders');
       }
     } catch (error: any) {
       console.error('[YourOrdersScreen] Error fetching current orders:', error.message || error);
@@ -233,20 +217,15 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
-  // Helper to extract orders from API response (handles multiple formats)
+  // Helper to extract orders from API response
   const extractOrdersFromResponse = (response: any): { orders: Order[]; hasMore: boolean } => {
-    const isSuccess = response.success === true || (response as any).message === true;
-    const responseData = response.data && typeof response.data === 'object' && 'orders' in response.data
-      ? response.data
-      : (response as any).error || response.data;
+    const responseData = response.data;
 
-    if (isSuccess && responseData && responseData.orders) {
+    if (response.success && responseData?.orders) {
       const hasMore = responseData.pagination
         ? responseData.pagination.page < responseData.pagination.totalPages
         : false;
       return { orders: responseData.orders, hasMore };
-    } else if (isSuccess && responseData && Array.isArray(responseData)) {
-      return { orders: responseData, hasMore: false };
     }
     return { orders: [], hasMore: false };
   };

@@ -141,48 +141,14 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       setError(null);
       console.log('[OrderDetailScreen] Fetching order:', orderId);
       const response = await apiService.getOrder(orderId);
-      console.log('[OrderDetailScreen] Response:', JSON.stringify(response, null, 2));
+      const orderData = response?.data?.order;
 
-      // API response format:
-      // Standard: { success: true, message: "Order retrieved", data: { order: {...}, kitchen: {...}, ... } }
-      // Legacy: { message: true, data: "Order retrieved", error: { order: {...}, kitchen: {...} } }
-      const resp = response as any;
-      let orderData: any = null;
-
-      // Check standard format: response.data.order
-      if (resp?.data?.order?._id) {
-        orderData = resp.data.order;
-      }
-      // Check legacy format: order in error.order (weird API format where error contains success data)
-      else if (resp?.error?.order?._id) {
-        orderData = resp.error.order;
-      }
-      // Check if response.data is the order directly (has _id)
-      else if (resp?.data?._id) {
-        orderData = resp.data;
-      }
-      // Check if response itself is the order
-      else if (resp?._id) {
-        orderData = resp;
-      }
-
-      if (orderData && orderData._id) {
-        console.log('[OrderDetailScreen] Order fetched successfully:', orderData.orderNumber);
+      if (orderData?._id) {
+        console.log('[OrderDetailScreen] Order fetched:', orderData.orderNumber);
         setOrder(orderData);
       } else {
-        // Extract error message from various possible formats
-        let errorMsg = 'Failed to load order details';
-
-        if (typeof resp?.data === 'string') {
-          errorMsg = resp.data;
-        } else if (typeof resp?.message === 'string' && resp.message !== 'true') {
-          errorMsg = resp.message;
-        } else if (resp?.error && typeof resp.error === 'string') {
-          errorMsg = resp.error;
-        }
-
-        console.log('[OrderDetailScreen] Failed to fetch order:', errorMsg);
-        setError(errorMsg);
+        console.log('[OrderDetailScreen] Failed to fetch order:', response?.message);
+        setError(response?.message || 'Failed to load order details');
       }
     } catch (err: any) {
       console.error('[OrderDetailScreen] Error fetching order:', err.message || err);
@@ -214,25 +180,17 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       const response = await apiService.cancelOrder(orderId, reason);
       console.log('[OrderDetailScreen] Cancel response:', JSON.stringify(response, null, 2));
 
-      // Handle API response format: {message: true/false, data: string, error?: object}
-      // or standard format: {success: boolean, message: string, data?: object}
-      const isSuccess = response.success === true || (response as any).message === true;
-      const responseData = (response as any).error || response.data;
-
-      if (isSuccess) {
+      if (response.success) {
         console.log('[OrderDetailScreen] Order cancelled successfully');
         setShowCancelModal(false);
 
-        const successMessage = responseData?.message ||
-          (typeof response.data === 'string' ? response.data : 'Order cancelled successfully.');
+        const successMessage = response.data?.message || 'Order cancelled successfully.';
 
         showAlert('Order Cancelled', successMessage, [
           { text: 'OK', onPress: () => fetchOrder() },
         ], 'success');
       } else {
-        const errorMessage = typeof response.data === 'string'
-          ? response.data
-          : (response.message && typeof response.message === 'string' ? response.message : 'Failed to cancel order');
+        const errorMessage = response.message || 'Failed to cancel order';
         console.log('[OrderDetailScreen] Cancel failed:', errorMessage);
         setShowCancelModal(false);
         // Hide cancel button after failed attempt (window likely expired)
@@ -262,19 +220,14 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       const response = await apiService.rateOrder(orderId, stars, comment);
       console.log('[OrderDetailScreen] Rating response:', JSON.stringify(response, null, 2));
 
-      // Handle API response format: {message: true/false, data: string, error?: object}
-      const isSuccess = response.success === true || (response as any).message === true;
-
-      if (isSuccess) {
+      if (response.success) {
         console.log('[OrderDetailScreen] Order rated successfully');
         setShowRateModal(false);
         showAlert('Thank You!', 'Your feedback helps us improve.', [
           { text: 'OK', onPress: () => fetchOrder() },
         ], 'success');
       } else {
-        const errorMessage = typeof response.data === 'string'
-          ? response.data
-          : (response.message && typeof response.message === 'string' ? response.message : 'Failed to submit rating');
+        const errorMessage = response.message || 'Failed to submit rating';
         console.log('[OrderDetailScreen] Rating failed:', errorMessage);
         showAlert('Error', errorMessage, undefined, 'error');
       }

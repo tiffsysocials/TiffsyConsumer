@@ -1862,7 +1862,13 @@ class ApiService {
   }
 
   // Get single order details
-  async getOrder(orderId: string): Promise<{ success: boolean; data: Order }> {
+  // Backend returns the order plus kitchen, statusTimeline, delivery, deliveryOtp,
+  // vouchersUsed, couponApplied alongside it (see order.controller.js:840).
+  async getOrder(orderId: string): Promise<{
+    success: boolean;
+    message: string;
+    data: { order: Order } & Record<string, unknown>;
+  }> {
     return this.api.get(`/api/orders/${orderId}`);
   }
 

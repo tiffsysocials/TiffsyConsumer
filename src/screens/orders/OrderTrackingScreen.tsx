@@ -153,29 +153,15 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
       console.log('[OrderTracking] Order Response:', JSON.stringify(orderResponse, null, 2));
 
       // Parse tracking response - API returns: { success: true, data: OrderTrackingData }
-      const isTrackingSuccess = trackingResponse.success === true || (trackingResponse as any).message === true;
-      const trackingData = trackingResponse.data || (trackingResponse as any).error;
+      const trackingData = trackingResponse.data;
 
-      // Parse order response
-      const isOrderSuccess = orderResponse.success === true || (orderResponse as any).message === true;
-      let orderData: Order | null = null;
+      // Parse order response (backend returns { data: { order, kitchen, deliveryOtp, ... } })
+      const orderData: Order | null = orderResponse?.data?.order ?? null;
+      const orderDeliveryOtp: string | null = (orderResponse?.data as any)?.deliveryOtp || null;
 
-      const resp = orderResponse as any;
-      let orderDeliveryOtp: string | null = null;
-      if (resp?.data?.order?._id) {
-        orderData = resp.data.order;
-        orderDeliveryOtp = resp.data.deliveryOtp || null;
-      } else if (resp?.error?.order?._id) {
-        orderData = resp.error.order;
-        orderDeliveryOtp = resp.error.deliveryOtp || null;
-      } else if (resp?.data?._id) {
-        orderData = resp.data;
-        orderDeliveryOtp = resp.deliveryOtp || null;
-      }
+      console.log('[OrderTracking] Tracking success:', trackingResponse.success, 'Order success:', orderResponse.success);
 
-      console.log('[OrderTracking] Tracking success:', isTrackingSuccess, 'Order success:', isOrderSuccess);
-
-      if (isTrackingSuccess && trackingData && trackingData.status) {
+      if (trackingResponse.success && trackingData && trackingData.status) {
         console.log('[OrderTracking] Tracking loaded - Status:', trackingData.status);
         setTracking(trackingData);
 
@@ -268,25 +254,17 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
       const response = await apiService.cancelOrder(orderId, reason);
       console.log('[OrderTracking] Cancel response:', JSON.stringify(response, null, 2));
 
-      // Handle API response format: {message: true/false, data: string, error?: object}
-      // or standard format: {success: boolean, message: string, data?: object}
-      const isSuccess = response.success === true || (response as any).message === true;
-      const responseData = (response as any).error || response.data;
-
-      if (isSuccess) {
+      if (response.success) {
         console.log('[OrderTracking] Order cancelled successfully');
         setShowCancelModal(false);
 
-        const successMessage = responseData?.message ||
-          (typeof response.data === 'string' ? response.data : 'Order cancelled successfully.');
+        const successMessage = response.data?.message || 'Order cancelled successfully.';
 
         showAlert('Order Cancelled', successMessage, [
           { text: 'OK', onPress: () => navigation.goBack() },
         ], 'success');
       } else {
-        const errorMessage = typeof response.data === 'string'
-          ? response.data
-          : (response.message && typeof response.message === 'string' ? response.message : 'Failed to cancel order');
+        const errorMessage = response.message || 'Failed to cancel order';
         console.log('[OrderTracking] Cancel failed:', errorMessage);
         setShowCancelModal(false);
         // Hide cancel button after failed attempt (window likely expired)
@@ -322,10 +300,7 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
       const response = await apiService.rateOrder(orderId, stars, comment);
       console.log('[OrderTracking] Rating response:', JSON.stringify(response, null, 2));
 
-      // Handle API response format: {message: true/false, data: string, error?: object}
-      const isSuccess = response.success === true || (response as any).message === true;
-
-      if (isSuccess) {
+      if (response.success) {
         console.log('[OrderTracking] Order rated successfully');
         setShowRateModal(false);
         // Update local order state with rating
@@ -338,9 +313,7 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
         }
         showAlert('Thank you!', 'Your rating has been submitted successfully', undefined, 'success');
       } else {
-        const errorMessage = typeof response.data === 'string'
-          ? response.data
-          : (response.message && typeof response.message === 'string' ? response.message : 'Failed to submit rating');
+        const errorMessage = response.message || 'Failed to submit rating';
         console.log('[OrderTracking] Rating failed:', errorMessage);
         showAlert('Error', errorMessage, undefined, 'error');
       }
