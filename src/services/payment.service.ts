@@ -12,7 +12,7 @@ import {
   SubscriptionPaymentResult,
 } from '../types/payment';
 
-const MERCHANT_NAME = 'TiffinDabba';
+const MERCHANT_NAME = 'Tiffsy';
 const THEME_COLOR = '#FE8733';
 
 class PaymentService {
