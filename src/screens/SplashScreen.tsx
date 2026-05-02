@@ -19,9 +19,9 @@ const {width, height} = Dimensions.get('window');
 const PATH_CURVE =
   'M58.6953 25.387695C58.6953 25.387695 87.9947 49.2034 93.1953 70.8877C103.096 112.1685 17.5234 117.4326 28.6952 158.388C38.4951 194.313 130.549 166.905 126.195 203.888C123.431 227.368 69.6953 252.888 69.6953 252.888';
 
-// ── Path 2: bottom curve (Vector 3) ──
+// ── Path 2: bottom curve (Vector 49) ──
 const BOTTOM_PATH =
-  'M185.659 0.438477C185.659 0.438477 202.045 9.41347 208.159 23.9385C239.885 99.3048 -49.6614 51.6165 8.15937 109.438C17.1592 118.438 56.1594 115.246 56.1594 130.938C56.1594 142.438 37.6592 141.438 34.1594 152.438C29.7209 166.389 92.6594 172.938 92.6594 172.938';
+  'M289.5 0.444336C289.5 0.444336 303.469 7.62586 309.043 11.9483C320 20.4443 315.5 33.4443 301 40.9443C286.5 48.4443 52.5454 105.949 40.5435 110.448C28.5416 114.947 5.04414 129.447 2.04348 141.948C-0.957182 154.449 -0.456987 162.949 11.5435 171.948C23.544 180.947 31.5 186.448 46 189.448C60.5 192.448 79.543 196.949 83.5435 200.948C87.544 204.947 87.8115 208.947 82.544 215.947C77.2764 222.947 64.5439 228.947 61.5439 230.947C55.8692 234.73 46.0435 238.448 51.0439 249.447C56.0444 260.446 79.5435 257.948 79.5435 257.948H130.543L208.543 254.948H245.043';
 
 const CURVE_LENGTH = 800; // generous upper bound
 const EXIT_LENGTH = 800; // generous upper bound
@@ -39,18 +39,23 @@ const PAN_LOTTIE_SIZE = width * 0.28;
 const DRIVER_SIZE = width * 0.34;
 const LOGO_SIZE = width * 0.6;
 
-// ── Bottom SVG (Vector 3) layout ──
-const BOTTOM_VB = {x: -55, y: -5, w: 305, h: 185};
-const BOTTOM_SVG_H = height * 0.23;
+// ── Bottom SVG (Vector 49) layout ──
+const BOTTOM_VB = {x: 0, y: 0, w: 316, h: 259};
+const BOTTOM_SVG_H = height * 0.20;
 const BOTTOM_SVG_W = BOTTOM_SVG_H * (BOTTOM_VB.w / BOTTOM_VB.h);
-const BOTTOM_SVG_TOP = SVG_TOP + 320 * SC;
-const BOTTOM_SVG_LEFT = (width - BOTTOM_SVG_W) / 2 - width * 0.12;
+const BOTTOM_SVG_TOP = SVG_TOP + 305 * SC;
+const BOTTOM_SVG_LEFT = (width - BOTTOM_SVG_W) / 2 - width * 0.09;
+
+// ── Stroke widths: keep both SVGs visually equal ──
+const TOP_STROKE = 2; // viewBox units for top SVG
+const STROKE_PX = TOP_STROKE * SC; // top renders at this many screen px
+const BOTTOM_STROKE = STROKE_PX * (BOTTOM_VB.w / BOTTOM_SVG_W); // viewBox units for bottom
 const BOTTOM_END_X =
   BOTTOM_SVG_LEFT +
-  ((92.6594 - BOTTOM_VB.x) / BOTTOM_VB.w) * BOTTOM_SVG_W;
+  ((245.043 - BOTTOM_VB.x) / BOTTOM_VB.w) * BOTTOM_SVG_W;
 const BOTTOM_END_Y =
   BOTTOM_SVG_TOP +
-  ((172.938 - BOTTOM_VB.y) / BOTTOM_VB.h) * BOTTOM_SVG_H;
+  ((254.948 - BOTTOM_VB.y) / BOTTOM_VB.h) * BOTTOM_SVG_H;
 
 // ── Fixed screen positions ──
 const POS_PHONE = {x: SVG_LEFT + 58 * SC, y: SVG_TOP + 0 * SC};
@@ -242,8 +247,9 @@ const SplashScreen = ({onFinish}: SplashScreenProps) => {
         <AnimatedPath
           d={BOTTOM_PATH}
           stroke="rgba(255,255,255,0.8)"
-          strokeWidth={2}
+          strokeWidth={BOTTOM_STROKE}
           strokeLinecap="round"
+          strokeLinejoin="round"
           fill="none"
           strokeDasharray={[EXIT_LENGTH, EXIT_LENGTH]}
           strokeDashoffset={exitDashOffset}
@@ -314,11 +320,11 @@ const SplashScreen = ({onFinish}: SplashScreenProps) => {
           styles.abs,
           {
             left: POS_DRIVER.x,
-            top: BOTTOM_END_Y - 1,
-            height: 2,
+            top: BOTTOM_END_Y - STROKE_PX / 2,
+            height: STROKE_PX,
             width: trailWidth,
             backgroundColor: 'rgba(255,255,255,0.8)',
-            borderRadius: 1,
+            borderRadius: STROKE_PX / 2,
           },
         ]}
       />
@@ -328,7 +334,7 @@ const SplashScreen = ({onFinish}: SplashScreenProps) => {
         style={[
           styles.abs,
           {
-            top: POS_DRIVER.y - DRIVER_SIZE / 2,
+            top: POS_DRIVER.y - DRIVER_SIZE * 0.85,
             left: Animated.add(POS_DRIVER.x - DRIVER_SIZE / 2, driverTranslateX),
           },
         ]}>
