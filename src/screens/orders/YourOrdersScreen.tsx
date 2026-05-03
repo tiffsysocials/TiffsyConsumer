@@ -21,6 +21,8 @@ import { useSubscription } from '../../context/SubscriptionContext';
 import { useAlert } from '../../context/AlertContext';
 import apiService, { Order, OrderStatus } from '../../services/api.service';
 import dataPreloader from '../../services/dataPreloader.service';
+import paymentService from '../../services/payment.service';
+import { isPaymentPending } from '../../utils/paymentStatus';
 
 import { useResponsive } from '../../hooks/useResponsive';
 import { SPACING } from '../../constants/spacing';
@@ -158,6 +160,7 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
   const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null);
 
   const [refreshing, setRefreshing] = useState(false);
+  const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
 
   // Track if data has been loaded to prevent unnecessary fetches
   const hasLoadedDataRef = useRef(false);
@@ -365,8 +368,41 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
     showAlert('Coming Soon', 'Reorder functionality will be available soon!', undefined, 'default');
   };
 
+  const handlePayNow = async (orderId: string) => {
+    if (payingOrderId) return;
+    try {
+      setPayingOrderId(orderId);
+      const result = await paymentService.retryOrderPayment(orderId);
+      if (result.success) {
+        dataPreloader.invalidateCache('orders');
+        await fetchCurrentOrders();
+        showAlert(
+          'Payment Successful',
+          'Your order has been confirmed.',
+          undefined,
+          'success',
+        );
+      } else if (result.error && result.error !== 'Payment cancelled') {
+        showAlert('Payment Failed', result.error, undefined, 'error');
+      }
+    } catch (err: any) {
+      showAlert(
+        'Payment Failed',
+        err?.message || 'Unable to complete payment. Please try again.',
+        undefined,
+        'error',
+      );
+    } finally {
+      setPayingOrderId(null);
+    }
+  };
+
   // Render current order card
-  const renderCurrentOrderCard = (order: Order) => (
+  const renderCurrentOrderCard = (order: Order) => {
+    const paymentPending = isPaymentPending(order);
+    const amountDue = order.grandTotal - order.amountPaid;
+    const isPayingThisOrder = payingOrderId === order._id;
+    return (
     <TouchableOpacity
       key={order._id}
       onPress={() => handleViewOrderDetail(order._id)}
@@ -472,9 +508,20 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
       </View>
 
       {/* Row 4: Status */}
-      <View className="mb-4">
-        <Text className="text-sm font-semibold" style={{ color: '#6B7280' }}>
-          {getStatusMessage(order.status)}
+      <View className="mb-4 flex-row items-center">
+        {paymentPending && (
+          <View
+            className="rounded-full mr-2"
+            style={{ width: 8, height: 8, backgroundColor: '#D97706' }}
+          />
+        )}
+        <Text
+          className="text-sm font-semibold"
+          style={{ color: paymentPending ? '#D97706' : '#6B7280' }}
+        >
+          {paymentPending
+            ? 'Payment pending — complete to confirm'
+            : getStatusMessage(order.status)}
         </Text>
       </View>
 
@@ -483,16 +530,32 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
         <TouchableOpacity
           onPress={(e) => {
             e.stopPropagation();
-            handleTrackOrder(order._id);
+            if (paymentPending) {
+              handlePayNow(order._id);
+            } else {
+              handleTrackOrder(order._id);
+            }
           }}
+          disabled={isPayingThisOrder}
           className="py-2 rounded-full items-center justify-center"
-          style={{ width: 280, backgroundColor: 'rgba(255, 136, 0, 1)' }}
+          style={{
+            width: 280,
+            backgroundColor: 'rgba(255, 136, 0, 1)',
+            opacity: isPayingThisOrder ? 0.7 : 1,
+          }}
         >
-          <Text className="text-base font-semibold text-white">Track Order</Text>
+          {isPayingThisOrder ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text className="text-base font-semibold text-white">
+              {paymentPending ? `Pay Now ₹${amountDue.toFixed(2)}` : 'Track Order'}
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
-  );
+    );
+  };
 
   // Render history order card
   const renderHistoryOrderCard = (order: Order) => (

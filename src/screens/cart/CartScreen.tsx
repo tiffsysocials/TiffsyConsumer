@@ -633,6 +633,10 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
           const paymentResult = await processOrderPayment(result.orderId);
 
           if (!paymentResult.success) {
+            // Order was created server-side with paymentStatus: PENDING; ensure
+            // the orders list refetches so the user can see and retry it.
+            dataPreloader.invalidateCache('orders');
+
             const successfulOrders = orderResults.filter(r => r.orderId !== result.orderId);
             const successInfo = successfulOrders.length > 0
               ? `\n\nOrder(s) ${successfulOrders.map(r => r.orderNumber).join(', ')} were placed successfully.`

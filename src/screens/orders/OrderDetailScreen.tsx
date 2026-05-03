@@ -19,11 +19,18 @@ import { useFocusEffect } from '@react-navigation/native';
 import { MainTabParamList } from '../../types/navigation';
 import { useAlert } from '../../context/AlertContext';
 import apiService, { Order, OrderStatus, KitchenSummary } from '../../services/api.service';
+import paymentService from '../../services/payment.service';
+import dataPreloader from '../../services/dataPreloader.service';
 import CancelOrderModal from '../../components/CancelOrderModal';
 import RateOrderModal from '../../components/RateOrderModal';
 import { useResponsive } from '../../hooks/useResponsive';
 import { SPACING, TOUCH_TARGETS } from '../../constants/spacing';
 import { FONT_SIZES, LINE_HEIGHTS } from '../../constants/typography';
+import {
+  isPaymentPending,
+  getPaymentDeadlineSeconds,
+  formatCountdown,
+} from '../../utils/paymentStatus';
 
 type Props = StackScreenProps<MainTabParamList, 'OrderDetail'>;
 
@@ -134,6 +141,23 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const [isCancelling, setIsCancelling] = useState(false);
   const [isRating, setIsRating] = useState(false);
   const [copiedOrderId, setCopiedOrderId] = useState(false);
+  const [isPaying, setIsPaying] = useState(false);
+  const [paymentSecondsLeft, setPaymentSecondsLeft] = useState(0);
+
+  const paymentPending = !!order && isPaymentPending(order);
+
+  // Countdown for the 30-min repay window when payment is pending
+  useEffect(() => {
+    if (!order || !paymentPending) {
+      setPaymentSecondsLeft(0);
+      return;
+    }
+
+    const tick = () => setPaymentSecondsLeft(getPaymentDeadlineSeconds(order));
+    tick();
+    const intervalId = setInterval(tick, 1000);
+    return () => clearInterval(intervalId);
+  }, [order, paymentPending]);
 
   // Fetch order details
   const fetchOrder = async () => {
@@ -242,6 +266,36 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   // Handle track order
   const handleTrackOrder = () => {
     navigation.navigate('OrderTracking', { orderId });
+  };
+
+  // Handle Pay Now - retry payment for an order whose first attempt failed
+  const handlePayNow = async () => {
+    if (!order || isPaying) return;
+    try {
+      setIsPaying(true);
+      const result = await paymentService.retryOrderPayment(order._id);
+      if (result.success) {
+        dataPreloader.invalidateCache('orders');
+        await fetchOrder();
+        showAlert(
+          'Payment Successful',
+          'Your order has been confirmed.',
+          undefined,
+          'success',
+        );
+      } else if (result.error && result.error !== 'Payment cancelled') {
+        showAlert('Payment Failed', result.error, undefined, 'error');
+      }
+    } catch (err: any) {
+      showAlert(
+        'Payment Failed',
+        err?.message || 'Unable to complete payment. Please try again.',
+        undefined,
+        'error',
+      );
+    } finally {
+      setIsPaying(false);
+    }
   };
 
   // Handle call kitchen
@@ -377,16 +431,36 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 </TouchableOpacity>
               </View>
             </View>
-            <View
-              className="rounded-full"
-              style={{ backgroundColor: `${getStatusColor(order.status)}20`, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm }}
-            >
-              <Text
-                className="font-semibold"
-                style={{ color: getStatusColor(order.status), fontSize: FONT_SIZES.sm }}
+            <View style={{ alignItems: 'flex-end' }}>
+              {paymentPending && (
+                <View
+                  className="rounded-full"
+                  style={{
+                    backgroundColor: '#FEF3C7',
+                    paddingHorizontal: SPACING.md,
+                    paddingVertical: SPACING.sm,
+                    marginBottom: 6,
+                  }}
+                >
+                  <Text
+                    className="font-semibold"
+                    style={{ color: '#D97706', fontSize: FONT_SIZES.sm }}
+                  >
+                    Payment Pending
+                  </Text>
+                </View>
+              )}
+              <View
+                className="rounded-full"
+                style={{ backgroundColor: `${getStatusColor(order.status)}20`, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm }}
               >
-                {getStatusText(order.status)}
-              </Text>
+                <Text
+                  className="font-semibold"
+                  style={{ color: getStatusColor(order.status), fontSize: FONT_SIZES.sm }}
+                >
+                  {getStatusText(order.status)}
+                </Text>
+              </View>
             </View>
           </View>
           <Text className="text-gray-500" style={{ fontSize: FONT_SIZES.sm }}>
@@ -528,6 +602,26 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         {/* Pricing Breakdown */}
         <View className="bg-white mb-2" style={{ padding: isSmallDevice ? SPACING.lg : SPACING.xl }}>
           <Text className="font-bold text-gray-900 mb-3" style={{ fontSize: FONT_SIZES.lg }}>Payment Details</Text>
+
+          {paymentPending && (
+            <View
+              style={{
+                backgroundColor: '#FEF3C7',
+                borderRadius: 12,
+                padding: SPACING.md,
+                marginBottom: SPACING.md,
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: '#92400E', fontSize: FONT_SIZES.sm, fontWeight: '600', flex: 1 }}>
+                {paymentSecondsLeft > 0
+                  ? `Payment of ₹${(order.grandTotal - order.amountPaid).toFixed(2)} due in ${formatCountdown(paymentSecondsLeft)}`
+                  : 'Payment window expired — order will be cancelled'}
+              </Text>
+            </View>
+          )}
 
           <View className="flex-row justify-between mb-2">
             <Text className="text-sm text-gray-600">Subtotal</Text>
@@ -695,6 +789,42 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
         {/* Action Buttons */}
         <View style={{ padding: isSmallDevice ? SPACING.lg : SPACING.xl, marginBottom: SPACING['2xl'] }}>
+          {/* Pay Now / Expired - for orders with pending payment */}
+          {paymentPending && paymentSecondsLeft > 0 && (
+            <TouchableOpacity
+              onPress={handlePayNow}
+              disabled={isPaying}
+              className="rounded-full items-center justify-center mb-3 flex-row"
+              style={{
+                backgroundColor: '#FE8733',
+                minHeight: TOUCH_TARGETS.comfortable,
+                opacity: isPaying ? 0.7 : 1,
+              }}
+            >
+              {isPaying ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text className="text-white font-bold" style={{ fontSize: FONT_SIZES.base }}>
+                  Pay Now ₹{(order.grandTotal - order.amountPaid).toFixed(2)}
+                </Text>
+              )}
+            </TouchableOpacity>
+          )}
+          {paymentPending && paymentSecondsLeft === 0 && (
+            <View
+              className="rounded-full items-center justify-center mb-3"
+              style={{
+                backgroundColor: '#E5E7EB',
+                minHeight: TOUCH_TARGETS.comfortable,
+                paddingVertical: SPACING.md,
+              }}
+            >
+              <Text className="font-bold" style={{ color: '#6B7280', fontSize: FONT_SIZES.base }}>
+                Payment window expired
+              </Text>
+            </View>
+          )}
+
           {/* Track Order - for active orders */}
           {isActiveOrder && (
             <TouchableOpacity
