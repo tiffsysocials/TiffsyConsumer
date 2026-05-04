@@ -79,7 +79,7 @@ const AuthErrorView: React.FC<{
 };
 
 const AppNavigator = () => {
-  const { user, isLoading, isGuest, needsAddressSetup, authError, retrySync, logout, isAuthenticated } = useUser();
+  const { user, isLoading, isGuest, needsAddressSetup, authError, retrySync, logout, isAuthenticated, skipOnboarding } = useUser();
   const [showSplash, setShowSplash] = React.useState(true);
 
   // Always show animated splash on every app launch
@@ -140,11 +140,16 @@ const AppNavigator = () => {
           // Guest mode - show main app with limited access
           <Stack.Screen name="Main" component={MainNavigator} />
         ) : !user ? (
-          // User is not authenticated - show onboarding and auth screens
-          <>
-            <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
+          // User is not authenticated - show onboarding and auth screens.
+          // If user just exited guest mode (skipOnboarding), skip onboarding entirely.
+          skipOnboarding ? (
             <Stack.Screen name="Auth" component={AuthNavigator} />
-          </>
+          ) : (
+            <>
+              <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
+              <Stack.Screen name="Auth" component={AuthNavigator} />
+            </>
+          )
         ) : !user.isOnboarded ? (
           // User is authenticated but hasn't completed profile onboarding
           <Stack.Screen name="UserOnboarding" component={UserOnboardingScreen} />

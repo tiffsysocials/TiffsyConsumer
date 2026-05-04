@@ -31,7 +31,8 @@ interface PageContent {
 const pages: PageContent[] = [
   {
     id: 0,
-    title: "Taste\nTasty Meals\nEvery Days",
+    title: "Taste\nTasty Meals\nEvery Day",
+    subtitle: "Fresh, delicious meals from trusted kitchens,\nprepared daily and made just for you.",
     image: require('../../assets/images/onboarding/onboarding1.png'),
     backgroundImage: require('../../assets/images/onboarding/fastfood.png'),
     imageAnimation: 'rotate',
@@ -39,15 +40,15 @@ const pages: PageContent[] = [
   {
     id: 1,
     title: "Get Coupons\nFor Auto\nDelivery",
-    subtitle: "Lorem ipsum dolor amet consectetur.\nAdipiscing ultricies dui morbi varius ac id.",
-    image: require('../../assets/images/onboarding/onboarding2.png'),
+    subtitle: "Save more with auto-renewing meal coupons.\nThe more you order, the more you save.",
+    image: require('../../assets/images/onboarding/onboarding2-new.png'),
     backgroundImage: require('../../assets/images/onboarding/couponbackground.png'),
     imageAnimation: 'float',
   },
   {
     id: 2,
     title: "Meals\nThat Feel\nLike Home",
-    subtitle: "Lorem ipsum dolor amet consectetur.\nAdipiscing ultricies dui morbi varius acid.",
+    subtitle: "Homestyle cooked meals\nfreshly delivered to your doorstep.",
     image: require('../../assets/images/onboarding/onboarding3.png'),
     backgroundImage: require('../../assets/images/onboarding/home.png'),
     imageAnimation: 'float',
@@ -332,10 +333,10 @@ const OnboardingScreen: React.FC<Props> = ({ navigation }) => {
                   <Animated.Image
                     source={item.image}
                     style={{
-                      width: imageSize,
+                      width: imageSize * (index === 1 ? 1.5 : 1),
                       height:
                         imageSize *
-                        (index === 0 ? 1 : index === 2 ? 0.7 : 0.85),
+                        (index === 0 ? 1 : index === 2 ? 0.7 : 0.85 * 1.5),
                       borderRadius: index === 0 ? imageSize / 2 : 0,
                     }}
                     resizeMode={index === 0 ? 'cover' : 'contain'}

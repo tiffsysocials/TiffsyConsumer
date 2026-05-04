@@ -30,7 +30,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const { sendOTP } = useUser();
+  const { sendOTP, enterGuestMode } = useUser();
   const { showAlert } = useAlert();
   const { height } = useResponsive();
   const scrollRef = useRef<ScrollView>(null);
@@ -353,6 +353,30 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
                   Get OTP
                 </Text>
               )}
+            </TouchableOpacity>
+
+            {/* Explore as Guest button */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => { enterGuestMode(); }}
+              disabled={loading}
+              style={{
+                backgroundColor: 'transparent',
+                borderRadius: 100,
+                borderWidth: 1.5,
+                borderColor: '#FE8733',
+                paddingVertical: 13,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginTop: 12,
+                minHeight: TOUCH_TARGETS.comfortable,
+              }}
+            >
+              <Text
+                style={{ color: '#FE8733', fontSize: FONT_SIZES.base, fontWeight: '600' }}
+              >
+                Explore as a Guest
+              </Text>
             </TouchableOpacity>
 
             {/* Footer text */}

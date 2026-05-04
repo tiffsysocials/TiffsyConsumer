@@ -22,6 +22,7 @@ import { useAddress } from '../../context/AddressContext';
 import { useSubscription } from '../../context/SubscriptionContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { useBanners } from '../../context/BannerContext';
+import { useUser } from '../../context/UserContext';
 import BannerSliderWidget from '../../components/BannerSliderWidget';
 import apiService, { KitchenInfo, MenuItem, AddonItem, extractKitchensFromResponse } from '../../services/api.service';
 import dataPreloader from '../../services/dataPreloader.service';
@@ -69,6 +70,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const { getMainAddress, selectedAddressId, addresses, currentLocation, isGettingLocation } = useAddress();
   const { usableVouchers, subscriptions, fetchSubscriptions, fetchVouchers, autoOrderConfigs } = useSubscription();
   const { fetchUnreadCount, fetchNotifications } = useNotifications();
+  const { isGuest, exitGuestMode } = useUser();
   const { banners, isLoading: isBannersLoading, loadBanners } = useBanners();
   const insets = useSafeAreaInsets();
   const { width, isSmallDevice } = useResponsive();
@@ -1218,14 +1220,31 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
           {/* Error State */}
           {menuError && !isLoadingMenu && (
             <View className="items-center justify-center py-8 px-4">
-              <Text className="text-red-500 text-lg mb-2">Oops!</Text>
-              <Text className="text-gray-600 text-center mb-4">{menuError}</Text>
-              <TouchableOpacity
-                onPress={fetchMenu}
-                className="bg-orange-400 px-6 py-3 rounded-full"
-              >
-                <Text className="text-white font-semibold">Try Again</Text>
-              </TouchableOpacity>
+              {isGuest && /unauth|auth/i.test(menuError) ? (
+                <>
+                  <Text className="text-gray-900 text-lg font-bold mb-2">Login to see</Text>
+                  <Text className="text-gray-600 text-center mb-4">
+                    Sign in to view the menu and place orders.
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => { exitGuestMode(); }}
+                    className="bg-orange-400 px-6 py-3 rounded-full"
+                  >
+                    <Text className="text-white font-semibold">Login</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <Text className="text-red-500 text-lg mb-2">Oops!</Text>
+                  <Text className="text-gray-600 text-center mb-4">{menuError}</Text>
+                  <TouchableOpacity
+                    onPress={fetchMenu}
+                    className="bg-orange-400 px-6 py-3 rounded-full"
+                  >
+                    <Text className="text-white font-semibold">Try Again</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           )}
 

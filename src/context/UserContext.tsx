@@ -54,6 +54,7 @@ interface UserContextType {
   logout: () => Promise<void>;
   enterGuestMode: () => Promise<void>;
   exitGuestMode: () => Promise<void>;
+  skipOnboarding: boolean;
   isAuthenticated: boolean;
   checkProfileStatus: () => Promise<void>;
   setNeedsAddressSetup: (value: boolean) => void;
@@ -70,6 +71,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isGuest, setIsGuest] = useState(false);
   const [needsAddressSetup, setNeedsAddressSetup] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [skipOnboarding, setSkipOnboarding] = useState(false);
 
   // Check if user needs to set up address
   const checkAddressSetup = async (userProfile?: UserProfile | null) => {
@@ -282,6 +284,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const exitGuestMode = async () => {
+    setSkipOnboarding(true);
     setIsGuest(false);
     await AsyncStorage.removeItem('is_guest');
   };
@@ -556,6 +559,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         logout,
         enterGuestMode,
         exitGuestMode,
+        skipOnboarding,
         isAuthenticated,
         checkProfileStatus,
         setNeedsAddressSetup,

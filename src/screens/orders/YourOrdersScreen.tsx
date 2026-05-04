@@ -19,6 +19,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { MainTabParamList } from '../../types/navigation';
 import { useSubscription } from '../../context/SubscriptionContext';
 import { useAlert } from '../../context/AlertContext';
+import { useUser } from '../../context/UserContext';
 import apiService, { Order, OrderStatus } from '../../services/api.service';
 import dataPreloader from '../../services/dataPreloader.service';
 import paymentService from '../../services/payment.service';
@@ -140,6 +141,7 @@ const getQuantityString = (order: Order): string => {
 
 const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
   const { usableVouchers } = useSubscription();
+  const { isGuest, exitGuestMode } = useUser();
   const { showAlert } = useAlert();
   const { isSmallDevice } = useResponsive();
   const insets = useSafeAreaInsets();
@@ -716,18 +718,28 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
   );
 
   // Render error state
-  const renderError = (message: string, onRetry: () => void) => (
-    <View className="items-center justify-center py-20">
-      <Text className="text-base text-gray-500 mb-4">{message}</Text>
-      <TouchableOpacity
-        onPress={onRetry}
-        className="rounded-full px-6 py-2"
-        style={{ backgroundColor: 'rgba(255, 136, 0, 1)' }}
-      >
-        <Text className="text-white font-semibold">Retry</Text>
-      </TouchableOpacity>
-    </View>
-  );
+  const renderError = (message: string, onRetry: () => void) => {
+    const isAuthError = isGuest && /unauth|auth/i.test(message);
+    return (
+      <View className="items-center justify-center py-20">
+        <Text className="text-base text-gray-900 font-bold mb-2">
+          {isAuthError ? 'Login to see' : message}
+        </Text>
+        {isAuthError && (
+          <Text className="text-sm text-gray-500 mb-4 text-center px-6">
+            Sign in to view your orders.
+          </Text>
+        )}
+        <TouchableOpacity
+          onPress={isAuthError ? () => { exitGuestMode(); } : onRetry}
+          className="rounded-full px-6 py-2"
+          style={{ backgroundColor: 'rgba(255, 136, 0, 1)' }}
+        >
+          <Text className="text-white font-semibold">{isAuthError ? 'Login' : 'Retry'}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   // Render empty state
   const renderEmpty = (message: string) => (
@@ -802,8 +814,11 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
+              </SafeAreaView>
+      </LinearGradient>
+
         {/* Tabs */}
-        <View className="px-5 mt-4">
+        <View style={{ paddingHorizontal: 20, marginTop: 16, marginBottom: 8 }}>
           <View className="flex-row bg-gray-100 rounded-full p-1">
             <TouchableOpacity
               onPress={() => setActiveTab('Current')}
@@ -884,8 +899,6 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         </View>
-              </SafeAreaView>
-      </LinearGradient>
 
       {/* Orders List */}
       <ScrollView

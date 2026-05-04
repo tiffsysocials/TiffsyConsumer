@@ -37,14 +37,14 @@ const SVG_TOP = (height - 544 * SC) / 2;
 const PHONE_LOTTIE_SIZE = width * 0.26;
 const PAN_LOTTIE_SIZE = width * 0.28;
 const DRIVER_SIZE = width * 0.34;
-const LOGO_SIZE = width * 0.6;
+const LOGO_SIZE = width * 0.8;
 
 // ── Bottom SVG (Vector 49) layout ──
 const BOTTOM_VB = {x: 0, y: 0, w: 316, h: 259};
 const BOTTOM_SVG_H = height * 0.20;
 const BOTTOM_SVG_W = BOTTOM_SVG_H * (BOTTOM_VB.w / BOTTOM_VB.h);
 const BOTTOM_SVG_TOP = SVG_TOP + 305 * SC;
-const BOTTOM_SVG_LEFT = (width - BOTTOM_SVG_W) / 2 - width * 0.09;
+const BOTTOM_SVG_LEFT = (width - BOTTOM_SVG_W) / 2 - width * 0.05;
 
 // ── Stroke widths: keep both SVGs visually equal ──
 const TOP_STROKE = 2; // viewBox units for top SVG
