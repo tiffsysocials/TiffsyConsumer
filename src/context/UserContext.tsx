@@ -137,6 +137,14 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setAuthError(null);
           }
         }
+
+        // Re-attempt FCM registration on every cold start. Covers users who
+        // previously denied permission, hit a transient backend failure, or
+        // whose FCM token has rotated. Backend dedupes by token+deviceId so
+        // re-registers are idempotent. Fire-and-forget; never block boot.
+        registerFcmToken().catch((err) => {
+          console.error('[UserContext] Cold-start FCM re-registration failed:', err);
+        });
       } else {
         // No JWT, but if OTP was verified for a new user we cached a pending
         // profile with a registrationToken. Restore it so the user resumes

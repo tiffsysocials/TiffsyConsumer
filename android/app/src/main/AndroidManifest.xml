@@ -33,10 +33,12 @@
         </intent-filter>
       </activity>
 
-      <!-- Optional: Set custom default icon for notifications -->
+      <!-- Default notification icon: must be a white-on-transparent silhouette
+           (Android 5+ requirement). The colored launcher icon used to be set here
+           and rendered as a blank white square in the status bar. -->
       <meta-data
         android:name="com.google.firebase.messaging.default_notification_icon"
-        android:resource="@mipmap/ic_launcher" />
+        android:resource="@drawable/ic_notification" />
 
       <!-- Optional: Set default notification color -->
       <meta-data

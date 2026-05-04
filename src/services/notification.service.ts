@@ -132,6 +132,11 @@ class NotificationService {
   /**
    * Get FCM token
    * Returns null if permission not granted or error occurs
+   *
+   * iOS: must register for remote messages and have an APNs token bound
+   * before getToken() will succeed. Without this guard the call can
+   * silently return null on first launch and the user ends up with no
+   * FCM token in the backend.
    */
   async getToken(): Promise<string | null> {
     const msg = loadMessaging();
@@ -143,6 +148,24 @@ class NotificationService {
       if (!hasPermission) {
         console.log('No notification permission, cannot get FCM token');
         return null;
+      }
+
+      if (Platform.OS === 'ios') {
+        try {
+          if (!msg().isDeviceRegisteredForRemoteMessages) {
+            await msg().registerDeviceForRemoteMessages();
+          }
+          const apnsToken = await msg().getAPNSToken();
+          if (!apnsToken) {
+            console.warn(
+              '[FCM] iOS APNs token not yet available; check APNs key in Firebase Console and Push Notifications capability'
+            );
+            return null;
+          }
+        } catch (iosErr) {
+          console.error('[FCM] iOS APNs registration failed:', iosErr);
+          return null;
+        }
       }
 
       const token = await msg().getToken();

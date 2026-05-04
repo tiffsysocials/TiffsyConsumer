@@ -84,8 +84,8 @@ android {
         applicationId "com.tiffsy.consumer"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 6
-        versionName "1.0.5"
+        versionCode 9
+        versionName "1.0.8"
 
         // Only build for arm64-v8a to reduce memory usage
         ndk {

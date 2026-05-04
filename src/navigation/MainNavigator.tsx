@@ -27,7 +27,11 @@ import ChatSupportScreen from '../screens/account/ChatSupportScreen';
 import MealCalendarScreen from '../screens/scheduled-meals/MealCalendarScreen';
 import BulkSchedulePricingScreen from '../screens/scheduled-meals/BulkSchedulePricingScreen';
 import AutoOrderAddonScreen from '../screens/scheduled-meals/AutoOrderAddonScreen';
-import LocationPickerScreen from '../screens/address/LocationPickerScreen';
+// LocationPickerScreen pulls in react-native-maps which initializes the native
+// Google Maps module at JS-module-load time. Eagerly importing it makes the
+// app boot path depend on Maps SDK availability — if the API key isn't whitelisted
+// for the app's package + SHA-1, or Play Services Maps fails to init for any reason,
+// the app crashes on launch. Defer the require until the screen is actually mounted.
 import BottomNavBar from '../components/BottomNavBar';
 import { MainTabParamList } from '../types/navigation';
 
@@ -74,7 +78,10 @@ const MainNavigatorContent = () => {
         <Stack.Screen name="OnDemand" component={OnDemandScreen} />
         <Stack.Screen name="Account" component={AccountScreen} />
         <Stack.Screen name="Address" component={AddressScreen} />
-        <Stack.Screen name="LocationPicker" component={LocationPickerScreen} />
+        <Stack.Screen
+          name="LocationPicker"
+          getComponent={() => require('../screens/address/LocationPickerScreen').default}
+        />
         <Stack.Screen name="Cart" component={CartScreen} />
         <Stack.Screen name="Payment" component={PaymentScreen} />
         <Stack.Screen name="EditProfile" component={EditProfileScreen} />
