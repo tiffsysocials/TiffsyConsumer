@@ -33,6 +33,12 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Tiffsy needs access to your camera to let you take a profile photo.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Tiffsy needs access to your photo library to let you choose a profile photo.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Tiffsy needs permission to save photos to your library.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Tiffsy needs access to your location to show nearby kitchens and ensure accurate delivery.</string>
 	<key>NSLocationAlwaysUsageDescription</key>

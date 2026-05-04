@@ -81,6 +81,9 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
   const handleSubscribe = (plan: SubscriptionPlan) => {
     console.log('[MealPlansScreen] handleSubscribe - Plan selected:', plan.name);
     setSelectedPlan(plan);
+    // Reset stuck processing state from a previous hung attempt so the
+    // Confirm button isn't stuck spinning when the user re-opens the modal.
+    setIsProcessing(false);
     setShowPurchaseModal(true);
   };
 
@@ -101,6 +104,11 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
     setShowPurchaseModal(false); // Close modal before opening Razorpay
 
     try {
+      // Wait for Modal dismiss animation to complete before opening Razorpay.
+      // On iOS, presenting Razorpay's native sheet while a React Native Modal
+      // is still animating causes Razorpay to silently fail to present.
+      await new Promise(resolve => setTimeout(resolve, 400));
+
       // Process payment via Razorpay
       const paymentResult = await processSubscriptionPayment(selectedPlan._id);
 
@@ -347,7 +355,11 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
           </Text>
 
           {/* Current Voucher Balance */}
-          <View style={{ borderRadius: 33, overflow: 'hidden' }}>
+          <TouchableOpacity
+            activeOpacity={isGuest ? 1 : 0.85}
+            onPress={() => { if (!isGuest) navigation.navigate('Vouchers'); }}
+            style={{ borderRadius: 33, overflow: 'hidden' }}
+          >
             <Image
               source={require('../../assets/images/myaccount/voucherbackgound.png')}
               style={{ position: 'absolute', width: '100%', height: '100%' }}
@@ -380,19 +392,16 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                   : 'Purchase a plan to get vouchers for your meals'}
               </Text>
 
-              {/* View All Vouchers Link */}
+              {/* View All Vouchers indicator (whole card is tappable) */}
               {!isGuest && (
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('Vouchers')}
-                  style={{ marginTop: 12 }}
-                >
+                <View style={{ marginTop: 12 }}>
                   <Text style={{ fontSize: 14, fontWeight: '600', color: '#FE8733' }}>
                     View All Vouchers →
                   </Text>
-                </TouchableOpacity>
+                </View>
               )}
             </View>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Choose Your Plan */}

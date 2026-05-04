@@ -304,7 +304,7 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
 
       <ScrollView contentInsetAdjustmentBehavior="never" className="flex-1 bg-white" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
         {/* White Container with Profile and Voucher */}
-        <View className="bg-white px-5" style={{ marginTop: 10, paddingTop: 10, paddingBottom: 16 }}>
+        <View className="bg-white px-5" style={{ marginTop: 0, paddingTop: 0, paddingBottom: 16 }}>
           {isGuest ? (
             /* Guest User - Login Prompt */
             <View className="mb-6" style={{
