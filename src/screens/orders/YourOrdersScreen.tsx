@@ -818,7 +818,7 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
       </LinearGradient>
 
         {/* Tabs */}
-        <View style={{ paddingHorizontal: 20, marginTop: 16, marginBottom: 8 }}>
+        <View style={{ paddingHorizontal: 20, marginTop: -20, marginBottom: 8 }}>
           <View className="flex-row bg-gray-100 rounded-full p-1">
             <TouchableOpacity
               onPress={() => setActiveTab('Current')}

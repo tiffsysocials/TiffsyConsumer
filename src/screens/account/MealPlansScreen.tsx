@@ -314,17 +314,6 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
               >
                 Hello {user?.name?.split(' ')[0] || 'there'}
               </Text>
-              <Text
-                className="text-white"
-                style={{
-                  fontFamily: 'DMSans-SemiBold',
-                  fontWeight: '600',
-                  fontSize: 36,
-                  lineHeight: 42,
-                }}
-              >
-                Enjoy Experience
-              </Text>
             </View>
           </View>
         </View>
