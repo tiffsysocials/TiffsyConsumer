@@ -10,7 +10,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import Svg, { Polyline } from 'react-native-svg';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import { StackScreenProps } from '@react-navigation/stack';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -25,6 +25,7 @@ import { MainTabParamList } from '../../types/navigation';
 type Props = StackScreenProps<MainTabParamList, 'AutoOrderSettings'>;
 
 const AutoOrderSettingsScreen: React.FC<Props> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const {
     autoOrderConfigs,
     autoOrderConfigsLoading,
@@ -105,9 +106,10 @@ const AutoOrderSettingsScreen: React.FC<Props> = ({ navigation }) => {
         colors={['#FD9E2F', '#FF6636']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
-        style={{ borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingHorizontal: 20, paddingTop: (StatusBar.currentHeight ?? 0) + 16, paddingBottom: 16 }}
+        style={{ position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingBottom: 24 }}
       >
-        <View className="flex-row items-center justify-between">
+        <SafeAreaView edges={['top']}>
+        <View className="flex-row items-center justify-between px-5 pt-4 pb-6">
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={{
@@ -124,14 +126,14 @@ const AutoOrderSettingsScreen: React.FC<Props> = ({ navigation }) => {
             </Svg>
           </TouchableOpacity>
           <Text
-            className="font-bold text-white flex-1 text-center"
-            style={{ fontSize: FONT_SIZES.h4 }}
+            style={{ color: 'white', fontSize: FONT_SIZES.h4, fontWeight: 'bold', flex: 1, textAlign: 'center' }}
             numberOfLines={1}
           >
             Auto-Order Settings
           </Text>
           <View style={{ width: SPACING.iconLg }} />
         </View>
+              </SafeAreaView>
       </LinearGradient>
 
       <ScrollView

@@ -11,6 +11,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { StackScreenProps } from '@react-navigation/stack';
 import { MainTabParamList } from '../../types/navigation';
 import { useSubscription } from '../../context/SubscriptionContext';
@@ -32,6 +33,7 @@ const FILTER_TABS: { id: FilterTab; label: string }[] = [
 ];
 
 const VouchersScreen: React.FC<Props> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const {
     vouchers,
     voucherSummary,
@@ -243,9 +245,9 @@ const VouchersScreen: React.FC<Props> = ({ navigation }) => {
           borderBottomLeftRadius: 30,
           borderBottomRightRadius: 30,
           paddingBottom: 24,
-          paddingTop: StatusBar.currentHeight,
-        }}
+                  }}
       >
+        <SafeAreaView edges={['top']}>
         {/* Decorative Background Elements */}
         <Image
           source={require('../../assets/images/homepage/halfcircle.png')}
@@ -258,57 +260,56 @@ const VouchersScreen: React.FC<Props> = ({ navigation }) => {
           resizeMode="contain"
         />
 
-        <View className="px-5 pt-4 pb-4">
-          <View className="flex-row items-center justify-between">
-            {/* Back Button */}
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={{
-                minWidth: TOUCH_TARGETS.minimum,
-                minHeight: TOUCH_TARGETS.minimum,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Image
-                source={require('../../assets/icons/backarrow3.png')}
-                style={{ width: SPACING.iconLg, height: SPACING.iconLg }}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
+        <View className="flex-row items-center justify-between px-5 pt-4 pb-6">
+          {/* Back Button */}
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={{
+              minWidth: TOUCH_TARGETS.minimum,
+              minHeight: TOUCH_TARGETS.minimum,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Image
+              source={require('../../assets/icons/backarrow3.png')}
+              style={{ width: SPACING.iconLg, height: SPACING.iconLg }}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
 
-            {/* Title */}
-            <Text className="text-white font-bold" style={{ fontSize: isSmallDevice ? FONT_SIZES.h4 : FONT_SIZES.h3 }}>
-              My Vouchers
-            </Text>
+          {/* Title */}
+          <Text style={{ color: 'white', fontSize: FONT_SIZES.h4, fontWeight: 'bold', flex: 1, textAlign: 'center' }} numberOfLines={1}>
+            My Vouchers
+          </Text>
 
-            {/* Voucher Button */}
-            <TouchableOpacity
-              onPress={() => navigation.navigate('MealPlans')}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: 'white',
-                borderRadius: SPACING.lg,
-                paddingVertical: SPACING.xs + 1,
-                paddingHorizontal: SPACING.sm,
-                gap: 4,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 4,
-                elevation: 3,
-              }}
-            >
-              <Image
-                source={require('../../assets/icons/voucher4.png')}
-                style={{ width: SPACING.iconSm + 2, height: SPACING.iconSm + 2 }}
-                resizeMode="contain"
-              />
-              <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: 'bold', color: '#FE8733' }}>{usableVouchers}</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Voucher Button */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate('MealPlans')}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: 'white',
+              borderRadius: SPACING.lg,
+              paddingVertical: SPACING.xs + 1,
+              paddingHorizontal: SPACING.sm,
+              gap: 4,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3,
+            }}
+          >
+            <Image
+              source={require('../../assets/icons/voucher4.png')}
+              style={{ width: SPACING.iconSm + 2, height: SPACING.iconSm + 2 }}
+              resizeMode="contain"
+            />
+            <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: 'bold', color: '#FE8733' }}>{usableVouchers}</Text>
+          </TouchableOpacity>
         </View>
+              </SafeAreaView>
       </LinearGradient>
 
       {/* Content Area */}

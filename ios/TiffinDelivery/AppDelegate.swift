@@ -2,6 +2,7 @@ import UIKit
 import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
+import FirebaseCore
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -14,6 +15,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
+    FirebaseApp.configure()
+
     let delegate = ReactNativeDelegate()
     let factory = RCTReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()
@@ -22,12 +25,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     reactNativeFactory = factory
 
     window = UIWindow(frame: UIScreen.main.bounds)
+    // Orange background so the brief gap between LaunchScreen.storyboard
+    // and React Native's first paint shows the splash color, not black.
+    let splashOrange = UIColor(red: 254.0/255.0, green: 158.0/255.0, blue: 47.0/255.0, alpha: 1.0)
+    window?.backgroundColor = splashOrange
 
     factory.startReactNative(
-      withModuleName: "TiffinDelivery",
+      withModuleName: "TiffsyConsumer",
       in: window,
       launchOptions: launchOptions
     )
+
+    window?.rootViewController?.view.backgroundColor = splashOrange
 
     return true
   }

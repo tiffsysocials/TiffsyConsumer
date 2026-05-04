@@ -9,7 +9,7 @@ import {
   RefreshControl,
   TextInput,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import { StackScreenProps } from '@react-navigation/stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -321,25 +321,29 @@ const MyScheduledMealsScreen: React.FC<Props> = ({ navigation }) => {
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {/* Header */}
-      <LinearGradient colors={['#FD9E2F', '#FF6636']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center', paddingTop: (StatusBar.currentHeight ?? 0) + SPACING.md }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: SPACING.md }}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={{ color: 'white', fontSize: FONT_SIZES.h4, fontWeight: 'bold', flex: 1 }}>Scheduled Meals</Text>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('MealCalendar')}
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.2)',
-            borderRadius: 10,
-            paddingHorizontal: SPACING.sm + 2,
-            paddingVertical: SPACING.xs,
-            flexDirection: 'row',
-            alignItems: 'center',
-          }}
-        >
-          <MaterialCommunityIcons name="plus" size={16} color="white" style={{ marginRight: 4 }} />
-          <Text style={{ color: 'white', fontSize: FONT_SIZES.xs, fontWeight: '600' }}>New</Text>
-        </TouchableOpacity>
+      <LinearGradient colors={['#FD9E2F', '#FF6636']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingBottom: 24 }}>
+        <SafeAreaView edges={['top']}>
+          <View className="flex-row items-center justify-between px-5 pt-4 pb-6">
+            <TouchableOpacity onPress={() => navigation.goBack()}>
+              <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
+            </TouchableOpacity>
+            <Text style={{ color: 'white', fontSize: FONT_SIZES.h4, fontWeight: 'bold', flex: 1, textAlign: 'center' }} numberOfLines={1}>Scheduled Meals</Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('MealCalendar')}
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                borderRadius: 10,
+                paddingHorizontal: SPACING.sm + 2,
+                paddingVertical: SPACING.xs,
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+            >
+              <MaterialCommunityIcons name="plus" size={16} color="white" style={{ marginRight: 4 }} />
+              <Text style={{ color: 'white', fontSize: FONT_SIZES.xs, fontWeight: '600' }}>New</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
       </LinearGradient>
 
       {isLoading ? (

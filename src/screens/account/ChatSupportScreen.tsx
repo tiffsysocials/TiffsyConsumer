@@ -12,6 +12,7 @@ import {
   Platform,
   Linking,
 } from 'react-native';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { StackScreenProps } from '@react-navigation/stack';
 import { MainTabParamList } from '../../types/navigation';
 import { TOUCH_TARGETS } from '../../constants/spacing';
@@ -426,6 +427,7 @@ function getResponse(input: string): { text: string; quickReplies?: string[] } {
 type FeedbackState = null | 'pending' | 'yes' | 'no';
 
 const ChatSupportScreen: React.FC<Props> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const scrollViewRef = useRef<ScrollView>(null);
   const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [inputText, setInputText] = useState('');
@@ -573,22 +575,10 @@ const ChatSupportScreen: React.FC<Props> = ({ navigation }) => {
         colors={['#FD9E2F', '#FF6636']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
-        style={{
-          paddingTop: (StatusBar.currentHeight ?? 0) + 14,
-          paddingBottom: 14,
-          paddingHorizontal: 20,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottomLeftRadius: 20,
-          borderBottomRightRadius: 20,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 3 },
-          shadowOpacity: 0.15,
-          shadowRadius: 6,
-          elevation: 6,
-        }}
+        style={{ position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingBottom: 24 }}
       >
+        <SafeAreaView edges={['top']}>
+        <View className="flex-row items-center justify-between px-5 pt-4 pb-6">
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={{
@@ -653,6 +643,8 @@ const ChatSupportScreen: React.FC<Props> = ({ navigation }) => {
             />
           </TouchableOpacity>
         </View>
+        </View>
+        </SafeAreaView>
       </LinearGradient>
 
       {/* Chat Messages */}

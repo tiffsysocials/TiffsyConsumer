@@ -54,6 +54,23 @@ const OTPVerificationScreen: React.FC<Props> = ({ navigation, route }) => {
   }, [timer]);
 
   const handleOtpChange = (value: string, index: number) => {
+    // iOS one-time-code autofill (and paste) delivers the whole code in a single call.
+    // Distribute digits across all six inputs and submit.
+    if (value.length > 1) {
+      const digits = value.replace(/\D/g, '').slice(0, 6).split('');
+      if (digits.length > 0) {
+        const filled = [...otp];
+        digits.forEach((d, i) => { filled[i] = d; });
+        setOtp(filled);
+        const lastIndex = Math.min(digits.length, 6) - 1;
+        inputRefs.current[lastIndex]?.blur();
+        if (digits.length === 6) {
+          handleVerifyOTP(filled.join(''));
+        }
+        return;
+      }
+    }
+
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
@@ -275,8 +292,10 @@ const OTPVerificationScreen: React.FC<Props> = ({ navigation, route }) => {
                       backgroundColor: 'rgba(250, 250, 252, 1)',
                     }}
                     keyboardType="number-pad"
-                    maxLength={1}
+                    maxLength={index === 0 ? 6 : 1}
                     selectTextOnFocus
+                    textContentType={index === 0 ? 'oneTimeCode' : 'none'}
+                    autoComplete={index === 0 ? 'sms-otp' : 'off'}
                   />
                   {index === 2 && (
                     <Text style={{ color: '#D1D5DB', fontSize: 20, marginHorizontal: 4 }}>-</Text>

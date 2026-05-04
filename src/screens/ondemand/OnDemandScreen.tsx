@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import LinearGradient from 'react-native-linear-gradient';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { StackScreenProps } from '@react-navigation/stack';
 import { MainTabParamList } from '../../types/navigation';
 import { useSubscription } from '../../context/SubscriptionContext';
@@ -41,9 +41,9 @@ const OnDemandScreen: React.FC<Props> = ({ navigation }) => {
           borderBottomLeftRadius: 30,
           borderBottomRightRadius: 30,
           paddingBottom: 24,
-          paddingTop: StatusBar.currentHeight,
-        }}
+                  }}
       >
+        <SafeAreaView edges={['top']}>
         {/* Decorative Background Elements */}
         <Image
           source={require('../../assets/images/homepage/halfcircle.png')}
@@ -101,6 +101,7 @@ const OnDemandScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: 'bold', color: '#FE8733' }}>{usableVouchers}</Text>
           </TouchableOpacity>
         </View>
+              </SafeAreaView>
       </LinearGradient>
 
       {/* Content Area */}

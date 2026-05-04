@@ -10,7 +10,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import { StackScreenProps } from '@react-navigation/stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -117,7 +117,8 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
       <View style={{ flex: 1, backgroundColor: 'white' }}>
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
         {/* Header with gradient background */}
-        <LinearGradient colors={['#FD9E2F', '#FF6636']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingBottom: 24, paddingTop: StatusBar.currentHeight }}>
+        <LinearGradient colors={['#FD9E2F', '#FF6636']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingBottom: 24 }}>
+          <SafeAreaView edges={['top']}>
           <View className="flex-row items-center justify-between px-5 pt-4 pb-6">
             <View style={{ width: isSmallDevice ? SPACING.iconXl * 1.2 : SPACING.iconXl * 1.45 }}>
               <Image
@@ -133,6 +134,7 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
             <Text className="text-white text-xl font-bold">My Profile</Text>
             <View style={{ width: isSmallDevice ? SPACING.iconXl * 1.2 : SPACING.iconXl * 1.45 }} />
           </View>
+          </SafeAreaView>
         </LinearGradient>
         {/* Loading indicator */}
         <View className="flex-1 justify-center items-center bg-white">
@@ -237,68 +239,70 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
     <View style={{ flex: 1, backgroundColor: 'white' }}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      <ScrollView className="flex-1 bg-white" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-        {/* Header */}
-        <LinearGradient colors={['#FD9E2F', '#FF6636']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingBottom: 24, paddingTop: StatusBar.currentHeight }}>
-          {/* Decorative Background Elements */}
-          <Image
-            source={require('../../assets/images/homepage/halfcircle.png')}
-            style={{ position: 'absolute', top: insets.top - 90, right: -125, width: 300, height: 380 }}
-            resizeMode="contain"
-          />
-          <Image
-            source={require('../../assets/images/homepage/halfline.png')}
-            style={{ position: 'absolute', top: insets.top + 30, right: -150, width: 380, height: 150 }}
-            resizeMode="contain"
-          />
+      {/* Header — OUTSIDE ScrollView, gradient extends through safe area */}
+      <LinearGradient colors={['#FD9E2F', '#FF6636']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingBottom: 24 }}>
+        <SafeAreaView edges={['top']}>
+        {/* Decorative Background Elements */}
+        <Image
+          source={require('../../assets/images/homepage/halfcircle.png')}
+          style={{ position: 'absolute', top: -90, right: -125, width: 300, height: 380 }}
+          resizeMode="contain"
+        />
+        <Image
+          source={require('../../assets/images/homepage/halfline.png')}
+          style={{ position: 'absolute', top: 30, right: -150, width: 380, height: 150 }}
+          resizeMode="contain"
+        />
 
-          <View className="flex-row items-center justify-between px-5 pt-4 pb-6">
-            {/* Logo */}
-            <View style={{ width: isSmallDevice ? SPACING.iconXl * 1.2 : SPACING.iconXl * 1.45 }}>
-              <Image
-                source={require('../../assets/icons/Tiffsy.png')}
-                style={{
-                  width: isSmallDevice ? SPACING.iconXl * 1.2 : SPACING.iconXl * 1.45,
-                  height: isSmallDevice ? SPACING.iconXl * 0.7 : SPACING.iconXl * 0.875,
-                  borderRadius: 8,
-                }}
-                resizeMode="contain"
-              />
-            </View>
-
-            {/* Title */}
-            <Text style={{ color: 'white', fontSize: FONT_SIZES.h4, fontWeight: 'bold' }}>
-              My Profile
-            </Text>
-
-            {/* Voucher Button */}
-            <TouchableOpacity
-              onPress={() => navigation.navigate('MealPlans')}
+        <View className="flex-row items-center justify-between px-5 pt-4 pb-6">
+          {/* Logo */}
+          <View style={{ width: isSmallDevice ? SPACING.iconXl * 1.2 : SPACING.iconXl * 1.45 }}>
+            <Image
+              source={require('../../assets/icons/Tiffsy.png')}
               style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: 'white',
-                borderRadius: SPACING.lg,
-                paddingVertical: SPACING.xs + 1,
-                paddingHorizontal: SPACING.sm,
-                gap: 4,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 4,
-                elevation: 3,
+                width: isSmallDevice ? SPACING.iconXl * 1.2 : SPACING.iconXl * 1.45,
+                height: isSmallDevice ? SPACING.iconXl * 0.7 : SPACING.iconXl * 0.875,
+                borderRadius: 8,
               }}
-            >
-              <Image
-                source={require('../../assets/icons/voucher5.png')}
-                style={{ width: SPACING.iconSm + 2, height: SPACING.iconSm + 2 }}
-                resizeMode="contain"
-              />
-              <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: 'bold', color: '#FE8733' }}>{usableVouchers}</Text>
-            </TouchableOpacity>
+              resizeMode="contain"
+            />
           </View>
-        </LinearGradient>
 
+          {/* Title */}
+          <Text style={{ color: 'white', fontSize: FONT_SIZES.h4, fontWeight: 'bold' }}>
+            My Profile
+          </Text>
+
+          {/* Voucher Button */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate('MealPlans')}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: 'white',
+              borderRadius: SPACING.lg,
+              paddingVertical: SPACING.xs + 1,
+              paddingHorizontal: SPACING.sm,
+              gap: 4,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3,
+            }}
+          >
+            <Image
+              source={require('../../assets/icons/voucher5.png')}
+              style={{ width: SPACING.iconSm + 2, height: SPACING.iconSm + 2 }}
+              resizeMode="contain"
+            />
+            <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: 'bold', color: '#FE8733' }}>{usableVouchers}</Text>
+          </TouchableOpacity>
+        </View>
+        </SafeAreaView>
+      </LinearGradient>
+
+      <ScrollView contentInsetAdjustmentBehavior="never" className="flex-1 bg-white" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
         {/* White Container with Profile and Voucher */}
         <View className="bg-white px-5" style={{ marginTop: 10, paddingTop: 10, paddingBottom: 16 }}>
           {isGuest ? (

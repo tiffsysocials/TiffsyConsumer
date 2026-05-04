@@ -10,7 +10,7 @@ import {
   Share,
   TextInput,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import { StackScreenProps } from '@react-navigation/stack';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -24,6 +24,7 @@ import { FONT_SIZES } from '../../constants/typography';
 type Props = StackScreenProps<MainTabParamList, 'ReferAndEarn'>;
 
 const ReferAndEarnScreen: React.FC<Props> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { showAlert } = useAlert();
 
   const [loading, setLoading] = useState(true);
@@ -453,32 +454,29 @@ const ReferAndEarnScreen: React.FC<Props> = ({ navigation }) => {
         colors={['#FD9E2F', '#FF6636']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
-        style={{
-          paddingBottom: SPACING.xl,
-          borderBottomLeftRadius: 30,
-          borderBottomRightRadius: 30,
-          paddingTop: StatusBar.currentHeight,
-        }}
+        style={{ position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingBottom: 24 }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingTop: SPACING.md }}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={{
-              width: TOUCH_TARGETS.minimum,
-              height: TOUCH_TARGETS.minimum,
-              borderRadius: TOUCH_TARGETS.minimum / 2,
-              backgroundColor: 'rgba(255, 255, 255, 0.25)',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <MaterialCommunityIcons name="arrow-left" size={SPACING.iconSize} color="white" />
-          </TouchableOpacity>
-          <Text style={{ flex: 1, textAlign: 'center', fontSize: FONT_SIZES.h4, fontWeight: 'bold', color: 'white' }}>
-            Refer & Earn
-          </Text>
-          <View style={{ width: TOUCH_TARGETS.minimum }} />
-        </View>
+        <SafeAreaView edges={['top']}>
+          <View className="flex-row items-center justify-between px-5 pt-4 pb-6">
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={{
+                width: TOUCH_TARGETS.minimum,
+                height: TOUCH_TARGETS.minimum,
+                borderRadius: TOUCH_TARGETS.minimum / 2,
+                backgroundColor: 'rgba(255, 255, 255, 0.25)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <MaterialCommunityIcons name="arrow-left" size={SPACING.iconSize} color="white" />
+            </TouchableOpacity>
+            <Text style={{ color: 'white', fontSize: FONT_SIZES.h4, fontWeight: 'bold', flex: 1, textAlign: 'center' }} numberOfLines={1}>
+              Refer & Earn
+            </Text>
+            <View style={{ width: TOUCH_TARGETS.minimum }} />
+          </View>
+        </SafeAreaView>
       </LinearGradient>
 
       <FlatList

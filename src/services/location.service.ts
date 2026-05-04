@@ -42,10 +42,11 @@ class LocationService {
         this.hasPermission = granted === PermissionsAndroid.RESULTS.GRANTED;
         return this.hasPermission;
       } else {
-        // iOS permissions are handled via Info.plist
-        // We'll check if we can get location
-        this.hasPermission = true;
-        return true;
+        // iOS: react-native-geolocation-service requires an explicit authorization
+        // request before getCurrentPosition will work. Info.plist alone is not enough.
+        const status = await Geolocation.requestAuthorization('whenInUse');
+        this.hasPermission = status === 'granted';
+        return this.hasPermission;
       }
     } catch (err) {
       console.error('Error requesting location permission:', err);
@@ -65,9 +66,12 @@ class LocationService {
         this.hasPermission = granted;
         return granted;
       } else {
-        // For iOS, we'll try to get location and handle error
-        this.hasPermission = true;
-        return true;
+        // requestAuthorization is idempotent on iOS — if already granted it
+        // returns 'granted' without re-prompting; if denied/restricted we get
+        // the real status here instead of the optimistic `true` we used before.
+        const status = await Geolocation.requestAuthorization('whenInUse');
+        this.hasPermission = status === 'granted';
+        return this.hasPermission;
       }
     } catch (err) {
       console.error('Error checking location permission:', err);

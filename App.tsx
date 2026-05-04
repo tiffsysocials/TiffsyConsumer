@@ -7,6 +7,7 @@
 import './global.css';
 import React, { useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
 import { CartProvider } from './src/context/CartContext';
 import { AddressProvider, useAddress } from './src/context/AddressContext';
@@ -52,7 +53,7 @@ const AppContent = () => {
 
     // Fetch latest unread to update NotificationContext
     // This will trigger the NotificationPopup to display
-    fetchLatestUnread();
+    fetchLatestUnread().catch(err => console.warn('[App] fetchLatestUnread failed:', err));
 
     // Note: The intrusive Alert.alert has been replaced with NotificationPopup
     // which is a non-blocking banner displayed via NotificationContext
@@ -156,7 +157,7 @@ const AppContent = () => {
         }
 
         // Fetch latest unread notification on app open
-        fetchLatestUnread();
+        fetchLatestUnread().catch(err => console.warn('[App] fetchLatestUnread failed:', err));
 
         console.log('[App] FCM notification handlers set up successfully');
       } catch (error) {
@@ -164,7 +165,7 @@ const AppContent = () => {
       }
     };
 
-    setupNotifications();
+    setupNotifications().catch(err => console.warn('[App] setupNotifications failed:', err));
 
     // Cleanup
     return () => {
@@ -189,9 +190,9 @@ const AppContent = () => {
       ) {
         console.log('[App] App has come to the foreground');
         // Fetch latest unread notification
-        fetchLatestUnread();
+        fetchLatestUnread().catch(err => console.warn('[App] fetchLatestUnread failed:', err));
         // Refresh unread count
-        fetchUnreadCount();
+        fetchUnreadCount().catch(err => console.warn('[App] fetchUnreadCount failed:', err));
       }
 
       appState.current = nextAppState;
@@ -234,7 +235,7 @@ const AppContent = () => {
     // Delay permission request to ensure Android Activity is fully attached
     // This prevents "Tried to use permissions API while not attached to an Activity" error
     const timer = setTimeout(() => {
-      requestLocation();
+      requestLocation().catch(err => console.warn('[App] requestLocation failed:', err));
     }, 500);
 
     return () => clearTimeout(timer);
@@ -255,23 +256,25 @@ const AppContent = () => {
 
 const App = () => {
   return (
-    <UserProvider>
-      <AddressProvider>
-        <SubscriptionProvider>
-          <PaymentProvider>
-            <CartProvider>
-              <NotificationProvider>
-                <BannerProvider>
-                  <AlertProvider>
-                    <AppContent />
-                  </AlertProvider>
-                </BannerProvider>
-              </NotificationProvider>
-            </CartProvider>
-          </PaymentProvider>
-        </SubscriptionProvider>
-      </AddressProvider>
-    </UserProvider>
+    <SafeAreaProvider>
+      <UserProvider>
+        <AddressProvider>
+          <SubscriptionProvider>
+            <PaymentProvider>
+              <CartProvider>
+                <NotificationProvider>
+                  <BannerProvider>
+                    <AlertProvider>
+                      <AppContent />
+                    </AlertProvider>
+                  </BannerProvider>
+                </NotificationProvider>
+              </CartProvider>
+            </PaymentProvider>
+          </SubscriptionProvider>
+        </AddressProvider>
+      </UserProvider>
+    </SafeAreaProvider>
   );
 };
 

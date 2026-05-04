@@ -335,7 +335,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           dietaryPrefsArray.push('JAIN');
         }
         if (data.dietaryPreferences.eggiterian) {
-          dietaryPrefsArray.push('EGG');
+          dietaryPrefsArray.push('EGGETARIAN');
         }
       }
 

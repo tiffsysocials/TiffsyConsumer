@@ -32,5 +32,39 @@ target 'TiffinDelivery' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # When two pods share a `header_dir`, CocoaPods symlinks both modulemaps into the
+    # same Pods/Headers/Public/<dir>/, and both declare the same Clang module name.
+    # Targets that depend on both (e.g. React-RuntimeHermes, React-RCTRuntime) then load
+    # both via -fmodule-map-file, and clang errors with "Redefinition of module 'X'".
+    # Walk Pods/Headers/Public, find collisions, and empty all but one modulemap per
+    # (dir, module_name) so a single canonical definition remains.
+    public_headers_root = File.join(installer.sandbox.root, 'Headers/Public')
+    Dir.glob(File.join(public_headers_root, '*')).each do |dir|
+      next unless File.directory?(dir)
+      modulemap_links = Dir.glob(File.join(dir, '*.modulemap'))
+      next if modulemap_links.length < 2
+
+      by_module = Hash.new { |h, k| h[k] = [] }
+      modulemap_links.each do |link|
+        target = File.symlink?(link) ? File.expand_path(File.readlink(link), File.dirname(link)) : link
+        next unless File.exist?(target)
+        match = File.read(target).match(/^module\s+(\w+)/)
+        next unless match
+        by_module[match[1]] << target
+      end
+
+      dir_basename = File.basename(dir)
+      by_module.each do |mod_name, targets|
+        next if targets.length < 2
+        # Prefer to keep the modulemap whose filename matches the directory name
+        # (the canonical pod for that header_dir). Fall back to sort order.
+        keeper = targets.find { |t| File.basename(t, '.modulemap') == dir_basename } || targets.sort.first
+        targets.each do |target|
+          next if target == keeper
+          File.write(target, "// Emptied by Podfile post_install: duplicate module '#{mod_name}' in shared header_dir.\n")
+        end
+      end
+    end
   end
 end

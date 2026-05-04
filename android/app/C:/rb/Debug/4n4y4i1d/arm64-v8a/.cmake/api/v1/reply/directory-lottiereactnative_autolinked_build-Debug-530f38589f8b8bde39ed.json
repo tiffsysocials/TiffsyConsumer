@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "lottiereactnative_autolinked_build",
+		"source" : "/Users/moon/Documents/tiff/TiffsyConsumer/node_modules/lottie-react-native/android/build/generated/source/codegen/jni"
+	}
+}

@@ -141,6 +141,8 @@ const AddressSetupScreen: React.FC = () => {
     }
     if (!addressForm.addressLine1.trim()) {
       newErrors.addressLine1 = 'Address is required';
+    } else if (addressForm.addressLine1.trim().length < 6) {
+      newErrors.addressLine1 = 'Address must be at least 6 characters long';
     }
     if (!addressForm.locality.trim()) {
       newErrors.locality = 'Locality is required';

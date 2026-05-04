@@ -12,7 +12,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackScreenProps } from '@react-navigation/stack';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { MainTabParamList } from '../../types/navigation';
@@ -36,6 +36,7 @@ const DIETARY_OPTIONS = [
 ];
 
 const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { user, refreshUser } = useUser();
   const { isSmallDevice } = useResponsive();
 
@@ -275,7 +276,7 @@ const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#FD9E2F' }}>
+    <View style={{ flex: 1, backgroundColor: 'white' }}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {/* Header */}
@@ -283,44 +284,43 @@ const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
         colors={['#FD9E2F', '#FF6636']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
-        className="pb-6"
-        style={{ position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingTop: StatusBar.currentHeight ?? 0 }}
+        style={{ position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingBottom: 24 }}
       >
-        {/* Decorative Background Elements */}
-        <Image
-          source={require('../../assets/images/homepage/halfcircle.png')}
-          style={{ position: 'absolute', top: -90, right: -125, width: 300, height: 380 }}
-          resizeMode="contain"
-        />
-        <Image
-          source={require('../../assets/images/homepage/halfline.png')}
-          style={{ position: 'absolute', top: 30, right: -150, width: 380, height: 150 }}
-          resizeMode="contain"
-        />
+        <SafeAreaView edges={['top']}>
+          {/* Decorative Background Elements */}
+          <Image
+            source={require('../../assets/images/homepage/halfcircle.png')}
+            style={{ position: 'absolute', top: -90, right: -125, width: 300, height: 380 }}
+            resizeMode="contain"
+          />
+          <Image
+            source={require('../../assets/images/homepage/halfline.png')}
+            style={{ position: 'absolute', top: 30, right: -150, width: 380, height: 150 }}
+            resizeMode="contain"
+          />
 
-        <View className="flex-row items-center pt-4" style={{ paddingHorizontal: isSmallDevice ? SPACING.lg : SPACING.xl }}>
-          {/* Back Button */}
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={{
-              width: TOUCH_TARGETS.minimum,
-              height: TOUCH_TARGETS.minimum,
-              borderRadius: TOUCH_TARGETS.minimum / 2,
-              backgroundColor: 'white',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-              <Polyline points="15,18 9,12 15,6" stroke="#FE8733" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
-            </Svg>
-          </TouchableOpacity>
-
-          {/* Title */}
-          <Text className="flex-1 text-white font-bold text-center mr-10" style={{ fontSize: isSmallDevice ? FONT_SIZES.h4 : FONT_SIZES.h3 }}>
-            Edit Profile
-          </Text>
-        </View>
+          <View className="flex-row items-center justify-between px-5 pt-4 pb-6">
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={{
+                width: TOUCH_TARGETS.minimum,
+                height: TOUCH_TARGETS.minimum,
+                borderRadius: TOUCH_TARGETS.minimum / 2,
+                backgroundColor: 'white',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+                <Polyline points="15,18 9,12 15,6" stroke="#FE8733" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </TouchableOpacity>
+            <Text style={{ color: 'white', fontSize: FONT_SIZES.h4, fontWeight: 'bold', flex: 1, textAlign: 'center' }} numberOfLines={1}>
+              Edit Profile
+            </Text>
+            <View style={{ width: TOUCH_TARGETS.minimum }} />
+          </View>
+        </SafeAreaView>
       </LinearGradient>
 
       <ScrollView

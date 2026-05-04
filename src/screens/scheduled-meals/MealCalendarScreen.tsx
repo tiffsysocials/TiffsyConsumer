@@ -10,7 +10,7 @@ import {
   Modal,
   FlatList,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import { Calendar, DateData } from 'react-native-calendars';
 import { StackScreenProps } from '@react-navigation/stack';
@@ -562,11 +562,16 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
     return (
       <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-        <LinearGradient colors={['#FD9E2F', '#FF6636']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center', paddingTop: (StatusBar.currentHeight ?? 0) + SPACING.md }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: SPACING.md }}>
-            <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
-          </TouchableOpacity>
-          <Text style={{ color: 'white', fontSize: FONT_SIZES.h4, fontWeight: 'bold', flex: 1 }}>Meal Calendar</Text>
+        <LinearGradient colors={['#FD9E2F', '#FF6636']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingBottom: 24 }}>
+          <SafeAreaView edges={['top']}>
+            <View className="flex-row items-center justify-between px-5 pt-4 pb-6">
+              <TouchableOpacity onPress={() => navigation.goBack()}>
+                <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
+              </TouchableOpacity>
+              <Text style={{ color: 'white', fontSize: FONT_SIZES.h4, fontWeight: 'bold', flex: 1, textAlign: 'center' }} numberOfLines={1}>Meal Calendar</Text>
+              <View style={{ width: 24 }} />
+            </View>
+          </SafeAreaView>
         </LinearGradient>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACING.xl }}>
           <MaterialCommunityIcons name="map-marker-plus-outline" size={64} color="#D1D5DB" />
@@ -598,45 +603,50 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {/* Header */}
-      <LinearGradient colors={['#FD9E2F', '#FF6636']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center', paddingTop: (StatusBar.currentHeight ?? 0) + SPACING.md }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: SPACING.md }}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={{ color: 'white', fontSize: FONT_SIZES.h4, fontWeight: 'bold', flex: 1 }}>Meal Calendar</Text>
-        {selectedSlots.size > 0 && (
-          <TouchableOpacity
-            onPress={() => setSelectedSlots(new Set())}
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.25)',
-              borderRadius: 10,
-              paddingHorizontal: SPACING.sm + 2,
-              paddingVertical: SPACING.xs,
-              flexDirection: 'row',
-              alignItems: 'center',
-              marginRight: SPACING.sm,
-            }}
-          >
-            <MaterialCommunityIcons name="close-circle-outline" size={16} color="white" style={{ marginRight: 4 }} />
-            <Text style={{ color: 'white', fontSize: FONT_SIZES.xs, fontWeight: '600' }}>Clear ({selectedSlots.size})</Text>
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity
-          onPress={() => navigation.navigate('MyScheduledMeals')}
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.2)',
-            borderRadius: 10,
-            paddingHorizontal: SPACING.sm + 2,
-            paddingVertical: SPACING.xs,
-            flexDirection: 'row',
-            alignItems: 'center',
-          }}
-        >
-          <MaterialCommunityIcons name="format-list-bulleted" size={16} color="white" style={{ marginRight: 4 }} />
-          <Text style={{ color: 'white', fontSize: FONT_SIZES.xs, fontWeight: '600' }}>List</Text>
-        </TouchableOpacity>
+      <LinearGradient colors={['#FD9E2F', '#FF6636']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingBottom: 24 }}>
+        <SafeAreaView edges={['top']}>
+          <View className="flex-row items-center justify-between px-5 pt-4 pb-6">
+            <TouchableOpacity onPress={() => navigation.goBack()}>
+              <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
+            </TouchableOpacity>
+            <Text style={{ color: 'white', fontSize: FONT_SIZES.h4, fontWeight: 'bold', flex: 1, textAlign: 'center' }} numberOfLines={1}>Meal Calendar</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+              {selectedSlots.size > 0 && (
+                <TouchableOpacity
+                  onPress={() => setSelectedSlots(new Set())}
+                  style={{
+                    backgroundColor: 'rgba(255,255,255,0.25)',
+                    borderRadius: 10,
+                    paddingHorizontal: SPACING.sm + 2,
+                    paddingVertical: SPACING.xs,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                  }}
+                >
+                  <MaterialCommunityIcons name="close-circle-outline" size={16} color="white" style={{ marginRight: 4 }} />
+                  <Text style={{ color: 'white', fontSize: FONT_SIZES.xs, fontWeight: '600' }}>Clear ({selectedSlots.size})</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                onPress={() => navigation.navigate('MyScheduledMeals')}
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  borderRadius: 10,
+                  paddingHorizontal: SPACING.sm + 2,
+                  paddingVertical: SPACING.xs,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                }}
+              >
+                <MaterialCommunityIcons name="format-list-bulleted" size={16} color="white" style={{ marginRight: 4 }} />
+                <Text style={{ color: 'white', fontSize: FONT_SIZES.xs, fontWeight: '600' }}>List</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </SafeAreaView>
       </LinearGradient>
 
-      <ScrollView style={{ flex: 1 }}>
+      <ScrollView automaticallyAdjustContentInsets={false} contentInsetAdjustmentBehavior="never" style={{ flex: 1 }}>
         {/* Address Selector */}
         <TouchableOpacity
           onPress={() => setShowAddressPicker(true)}
@@ -866,7 +876,7 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation }) => {
               </View>
 
               {/* Slot cards */}
-              <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+              <ScrollView automaticallyAdjustContentInsets={false} contentInsetAdjustmentBehavior="never" style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
                 {renderSlotCard('LUNCH')}
                 {renderSlotCard('DINNER')}
               </ScrollView>

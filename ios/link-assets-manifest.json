@@ -2,12 +2,8 @@
   "migIndex": 1,
   "data": [
     {
-      "path": "src/assets/fonts/ArbutusSlab-Regular.ttf",
+      "path": "src/assets/fonts/Arbutus_Slab/ArbutusSlab-Regular.ttf",
       "sha1": "037af895d61ccae9cfe48c4c0473842fd5b4bc6b"
-    },
-    {
-      "path": "src/assets/fonts/ArbutusSlab-Regular.ttf .zip",
-      "sha1": "dc37a3c4c6b84115cc495defe1c8fc86e37e12c4"
     }
   ]
 }
