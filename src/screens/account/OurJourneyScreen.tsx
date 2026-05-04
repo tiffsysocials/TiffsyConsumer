@@ -60,9 +60,9 @@ const OurJourneyScreen: React.FC<Props> = ({ navigation }) => {
       </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* Tiffin Dabba Section */}
+        {/* Tiffsy Section */}
         <View className="px-5 mt-6">
-          <Text className="text-rgba(0, 0, 0, 1) mb-1" style={{ fontSize: FONT_SIZES['2xl'], fontWeight: '500' }}>Tiffin Dabba</Text>
+          <Text className="text-rgba(0, 0, 0, 1) mb-1" style={{ fontSize: FONT_SIZES['2xl'], fontWeight: '500' }}>Tiffsy</Text>
           <Text className="leading-6 mb-6" style={{ fontSize: FONT_SIZES.sm, lineHeight: FONT_SIZES.sm * 1.5, color: 'rgba(145, 145, 145, 1)' }}>
             Bringing the warmth of homecooked meals to your doorstep, one tiffin at a time.
           </Text>

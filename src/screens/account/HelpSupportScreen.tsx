@@ -133,7 +133,7 @@ const HelpSupportScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleEmail = () => {
-    Linking.openURL('mailto:info@tiffindabba.in');
+    Linking.openURL('mailto:info@tiffsy.in');
   };
 
   const toggleFAQ = (id: string) => {
@@ -322,7 +322,7 @@ const HelpSupportScreen: React.FC<Props> = ({ navigation }) => {
                 />
               </View>
               <Text className="font-bold text-gray-900 mb-1" style={{ fontSize: FONT_SIZES.base }}>Email Us</Text>
-              <Text className="font-semibold text-gray-900 mb-1" style={{ fontSize: FONT_SIZES.sm }}>info@tiffindabba.in</Text>
+              <Text className="font-semibold text-gray-900 mb-1" style={{ fontSize: FONT_SIZES.sm }}>info@tiffsy.in</Text>
               <Text className="text-gray-500" style={{ fontSize: FONT_SIZES.xs }}>Mon-Fri • 9-10</Text>
             </TouchableOpacity>
           </View>
