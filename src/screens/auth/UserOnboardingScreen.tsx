@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useUser, DietaryPreferences } from '../../context/UserContext';
+import { useUser } from '../../context/UserContext';
 import { useAlert } from '../../context/AlertContext';
 import apiService from '../../services/api.service';
 import NotificationPermissionModal from '../../components/NotificationPermissionModal';
@@ -22,34 +22,12 @@ import { FONT_SIZES } from '../../constants/typography';
 // This screen is rendered directly in RootStackNavigator when user is authenticated but not onboarded
 // Navigation is handled automatically by AppNavigator based on state changes
 
-const FOOD_TYPES = [
-  { id: 'VEG', label: 'Veg', icon: 'leaf' },
-  { id: 'NON-VEG', label: 'Non-Veg', icon: 'food-drumstick' },
-  { id: 'VEGAN', label: 'Vegan', icon: 'sprout' },
-];
-
-const DABBA_TYPES = [
-  { id: 'DISPOSABLE', label: 'Disposable', icon: 'package-variant' },
-  { id: 'STEEL DABBA', label: 'Steel Dabba', icon: 'bowl-mix' },
-];
-
-const SPICE_LEVELS = [
-  { id: 'LOW', label: 'Low', icon: 'chili-mild', iconCount: 1 },
-  { id: 'MEDIUM', label: 'Medium', icon: 'chili-medium', iconCount: 2 },
-  { id: 'HIGH', label: 'High', icon: 'chili-hot', iconCount: 3 },
-];
-
 const UserOnboardingScreen: React.FC = () => {
   const { completeOnboarding, registerFcmToken, logout } = useUser();
   const { showAlert } = useAlert();
   const { isSmallDevice } = useResponsive();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [foodType, setFoodType] = useState<'VEG' | 'NON-VEG' | 'VEGAN'>('VEG');
-  const [eggiterian, setEggiterian] = useState(false);
-  const [jainFriendly, setJainFriendly] = useState(false);
-  const [dabbaType, setDabbaType] = useState<'DISPOSABLE' | 'STEEL DABBA'>('DISPOSABLE');
-  const [spiceLevel, setSpiceLevel] = useState<'HIGH' | 'MEDIUM' | 'LOW'>('MEDIUM');
   const [nameError, setNameError] = useState('');
   const [emailError, setEmailError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -133,20 +111,10 @@ const UserOnboardingScreen: React.FC = () => {
 
     setIsLoading(true);
     try {
-      // Prepare dietary preferences
-      const dietaryPreferences: DietaryPreferences = {
-        foodType,
-        eggiterian,
-        jainFriendly,
-        dabbaType,
-        spiceLevel,
-      };
-
       // Call backend API through UserContext
       await completeOnboarding({
         name: name.trim(),
         email: email.trim() || undefined,
-        dietaryPreferences,
         referralCode: referralStatus === 'valid' ? referralCode.trim() : undefined,
       });
 
@@ -354,210 +322,6 @@ const UserOnboardingScreen: React.FC = () => {
                 Invalid referral code
               </Text>
             ) : null}
-          </View>
-
-          {/* Food Type */}
-          <View className="mb-5">
-            <Text className="text-gray-700 font-semibold mb-2 text-base">
-              Food Preference <Text className="text-red-500">*</Text>
-            </Text>
-            <View className="flex-row flex-wrap gap-2">
-              {FOOD_TYPES.map((type) => {
-                const isSelected = foodType === type.id;
-                return (
-                  <TouchableOpacity
-                    key={type.id}
-                    onPress={() => setFoodType(type.id as any)}
-                    className="rounded-full flex-row items-center flex-1"
-                    style={{
-                      paddingHorizontal: SPACING.lg,
-                      paddingVertical: SPACING.md,
-                      minHeight: TOUCH_TARGETS.comfortable,
-                      backgroundColor: isSelected ? '#FE8733' : '#F3F4F6',
-                      borderWidth: 1,
-                      borderColor: isSelected ? '#FE8733' : '#E5E7EB',
-                      minWidth: 100,
-                    }}
-                  >
-                    <MaterialCommunityIcons
-                      name={type.icon}
-                      size={18}
-                      color={isSelected ? '#FFFFFF' : '#374151'}
-                      style={{ marginRight: 4 }}
-                    />
-                    <Text
-                      className="text-sm font-medium"
-                      style={{ color: isSelected ? '#FFFFFF' : '#374151' }}
-                    >
-                      {type.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* Additional Preferences */}
-          <View className="mb-5">
-            <Text className="text-gray-700 font-semibold mb-2 text-base">
-              Additional Preferences
-            </Text>
-            <View className="flex-row flex-wrap gap-2">
-              <TouchableOpacity
-                onPress={() => setEggiterian(!eggiterian)}
-                className="rounded-full px-4 py-3 flex-row items-center"
-                style={{
-                  backgroundColor: eggiterian ? '#FE8733' : '#F3F4F6',
-                  borderWidth: 1,
-                  borderColor: eggiterian ? '#FE8733' : '#E5E7EB',
-                }}
-              >
-                <MaterialCommunityIcons
-                  name="egg"
-                  size={18}
-                  color={eggiterian ? '#FFFFFF' : '#374151'}
-                  style={{ marginRight: 4 }}
-                />
-                <Text
-                  className="text-sm font-medium"
-                  style={{ color: eggiterian ? '#FFFFFF' : '#374151' }}
-                >
-                  Eggetarian
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => setJainFriendly(!jainFriendly)}
-                className="rounded-full px-4 py-3 flex-row items-center"
-                style={{
-                  backgroundColor: jainFriendly ? '#FE8733' : '#F3F4F6',
-                  borderWidth: 1,
-                  borderColor: jainFriendly ? '#FE8733' : '#E5E7EB',
-                }}
-              >
-                <MaterialCommunityIcons
-                  name="hand-peace"
-                  size={18}
-                  color={jainFriendly ? '#FFFFFF' : '#374151'}
-                  style={{ marginRight: 4 }}
-                />
-                <Text
-                  className="text-sm font-medium"
-                  style={{ color: jainFriendly ? '#FFFFFF' : '#374151' }}
-                >
-                  Jain Friendly
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Dabba Type */}
-          <View className="mb-5">
-            <Text className="text-gray-700 font-semibold mb-2 text-base">
-              Container Type
-            </Text>
-            <View className="flex-row flex-wrap gap-2">
-              {DABBA_TYPES.map((type) => {
-                const isSelected = dabbaType === type.id;
-                return (
-                  <TouchableOpacity
-                    key={type.id}
-                    onPress={() => setDabbaType(type.id as any)}
-                    className="rounded-full px-4 py-3 flex-row items-center flex-1"
-                    style={{
-                      backgroundColor: isSelected ? '#FE8733' : '#F3F4F6',
-                      borderWidth: 1,
-                      borderColor: isSelected ? '#FE8733' : '#E5E7EB',
-                    }}
-                  >
-                    <MaterialCommunityIcons
-                      name={type.icon}
-                      size={18}
-                      color={isSelected ? '#FFFFFF' : '#374151'}
-                      style={{ marginRight: 4 }}
-                    />
-                    <Text
-                      className="text-sm font-medium"
-                      style={{ color: isSelected ? '#FFFFFF' : '#374151' }}
-                    >
-                      {type.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* Spice Level */}
-          <View className="mb-6">
-            <Text className="text-gray-700 font-semibold mb-2 text-base">
-              Spice Level
-            </Text>
-            <View className="flex-row flex-wrap gap-2">
-              {SPICE_LEVELS.map((level) => {
-                const isSelected = spiceLevel === level.id;
-                return (
-                  <TouchableOpacity
-                    key={level.id}
-                    onPress={() => setSpiceLevel(level.id as any)}
-                    className="rounded-full px-4 py-3 flex-row items-center flex-1"
-                    style={{
-                      backgroundColor: isSelected ? '#FE8733' : '#F3F4F6',
-                      borderWidth: 1,
-                      borderColor: isSelected ? '#FE8733' : '#E5E7EB',
-                    }}
-                  >
-                    <MaterialCommunityIcons
-                      name={level.icon}
-                      size={18}
-                      color={isSelected ? '#FFFFFF' : '#374151'}
-                      style={{ marginRight: 4 }}
-                    />
-                    <Text
-                      className="text-sm font-medium"
-                      style={{ color: isSelected ? '#FFFFFF' : '#374151' }}
-                    >
-                      {level.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* Benefits Section */}
-          <View className="bg-orange-50 rounded-2xl p-4 mb-6">
-            <View className="flex-row items-center mb-2">
-              <Text className="text-orange-700 font-bold text-base">
-                Why we ask?
-              </Text>
-              <MaterialCommunityIcons
-                name="help-circle"
-                size={18}
-                color="#C2410C"
-                style={{ marginLeft: 4 }}
-              />
-            </View>
-            <View className="space-y-2">
-              <View className="flex-row items-start">
-                <Text className="text-orange-600 mr-2">•</Text>
-                <Text className="text-gray-700 text-sm flex-1">
-                  Get personalized meal recommendations based on your preferences
-                </Text>
-              </View>
-              <View className="flex-row items-start">
-                <Text className="text-orange-600 mr-2">•</Text>
-                <Text className="text-gray-700 text-sm flex-1">
-                  Filter menu items that match your dietary needs
-                </Text>
-              </View>
-              <View className="flex-row items-start">
-                <Text className="text-orange-600 mr-2">•</Text>
-                <Text className="text-gray-700 text-sm flex-1">
-                  Receive special offers tailored just for you
-                </Text>
-              </View>
-            </View>
           </View>
 
           {/* Continue Button */}

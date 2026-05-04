@@ -78,7 +78,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const { addresses, getMainAddress } = useAddress();
   const { voucherSummary, usableVouchers, fetchVouchers } = useSubscription();
-  const { processOrderPayment, retryOrderPayment, isProcessing: isPaymentProcessing } = usePayment();
+  const { processOrderPayment, isProcessing: isPaymentProcessing } = usePayment();
   const { showAlert } = useAlert();
   const insets = useSafeAreaInsets();
   const { isSmallDevice } = useResponsive();
@@ -633,8 +633,8 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
           const paymentResult = await processOrderPayment(result.orderId);
 
           if (!paymentResult.success) {
-            // Order was created server-side with paymentStatus: PENDING; ensure
-            // the orders list refetches so the user can see and retry it.
+            // Backend marks the order FAILED on payment failure (terminal — no retry).
+            // Refetch the orders list so the user sees the failed state.
             dataPreloader.invalidateCache('orders');
 
             const successfulOrders = orderResults.filter(r => r.orderId !== result.orderId);
@@ -644,7 +644,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
 
             showAlert(
               'Payment Failed',
-              `Payment failed for ${result.slot === 'LUNCH' ? 'Lunch' : 'Dinner'} order #${result.orderNumber}.${successInfo}\n\nYou can retry payment from Your Orders.`,
+              `Payment failed for ${result.slot === 'LUNCH' ? 'Lunch' : 'Dinner'} order #${result.orderNumber}.${successInfo}\n\nThe order has been marked failed. Place a new order if you still want this meal.`,
               [
                 { text: 'Go to Orders', onPress: () => navigation.navigate('YourOrders') },
                 { text: 'OK', style: 'cancel' },
@@ -707,55 +707,6 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
         const errorDetail = error.error ? (typeof error.error === 'string' ? error.error : JSON.stringify(error.error)) : '';
         showAlert('Order Failed', errorDetail ? `${errorMessage}\n${errorDetail}` : errorMessage, undefined, 'error');
       }
-    } finally {
-      setIsPlacingOrder(false);
-    }
-  };
-
-  // Handle retry payment for failed orders
-  const handleRetryPayment = async (orderId: string, orderNumber: string, amountToPay: number) => {
-    console.log('[CartScreen] Retrying payment for order:', orderId);
-    setIsPlacingOrder(true);
-
-    try {
-      const paymentResult = await retryOrderPayment(orderId);
-
-      if (paymentResult.success) {
-        console.log('[CartScreen] Retry payment successful!');
-
-        // Invalidate cached data after successful retry payment
-        console.log('[CartScreen] 🗑️ Invalidating orders cache after retry payment');
-        dataPreloader.invalidateCache('orders');
-
-        setOrderResult({ orderId, orderNumber, amountToPay });
-        setShowSuccessModal(true);
-        setPendingPaymentOrderId(null);
-      } else {
-        if (paymentResult.error === 'Payment cancelled') {
-          showAlert(
-            'Payment Cancelled',
-            'You can retry payment from your orders.',
-            [{ text: 'OK' }],
-            'warning'
-          );
-        } else {
-          showAlert(
-            'Payment Failed',
-            paymentResult.error || 'Payment could not be processed.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Retry Again',
-                onPress: () => handleRetryPayment(orderId, orderNumber, amountToPay),
-              },
-            ],
-            'error'
-          );
-        }
-      }
-    } catch (error: any) {
-      console.error('[CartScreen] Retry payment error:', error);
-      showAlert('Error', error.message || 'Failed to process payment', undefined, 'error');
     } finally {
       setIsPlacingOrder(false);
     }
@@ -1895,13 +1846,80 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
                     </View>
                   )}
 
-                  {/* Taxes & Charges */}
-                  {totalCharges > 0 && (
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <Text style={{ fontSize: 14, color: '#374151' }}>Taxes & Charges:</Text>
-                      <Text style={{ fontSize: 14, color: '#374151' }}>₹{totalCharges.toFixed(2)}</Text>
-                    </View>
-                  )}
+                  {/* Charges & Taxes Breakdown */}
+                  {(() => {
+                    const deliveryFee = (lunchCharges.deliveryFee || 0) + (dinnerCharges.deliveryFee || 0);
+                    const serviceFee = (lunchCharges.serviceFee || 0) + (dinnerCharges.serviceFee || 0);
+                    const packagingFee = (lunchCharges.packagingFee || 0) + (dinnerCharges.packagingFee || 0);
+                    const handlingFee = (lunchCharges.handlingFee || 0) + (dinnerCharges.handlingFee || 0);
+                    const platformFee = (lunchCharges.platformFee || 0) + (dinnerCharges.platformFee || 0);
+                    const surgeFee = (lunchCharges.surgeFee || 0) + (dinnerCharges.surgeFee || 0);
+                    const smallOrderFee = (lunchCharges.smallOrderFee || 0) + (dinnerCharges.smallOrderFee || 0);
+                    const lateNightFee = (lunchCharges.lateNightFee || 0) + (dinnerCharges.lateNightFee || 0);
+                    const taxAmount = (lunchCharges.taxAmount || 0) + (dinnerCharges.taxAmount || 0);
+                    const taxRate = lunchCharges.taxBreakdown?.[0]?.rate ?? dinnerCharges.taxBreakdown?.[0]?.rate;
+                    const rowStyle = { flexDirection: 'row' as const, justifyContent: 'space-between' as const, marginBottom: 6 };
+                    const labelStyle = { fontSize: 13, color: '#6B7280' };
+                    const valueStyle = { fontSize: 13, color: '#374151' };
+                    return (
+                      <>
+                        {deliveryFee > 0 && (
+                          <View style={rowStyle}>
+                            <Text style={labelStyle}>Delivery Fee</Text>
+                            <Text style={valueStyle}>₹{deliveryFee.toFixed(2)}</Text>
+                          </View>
+                        )}
+                        {serviceFee > 0 && (
+                          <View style={rowStyle}>
+                            <Text style={labelStyle}>Service Charge</Text>
+                            <Text style={valueStyle}>₹{serviceFee.toFixed(2)}</Text>
+                          </View>
+                        )}
+                        {packagingFee > 0 && (
+                          <View style={rowStyle}>
+                            <Text style={labelStyle}>Packaging</Text>
+                            <Text style={valueStyle}>₹{packagingFee.toFixed(2)}</Text>
+                          </View>
+                        )}
+                        {handlingFee > 0 && (
+                          <View style={rowStyle}>
+                            <Text style={labelStyle}>Handling Fee</Text>
+                            <Text style={valueStyle}>₹{handlingFee.toFixed(2)}</Text>
+                          </View>
+                        )}
+                        {platformFee > 0 && (
+                          <View style={rowStyle}>
+                            <Text style={labelStyle}>Platform Fee</Text>
+                            <Text style={valueStyle}>₹{platformFee.toFixed(2)}</Text>
+                          </View>
+                        )}
+                        {surgeFee > 0 && (
+                          <View style={rowStyle}>
+                            <Text style={labelStyle}>Surge Fee</Text>
+                            <Text style={valueStyle}>₹{surgeFee.toFixed(2)}</Text>
+                          </View>
+                        )}
+                        {smallOrderFee > 0 && (
+                          <View style={rowStyle}>
+                            <Text style={labelStyle}>Small Order Fee</Text>
+                            <Text style={valueStyle}>₹{smallOrderFee.toFixed(2)}</Text>
+                          </View>
+                        )}
+                        {lateNightFee > 0 && (
+                          <View style={rowStyle}>
+                            <Text style={labelStyle}>Late Night Fee</Text>
+                            <Text style={valueStyle}>₹{lateNightFee.toFixed(2)}</Text>
+                          </View>
+                        )}
+                        {taxAmount > 0 && (
+                          <View style={rowStyle}>
+                            <Text style={labelStyle}>GST{taxRate ? ` (${taxRate}%)` : ''}</Text>
+                            <Text style={valueStyle}>₹{taxAmount.toFixed(2)}</Text>
+                          </View>
+                        )}
+                      </>
+                    );
+                  })()}
 
                   {/* Voucher Discount */}
                   {voucherDiscount > 0 && (

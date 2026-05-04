@@ -9,6 +9,7 @@ import {
   StatusBar,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
@@ -239,22 +240,22 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
     <View style={{ flex: 1, backgroundColor: 'white' }}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      {/* Header — OUTSIDE ScrollView, gradient extends through safe area */}
-      <LinearGradient colors={['#FD9E2F', '#FF6636']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingBottom: 24 }}>
+      {/* Header — OUTSIDE ScrollView, gradient extends through safe area. iOS keeps its original paddingBottom (24); Android gets a tighter value because its smaller status-bar inset makes 24 look excessive. */}
+      <LinearGradient colors={['#FD9E2F', '#FF6636']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingBottom: Platform.OS === 'android' ? 8 : 24 }}>
         <SafeAreaView edges={['top']}>
-        {/* Decorative Background Elements */}
+        {/* Decorative Background Elements — offsets include insets.top so the curl/line sit at the same position relative to the header on iOS and Android */}
         <Image
           source={require('../../assets/images/homepage/halfcircle.png')}
-          style={{ position: 'absolute', top: -90, right: -125, width: 300, height: 380 }}
+          style={{ position: 'absolute', top: insets.top - 90, right: -125, width: 300, height: 380 }}
           resizeMode="contain"
         />
         <Image
           source={require('../../assets/images/homepage/halfline.png')}
-          style={{ position: 'absolute', top: 30, right: -150, width: 380, height: 150 }}
+          style={{ position: 'absolute', top: insets.top + 30, right: -150, width: 380, height: 150 }}
           resizeMode="contain"
         />
 
-        <View className="flex-row items-center justify-between px-5 pt-4 pb-6">
+        <View className="flex-row items-center justify-between px-5 py-4">
           {/* Logo */}
           <View style={{ width: isSmallDevice ? SPACING.iconXl * 1.2 : SPACING.iconXl * 1.45 }}>
             <Image
@@ -273,38 +274,42 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
             My Profile
           </Text>
 
-          {/* Voucher Button */}
-          <TouchableOpacity
-            onPress={() => navigation.navigate('MealPlans')}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              backgroundColor: 'white',
-              borderRadius: SPACING.lg,
-              paddingVertical: SPACING.xs + 1,
-              paddingHorizontal: SPACING.sm,
-              gap: 4,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 3,
-            }}
-          >
-            <Image
-              source={require('../../assets/icons/voucher5.png')}
-              style={{ width: SPACING.iconSm + 2, height: SPACING.iconSm + 2 }}
-              resizeMode="contain"
-            />
-            <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: 'bold', color: '#FE8733' }}>{usableVouchers}</Text>
-          </TouchableOpacity>
+          {/* Voucher Button — hidden in guest mode; replaced with an invisible spacer of the same width as the logo so the title stays visually centered */}
+          {isGuest ? (
+            <View style={{ width: isSmallDevice ? SPACING.iconXl * 1.2 : SPACING.iconXl * 1.45 }} />
+          ) : (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('MealPlans')}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: 'white',
+                borderRadius: SPACING.lg,
+                paddingVertical: SPACING.xs + 1,
+                paddingHorizontal: SPACING.sm,
+                gap: 4,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 3,
+              }}
+            >
+              <Image
+                source={require('../../assets/icons/voucher5.png')}
+                style={{ width: SPACING.iconSm + 2, height: SPACING.iconSm + 2 }}
+                resizeMode="contain"
+              />
+              <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: 'bold', color: '#FE8733' }}>{usableVouchers}</Text>
+            </TouchableOpacity>
+          )}
         </View>
         </SafeAreaView>
       </LinearGradient>
 
       <ScrollView contentInsetAdjustmentBehavior="never" className="flex-1 bg-white" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
         {/* White Container with Profile and Voucher */}
-        <View className="bg-white px-5" style={{ marginTop: 0, paddingTop: 0, paddingBottom: 16 }}>
+        <View className="bg-white px-5" style={{ marginTop: 0, paddingTop: Platform.OS === 'android' ? 20 : 0, paddingBottom: 16 }}>
           {isGuest ? (
             /* Guest User - Login Prompt */
             <View className="mb-6" style={{

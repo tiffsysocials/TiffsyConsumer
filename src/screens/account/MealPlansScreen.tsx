@@ -24,11 +24,13 @@ import { SubscriptionPlan, PurchaseSubscriptionResponse, CancelSubscriptionRespo
 import { useResponsive } from '../../hooks/useResponsive';
 import { SPACING, TOUCH_TARGETS } from '../../constants/spacing';
 import { FONT_SIZES } from '../../constants/typography';
+import ConfirmationModal from '../../components/ConfirmationModal';
 
 type Props = StackScreenProps<MainTabParamList, 'MealPlans'>;
 
 const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
-  const { user, isGuest } = useUser();
+  const { user, isGuest, exitGuestMode } = useUser();
+  const [showGuestLoginPrompt, setShowGuestLoginPrompt] = useState(false);
   const {
     plans,
     plansLoading,
@@ -286,27 +288,29 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
 
               <View className="flex-1" />
 
-              {/* Voucher Button */}
-              <TouchableOpacity
-                onPress={() => navigation.navigate('Vouchers')}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  backgroundColor: 'white',
-                  borderRadius: 20,
-                  paddingVertical: SPACING.sm,
-                  paddingHorizontal: SPACING.md,
-                  gap: SPACING.sm,
-                  minHeight: TOUCH_TARGETS.minimum,
-                }}
-              >
-                <Image
-                  source={require('../../assets/icons/voucher5.png')}
-                  style={{ width: SPACING.iconSize, height: SPACING.iconSize }}
-                  resizeMode="contain"
-                />
-                <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'bold', color: '#FE8733' }}>{usableVouchers}</Text>
-              </TouchableOpacity>
+              {/* Voucher Button — hidden in guest mode */}
+              {!isGuest && (
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('Vouchers')}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: 'white',
+                    borderRadius: 20,
+                    paddingVertical: SPACING.sm,
+                    paddingHorizontal: SPACING.md,
+                    gap: SPACING.sm,
+                    minHeight: TOUCH_TARGETS.minimum,
+                  }}
+                >
+                  <Image
+                    source={require('../../assets/icons/voucher5.png')}
+                    style={{ width: SPACING.iconSize, height: SPACING.iconSize }}
+                    resizeMode="contain"
+                  />
+                  <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'bold', color: '#FE8733' }}>{usableVouchers}</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Greeting Text */}
@@ -454,7 +458,13 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
               return (
                 <TouchableOpacity
                   key={plan._id}
-                  onPress={() => !isGuest && handleSubscribe(plan)}
+                  onPress={() => {
+                    if (isGuest) {
+                      setShowGuestLoginPrompt(true);
+                      return;
+                    }
+                    handleSubscribe(plan);
+                  }}
                   activeOpacity={0.8}
                   style={{
                     width: '100%',
@@ -1058,6 +1068,21 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         </View>
       )}
+
+      {/* Login prompt for guest users tapping a meal plan card */}
+      <ConfirmationModal
+        visible={showGuestLoginPrompt}
+        title="Login Required"
+        message="Please login to purchase a meal plan and start saving on every order."
+        confirmText="Login"
+        cancelText="Not Now"
+        confirmStyle="primary"
+        onConfirm={() => {
+          setShowGuestLoginPrompt(false);
+          exitGuestMode();
+        }}
+        onCancel={() => setShowGuestLoginPrompt(false)}
+      />
     </SafeAreaView>
   );
 };

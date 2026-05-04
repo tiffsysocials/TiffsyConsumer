@@ -18,12 +18,17 @@ import { StackScreenProps } from '@react-navigation/stack';
 import { MainTabParamList } from '../../types/navigation';
 import { useAddress, Address } from '../../context/AddressContext';
 import { useAlert } from '../../context/AlertContext';
+import { useUser } from '../../context/UserContext';
 import Svg, { Path } from 'react-native-svg';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import locationService from '../../services/location.service';
 import { useResponsive } from '../../hooks/useResponsive';
 import { SPACING, TOUCH_TARGETS } from '../../constants/spacing';
 import { FONT_SIZES } from '../../constants/typography';
+import ConfirmationModal from '../../components/ConfirmationModal';
+import PickerSheet from '../../components/PickerSheet';
+import { INDIAN_STATES } from '../../constants/indianStates';
+import { INDIAN_CITIES, findStateForCity, CityEntry } from '../../constants/indianCities';
 
 type Props = StackScreenProps<MainTabParamList, 'Address'>;
 
@@ -59,7 +64,7 @@ const emptyFormData: AddressFormData = {
   contactPhone: '',
 };
 
-const AddressScreen: React.FC<Props> = ({ navigation }) => {
+const AddressScreen: React.FC<Props> = ({ navigation, route }) => {
   const {
     addresses,
     isLoadingAddresses,
@@ -74,10 +79,14 @@ const AddressScreen: React.FC<Props> = ({ navigation }) => {
     isGettingLocation,
   } = useAddress();
   const { showAlert } = useAlert();
+  const { user, isGuest, exitGuestMode } = useUser();
   const { isSmallDevice } = useResponsive();
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showGuestLoginPrompt, setShowGuestLoginPrompt] = useState(false);
+  const [showCityPicker, setShowCityPicker] = useState(false);
+  const [showStatePicker, setShowStatePicker] = useState(false);
 
   // Debug: Log modal state changes
   useEffect(() => {
@@ -87,6 +96,29 @@ const AddressScreen: React.FC<Props> = ({ navigation }) => {
   useEffect(() => {
     console.log('=== showEditModal state changed to:', showEditModal, '===');
   }, [showEditModal]);
+
+  // When the user comes back from the map picker, pre-fill the Add Address form
+  // with the picked coordinates + reverse-geocoded address fields.
+  useEffect(() => {
+    const picked = route.params?.pickedLocation;
+    if (!picked) return;
+    setFormData(prev => ({
+      ...prev,
+      label: prev.label || 'HOME',
+      addressLine1: picked.addressLine1 || prev.addressLine1 || '',
+      locality: picked.locality || prev.locality || '',
+      city: picked.city || prev.city || '',
+      state: picked.state || prev.state || '',
+      pincode: picked.pincode || prev.pincode || '',
+      contactName: prev.contactName || user?.name || '',
+      contactPhone: prev.contactPhone || user?.phone || '',
+    }));
+    setFormCoordinates({ latitude: picked.latitude, longitude: picked.longitude });
+    setShowAddModal(true);
+    // Clear the param so it doesn't re-fire on re-render
+    navigation.setParams({ pickedLocation: undefined });
+  }, [route.params?.pickedLocation, navigation, user]);
+
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState<AddressFormData>(emptyFormData);
@@ -133,7 +165,13 @@ const AddressScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const resetForm = () => {
-    setFormData(emptyFormData);
+    // Seed contact name & phone from the user's profile so they don't have to retype every time.
+    // Fields stay editable — onChangeText overrides these defaults.
+    setFormData({
+      ...emptyFormData,
+      contactName: user?.name || '',
+      contactPhone: user?.phone || '',
+    });
     setFormCoordinates(null);
     setPincodeServiceable(null);
   };
@@ -373,6 +411,55 @@ const AddressScreen: React.FC<Props> = ({ navigation }) => {
 
   const renderAddressForm = (isEdit: boolean) => (
     <ScrollView showsVerticalScrollIndicator={false}>
+      {/* Use Current Location — opens the map picker centered on user's GPS. Only shown for new addresses. */}
+      {!isEdit && (
+        <TouchableOpacity
+          onPress={() => navigation.navigate('LocationPicker')}
+          activeOpacity={0.85}
+          style={{
+            marginBottom: 20,
+            backgroundColor: '#FFF7ED',
+            borderRadius: 14,
+            padding: 14,
+            flexDirection: 'row',
+            alignItems: 'center',
+            borderWidth: 1.5,
+            borderColor: '#FE8733',
+          }}
+        >
+          <View
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 19,
+              backgroundColor: '#FE8733',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: 12,
+            }}
+          >
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+              <Path
+                d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"
+                stroke="white"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: '#9A3412' }}>
+              Use Current Location
+            </Text>
+            <Text style={{ fontSize: 12, color: '#9A3412', marginTop: 2 }}>
+              Pinpoint on map to autofill your address
+            </Text>
+          </View>
+          <Text style={{ fontSize: 20, color: '#FE8733', fontWeight: '700' }}>›</Text>
+        </TouchableOpacity>
+      )}
+
       {/* Label Selection */}
       <View className="mb-4">
         <Text className="text-sm font-semibold text-gray-700 mb-2">Address Type *</Text>
@@ -509,27 +596,35 @@ const AddressScreen: React.FC<Props> = ({ navigation }) => {
         )}
       </View>
 
-      {/* City and State */}
+      {/* City and State — picker triggers (curated dropdown via PickerSheet) */}
       <View className="flex-row mb-4">
         <View className="flex-1 mr-2">
           <Text className="text-sm font-semibold text-gray-700 mb-2">City *</Text>
-          <TextInput
-            value={formData.city}
-            onChangeText={(text) => setFormData({ ...formData, city: text })}
-            placeholder="City"
-            placeholderTextColor="#9CA3AF"
-            className="bg-gray-50 rounded-2xl px-4 py-3 text-gray-900 border border-gray-200"
-          />
+          <TouchableOpacity
+            onPress={() => setShowCityPicker(true)}
+            activeOpacity={0.7}
+            className="bg-gray-50 rounded-2xl px-4 py-3 border border-gray-200 flex-row items-center justify-between"
+            style={{ minHeight: 48 }}
+          >
+            <Text style={{ color: formData.city ? '#111827' : '#9CA3AF', fontSize: 14 }}>
+              {formData.city || 'Select city'}
+            </Text>
+            <Text style={{ color: '#9CA3AF', fontSize: 16 }}>▾</Text>
+          </TouchableOpacity>
         </View>
         <View className="flex-1 ml-2">
           <Text className="text-sm font-semibold text-gray-700 mb-2">State *</Text>
-          <TextInput
-            value={formData.state}
-            onChangeText={(text) => setFormData({ ...formData, state: text })}
-            placeholder="State"
-            placeholderTextColor="#9CA3AF"
-            className="bg-gray-50 rounded-2xl px-4 py-3 text-gray-900 border border-gray-200"
-          />
+          <TouchableOpacity
+            onPress={() => setShowStatePicker(true)}
+            activeOpacity={0.7}
+            className="bg-gray-50 rounded-2xl px-4 py-3 border border-gray-200 flex-row items-center justify-between"
+            style={{ minHeight: 48 }}
+          >
+            <Text style={{ color: formData.state ? '#111827' : '#9CA3AF', fontSize: 14 }}>
+              {formData.state || 'Select state'}
+            </Text>
+            <Text style={{ color: '#9CA3AF', fontSize: 16 }}>▾</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -620,148 +715,47 @@ const AddressScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Action Buttons */}
-        <View style={{ flexDirection: 'row', marginHorizontal: 20, marginBottom: 24 }}>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => {
-              console.log('Add New Address pressed');
-              resetForm();
-              setShowAddModal(true);
-            }}
-            style={{
-              flex: 1,
-              marginRight: 8,
-              backgroundColor: 'white',
-              borderRadius: 16,
-              padding: 16,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 3,
-            }}
-          >
-            <Svg width={32} height={32} viewBox="0 0 24 24" fill="none" style={{ marginRight: 12 }}>
-              <Path
-                d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"
-                stroke="#FE8733"
-                strokeWidth={1.6}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </Svg>
-            <View>
-              <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>Add New</Text>
-              <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>Address</Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.7}
-            disabled={isGettingLocation}
-            onPress={async () => {
-              console.log('[AddressScreen] Use Current Location pressed');
-              try {
-                // Fetch current location
-                const location = await getCurrentLocationWithAddress();
-                console.log('[AddressScreen] Location fetched:', location);
-
-                if (!location.pincode) {
-                  showAlert(
-                    'Location Error',
-                    'Unable to get pincode from your location. Please enter your address manually.',
-                    [{ text: 'OK' }],
-                    'error'
-                  );
-                  return;
-                }
-
-                // Store GPS coordinates
-                setFormCoordinates(location.coordinates);
-
-                // Auto-fill form with location data
-                setFormData({
-                  label: 'HOME',
-                  addressLine1: location.address?.addressLine1 || '',
-                  addressLine2: '',
-                  landmark: '',
-                  locality: location.address?.locality || '',
-                  city: location.address?.city || '',
-                  state: location.address?.state || '',
-                  pincode: location.pincode,
-                  contactName: formData.contactName, // Keep existing contact info
-                  contactPhone: formData.contactPhone,
-                });
-
-                // Open add address modal with pre-filled data
-                setShowAddModal(true);
-
-                showAlert(
-                  'Location Detected',
-                  `We've auto-filled your address details. Please review and add any missing information.`,
-                  [{ text: 'OK' }],
-                  'success'
-                );
-              } catch (error: any) {
-                console.error('[AddressScreen] Location error:', error);
-                showAlert(
-                  'Location Error',
-                  error.message || 'Unable to get your current location. Please ensure location services are enabled and try again.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Add Manually',
-                      onPress: () => {
-                        resetForm();
-                        setShowAddModal(true);
-                      },
-                    },
-                  ],
-                  'error'
-                );
-              }
-            }}
-            style={{
-              flex: 1,
-              marginLeft: 8,
-              backgroundColor: isGettingLocation ? '#F3F4F6' : 'white',
-              borderRadius: 16,
-              padding: 16,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 3,
-            }}
-          >
-            {isGettingLocation ? (
-              <ActivityIndicator size="small" color="#FE8733" />
-            ) : (
-              <>
-                <Svg width={32} height={32} viewBox="0 0 24 24" fill="none" style={{ marginRight: 12 }}>
-                  <Path
-                    d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"
-                    stroke="#FE8733"
-                    strokeWidth={1.6}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </Svg>
-                <View>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>Use Current</Text>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>Location</Text>
-                </View>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
+        {/* Single primary action — Add New Address. Inside the form, user can tap "Use Current Location" to open the map picker. */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => {
+            if (isGuest) {
+              setShowGuestLoginPrompt(true);
+              return;
+            }
+            console.log('[AddressScreen] Add New Address pressed');
+            resetForm();
+            setShowAddModal(true);
+          }}
+          style={{
+            marginHorizontal: 20,
+            marginBottom: 24,
+            backgroundColor: '#FE8733',
+            borderRadius: 16,
+            padding: 16,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#FE8733',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.25,
+            shadowRadius: 8,
+            elevation: 5,
+          }}
+        >
+          <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" style={{ marginRight: 10 }}>
+            <Path
+              d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"
+              stroke="white"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
+          <Text style={{ color: 'white', fontSize: 16, fontWeight: '700' }}>
+            Add New Address
+          </Text>
+        </TouchableOpacity>
 
         {/* Loading State */}
         {isLoadingAddresses && addresses.length === 0 && (
@@ -997,6 +991,59 @@ const AddressScreen: React.FC<Props> = ({ navigation }) => {
           </KeyboardAvoidingView>
         </View>
       )}
+
+      {/* Login prompt for guest users trying to add an address */}
+      <ConfirmationModal
+        visible={showGuestLoginPrompt}
+        title="Login Required"
+        message="Please login to save delivery addresses and use your current location for orders."
+        confirmText="Login"
+        cancelText="Not Now"
+        confirmStyle="primary"
+        onConfirm={() => {
+          setShowGuestLoginPrompt(false);
+          exitGuestMode();
+        }}
+        onCancel={() => setShowGuestLoginPrompt(false)}
+      />
+
+      {/* City picker — selecting a city auto-fills its mapped state if known */}
+      <PickerSheet<CityEntry>
+        visible={showCityPicker}
+        title="Select City"
+        searchPlaceholder="Search city..."
+        options={INDIAN_CITIES}
+        selectedValue={formData.city}
+        getLabel={item => item.city}
+        getSubtitle={item => item.state}
+        getValue={item => item.city}
+        onSelect={item => {
+          setFormData(prev => ({
+            ...prev,
+            city: item.city,
+            // Auto-fill state if it isn't already set or if it doesn't match the city's mapped state
+            state: prev.state && prev.state === item.state ? prev.state : item.state,
+          }));
+          setShowCityPicker(false);
+        }}
+        onClose={() => setShowCityPicker(false)}
+      />
+
+      {/* State picker */}
+      <PickerSheet<string>
+        visible={showStatePicker}
+        title="Select State"
+        searchPlaceholder="Search state..."
+        options={INDIAN_STATES}
+        selectedValue={formData.state}
+        getLabel={item => item}
+        getValue={item => item}
+        onSelect={item => {
+          setFormData(prev => ({ ...prev, state: item }));
+          setShowStatePicker(false);
+        }}
+        onClose={() => setShowStatePicker(false)}
+      />
     </SafeAreaView>
   );
 };

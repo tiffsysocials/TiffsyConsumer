@@ -13,6 +13,7 @@ import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context'
 import { StackScreenProps } from '@react-navigation/stack';
 import { MainTabParamList } from '../../types/navigation';
 import { useSubscription } from '../../context/SubscriptionContext';
+import { useUser } from '../../context/UserContext';
 import { useResponsive } from '../../hooks/useResponsive';
 import { SPACING, TOUCH_TARGETS } from '../../constants/spacing';
 import { FONT_SIZES } from '../../constants/typography';
@@ -21,6 +22,7 @@ type Props = StackScreenProps<MainTabParamList, 'OnDemand'>;
 
 const OnDemandScreen: React.FC<Props> = ({ navigation }) => {
   const { usableVouchers } = useSubscription();
+  const { isGuest } = useUser();
   const { isSmallDevice } = useResponsive();
   const insets = useSafeAreaInsets();
 
@@ -70,36 +72,40 @@ const OnDemandScreen: React.FC<Props> = ({ navigation }) => {
             />
           </View>
 
-          {/* Title */}
-          <Text className="text-white text-xl font-bold">
+          {/* Title — matches "My Profile" sizing (FONT_SIZES.h4) for consistent header typography across screens */}
+          <Text style={{ color: 'white', fontSize: FONT_SIZES.h4, fontWeight: 'bold' }}>
             On-Demand
           </Text>
 
-          {/* Voucher Button */}
-          <TouchableOpacity
-            onPress={() => navigation.navigate('MealPlans')}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              backgroundColor: 'white',
-              borderRadius: SPACING.lg,
-              paddingVertical: SPACING.xs + 1,
-              paddingHorizontal: SPACING.sm,
-              gap: 4,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 3,
-            }}
-          >
-            <Image
-              source={require('../../assets/icons/voucher5.png')}
-              style={{ width: SPACING.iconSm + 2, height: SPACING.iconSm + 2 }}
-              resizeMode="contain"
-            />
-            <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: 'bold', color: '#FE8733' }}>{usableVouchers}</Text>
-          </TouchableOpacity>
+          {/* Voucher Button — hidden in guest mode; replaced with an invisible spacer of the same width as the logo so the title stays visually centered */}
+          {isGuest ? (
+            <View style={{ width: isSmallDevice ? SPACING.iconXl * 1.2 : SPACING.iconXl * 1.45 }} />
+          ) : (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('MealPlans')}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: 'white',
+                borderRadius: SPACING.lg,
+                paddingVertical: SPACING.xs + 1,
+                paddingHorizontal: SPACING.sm,
+                gap: 4,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 3,
+              }}
+            >
+              <Image
+                source={require('../../assets/icons/voucher5.png')}
+                style={{ width: SPACING.iconSm + 2, height: SPACING.iconSm + 2 }}
+                resizeMode="contain"
+              />
+              <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: 'bold', color: '#FE8733' }}>{usableVouchers}</Text>
+            </TouchableOpacity>
+          )}
         </View>
               </SafeAreaView>
       </LinearGradient>

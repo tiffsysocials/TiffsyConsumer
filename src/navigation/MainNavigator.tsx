@@ -27,6 +27,7 @@ import ChatSupportScreen from '../screens/account/ChatSupportScreen';
 import MealCalendarScreen from '../screens/scheduled-meals/MealCalendarScreen';
 import BulkSchedulePricingScreen from '../screens/scheduled-meals/BulkSchedulePricingScreen';
 import AutoOrderAddonScreen from '../screens/scheduled-meals/AutoOrderAddonScreen';
+import LocationPickerScreen from '../screens/address/LocationPickerScreen';
 import BottomNavBar from '../components/BottomNavBar';
 import { MainTabParamList } from '../types/navigation';
 
@@ -73,6 +74,7 @@ const MainNavigatorContent = () => {
         <Stack.Screen name="OnDemand" component={OnDemandScreen} />
         <Stack.Screen name="Account" component={AccountScreen} />
         <Stack.Screen name="Address" component={AddressScreen} />
+        <Stack.Screen name="LocationPicker" component={LocationPickerScreen} />
         <Stack.Screen name="Cart" component={CartScreen} />
         <Stack.Screen name="Payment" component={PaymentScreen} />
         <Stack.Screen name="EditProfile" component={EditProfileScreen} />

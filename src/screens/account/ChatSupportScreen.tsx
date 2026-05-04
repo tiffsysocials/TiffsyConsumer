@@ -153,12 +153,12 @@ const RESPONSE_RULES: ResponseRule[] = [
   // ---- PAYMENTS ----
   {
     keywords: ['payment', 'pay', 'payment method', 'how to pay', 'payment options', 'upi', 'card payment', 'wallet', 'netbanking'],
-    response: 'Tiffsy supports multiple payment methods via Razorpay:\n\n- UPI (Google Pay, PhonePe, etc.)\n- Credit/Debit Cards\n- Wallets\n- Net Banking\n- Voucher-Only (when you have vouchers, no extra payment needed)\n\nPayments are processed securely. If a payment fails, you can retry from the order details.',
+    response: 'Tiffsy supports multiple payment methods via Razorpay:\n\n- UPI (Google Pay, PhonePe, etc.)\n- Credit/Debit Cards\n- Wallets\n- Net Banking\n- Voucher-Only (when you have vouchers, no extra payment needed)\n\nPayments are processed securely. If a payment fails, the order is cancelled and you can place a new one.',
     quickReplies: ['Payment failed', 'Vouchers', 'Refund'],
   },
   {
     keywords: ['payment failed', 'payment issue', 'payment not working', 'payment error', 'transaction failed', 'payment declined'],
-    response: 'If your payment failed:\n\n1. Go to "My Orders" and find the order\n2. Use the "Retry Payment" option\n3. Try a different payment method if the issue persists\n\nCommon reasons for failure: Insufficient balance, bank server issues, network timeout. If the amount was deducted but order not confirmed, it will be auto-refunded within 5-7 business days.\n\nStill having issues? Contact our support team.',
+    response: 'If your payment failed:\n\n1. The order is automatically marked failed — no retry is needed (or possible).\n2. Any vouchers or coupons you used have been restored to your account.\n3. Place a new order if you still want this meal — try a different payment method if the issue persists.\n\nCommon reasons for failure: Insufficient balance, bank server issues, network timeout. If the amount was deducted but the order shows failed, it will be auto-refunded within 5-7 business days.\n\nStill having issues? Contact our support team.',
     quickReplies: ['Contact support', 'Payment methods'],
   },
   {

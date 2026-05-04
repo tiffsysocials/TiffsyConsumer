@@ -6,6 +6,13 @@ buildscript {
         targetSdkVersion = 36
         ndkVersion = "27.1.12297006"
         kotlinVersion = "2.1.20"
+        // Force play-services-location to a single version so react-native-maps and
+        // react-native-geolocation-service compile against the same JAR. Without this,
+        // geolocation-service defaults to 18.0.0 (class) but gradle resolves to 21.3.0
+        // (interface) due to react-native-maps → IncompatibleClassChangeError at runtime
+        // on getCurrentLocation().
+        playServicesLocationVersion = "21.3.0"
+        googlePlayServicesLocationVersion = "21.3.0"
     }
     repositories {
         google()

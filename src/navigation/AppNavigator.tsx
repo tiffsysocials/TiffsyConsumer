@@ -7,7 +7,6 @@ import AuthNavigator from './AuthNavigator';
 import MainNavigator from './MainNavigator';
 import SplashScreen, { SplashView } from '../screens/SplashScreen';
 import UserOnboardingScreen from '../screens/auth/UserOnboardingScreen';
-import AddressSetupScreen from '../screens/auth/AddressSetupScreen';
 import { RootStackParamList } from '../types/navigation';
 import { useUser } from '../context/UserContext';
 import { navigationRef } from './navigationRef';
@@ -79,7 +78,7 @@ const AuthErrorView: React.FC<{
 };
 
 const AppNavigator = () => {
-  const { user, isLoading, isGuest, needsAddressSetup, authError, retrySync, logout, isAuthenticated, skipOnboarding } = useUser();
+  const { user, isLoading, isGuest, authError, retrySync, logout, isAuthenticated, skipOnboarding } = useUser();
   const [showSplash, setShowSplash] = React.useState(true);
 
   // Always show animated splash on every app launch
@@ -153,11 +152,10 @@ const AppNavigator = () => {
         ) : !user.isOnboarded ? (
           // User is authenticated but hasn't completed profile onboarding
           <Stack.Screen name="UserOnboarding" component={UserOnboardingScreen} />
-        ) : needsAddressSetup ? (
-          // User is onboarded but needs to set up delivery address
-          <Stack.Screen name="AddressSetup" component={AddressSetupScreen} />
         ) : (
-          // User is fully authenticated, onboarded, and has address - show main app
+          // User is fully authenticated and onboarded — go straight to the main app.
+          // Address setup is no longer forced; the user can add an address from the Address tab whenever they want.
+          // HomeScreen still gates the order-placement flow (Buy Now / Add to Cart) and routes to AddressSetupScreen on demand.
           <Stack.Screen name="Main" component={MainNavigator} />
         )}
       </Stack.Navigator>

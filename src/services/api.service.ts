@@ -1,5 +1,13 @@
 import axios, { AxiosInstance } from 'axios';
-import { getAuthToken, clearAuthToken, storeAuthToken } from './auth.token.service';
+import {
+  getAuthToken,
+  clearAuthToken,
+  storeAuthToken,
+  refreshAuthToken,
+  isTokenExpiringSoon,
+  AuthRefreshError,
+} from './auth.token.service';
+import { authEvents } from './auth.events';
 
 // Backend base URL - update this with your actual backend URL
 const BASE_URL = 'https://d31od4t2t5epcb.cloudfront.net';
@@ -588,7 +596,8 @@ export type OrderStatus =
   | 'OUT_FOR_DELIVERY'
   | 'DELIVERED'
   | 'CANCELLED'
-  | 'REJECTED';
+  | 'REJECTED'
+  | 'FAILED';
 
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
 
@@ -1535,6 +1544,18 @@ class ApiService {
     // Request interceptor to add JWT auth token and log requests
     this.api.interceptors.request.use(
       async config => {
+        // Proactively refresh if the stored token is within 5 minutes of expiry.
+        // Skip the refresh endpoint itself to avoid recursion.
+        const isRefreshCall = config.url === '/api/auth/token/refresh';
+        if (!isRefreshCall && (await isTokenExpiringSoon())) {
+          try {
+            await refreshAuthToken(BASE_URL);
+          } catch (e) {
+            // Don't block the request — let it go out with the existing token.
+            // The response interceptor handles 401 via the same singleton refresh.
+          }
+        }
+
         const token = await getAuthToken();
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
@@ -1566,25 +1587,37 @@ class ApiService {
         // Log error response
         console.log(`[API] Error ${error.response?.status}:`, JSON.stringify(error.response?.data, null, 2));
 
-        // Handle 401 - attempt token refresh
-        if (error.response?.status === 401 && error.config && !error.config._retry) {
+        // Handle 401 — attempt a single coalesced token refresh.
+        // Don't try to refresh failures from the refresh endpoint itself.
+        const isRefreshCall = error.config?.url === '/api/auth/token/refresh';
+        if (
+          error.response?.status === 401 &&
+          error.config &&
+          !error.config._retry &&
+          !isRefreshCall
+        ) {
           error.config._retry = true;
           try {
-            const currentToken = await getAuthToken();
-            if (currentToken) {
-              const refreshResponse = await axios.post(`${BASE_URL}/api/auth/token/refresh`, {}, {
-                headers: { Authorization: `Bearer ${currentToken}` },
-              });
-              const { token: newToken, expiresIn } = refreshResponse.data?.data || {};
-              if (newToken) {
-                await storeAuthToken(newToken, expiresIn);
-                error.config.headers.Authorization = `Bearer ${newToken}`;
-                return api.request(error.config);
-              }
+            const newToken = await refreshAuthToken(BASE_URL);
+            error.config.headers.Authorization = `Bearer ${newToken}`;
+            return api.request(error.config);
+          } catch (refreshError: any) {
+            if (
+              refreshError instanceof AuthRefreshError &&
+              refreshError.kind === 'auth'
+            ) {
+              // Definitive auth failure — session is gone, clear and notify UI.
+              console.log('[API] Token refresh definitively rejected, clearing token');
+              await clearAuthToken();
+              authEvents.emitAuthExpired();
+            } else {
+              // Transient failure (network/5xx/timeout) — keep the token so the
+              // user can retry. Just fail this individual request.
+              console.log(
+                '[API] Token refresh transient failure, keeping session:',
+                refreshError?.message,
+              );
             }
-          } catch (refreshError) {
-            console.log('[API] Token refresh failed, clearing token');
-            await clearAuthToken();
           }
         }
 
@@ -2212,25 +2245,14 @@ class ApiService {
     return this.api.post(`/api/payment/order/${orderId}/initiate`);
   }
 
-  // Retry payment for a failed order
-  async retryOrderPayment(orderId: string): Promise<{
+  // Cancel an in-flight order payment (call when Razorpay modal is dismissed
+  // or the SDK errors — flips the order to FAILED instantly).
+  async cancelOrderPayment(orderId: string, reason?: string): Promise<{
     success: boolean;
     message: string;
-    data: {
-      razorpayOrderId: string;
-      amount: number;
-      currency: string;
-      key: string;
-      orderId: string;
-      expiresAt: string;
-      prefill?: {
-        name: string;
-        contact: string;
-        email?: string;
-      };
-    };
+    data?: { orderId: string; alreadyFailed?: boolean };
   }> {
-    return this.api.post(`/api/payment/order/${orderId}/retry`);
+    return this.api.post(`/api/payment/order/${orderId}/cancel`, { reason });
   }
 
   // Initiate payment for subscription purchase
@@ -2531,6 +2553,8 @@ class ApiService {
     vouchersToUse?: number;
     couponCode?: string;
     specialInstructions?: string;
+    leaveAtDoor?: boolean;
+    doNotContact?: boolean;
     allowDuplicates?: boolean;
     allowAutoOrderConflict?: boolean;
   }): Promise<{ success: boolean; message: string; data: BulkScheduleResult }> {

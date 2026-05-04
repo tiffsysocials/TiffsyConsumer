@@ -50,6 +50,13 @@
         android:value="default_channel"
         tools:replace="android:value" />
 
+      <!-- Google Maps API key — used by react-native-maps for tile rendering on Android.
+           Restricted to Maps SDK for Android (separate from the Geocoding/Places HTTP key in
+           src/constants/config.ts which is used by location.service.ts and LocationPickerScreen). -->
+      <meta-data
+        android:name="com.google.android.geo.API_KEY"
+        android:value="AIzaSyB4jJpH1-3SYsBGguA9UqHcwGs-AC_bpuw" />
+
       <!-- Remove adservices library injected by Firebase Analytics -->
       <uses-library android:name="android.ext.adservices" tools:node="remove" />
     </application>

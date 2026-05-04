@@ -22,11 +22,11 @@ import { useAlert } from '../../context/AlertContext';
 import { useUser } from '../../context/UserContext';
 import apiService, { Order, OrderStatus } from '../../services/api.service';
 import dataPreloader from '../../services/dataPreloader.service';
-import paymentService from '../../services/payment.service';
-import { isPaymentPending } from '../../utils/paymentStatus';
+import ConfirmationModal from '../../components/ConfirmationModal';
 
 import { useResponsive } from '../../hooks/useResponsive';
 import { SPACING } from '../../constants/spacing';
+import { FONT_SIZES } from '../../constants/typography';
 
 type Props = StackScreenProps<MainTabParamList, 'YourOrders'>;
 
@@ -70,6 +70,8 @@ const getStatusMessage = (status: OrderStatus): string => {
       return 'Cancelled';
     case 'REJECTED':
       return 'Rejected';
+    case 'FAILED':
+      return 'Payment Failed';
     default:
       return status;
   }
@@ -162,7 +164,7 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
   const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null);
 
   const [refreshing, setRefreshing] = useState(false);
-  const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
+  const [showGuestLoginPrompt, setShowGuestLoginPrompt] = useState(false);
 
   // Track if data has been loaded to prevent unnecessary fetches
   const hasLoadedDataRef = useRef(false);
@@ -178,7 +180,7 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
       if (cachedOrders && !dataPreloader.isCacheExpired('orders')) {
         console.log('[YourOrdersScreen] ✓ Using cached orders from preload:', cachedOrders.length);
         const current = cachedOrders.filter((order: Order) =>
-          CURRENT_STATUSES.includes(order.status)
+          CURRENT_STATUSES.includes(order.status) && order.paymentStatus === 'PAID'
         );
         setCurrentOrders(current);
         setCurrentLoading(false);
@@ -197,14 +199,15 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
 
       if (response.success && responseData?.orders) {
         // Use activeOrders from API if available, otherwise filter by status
+        // Always exclude payment-failed orders (they're dead; show in history instead)
         let current: Order[];
         if (responseData.activeOrders && responseData.activeOrders.length > 0) {
           current = responseData.orders.filter((order: Order) =>
-            responseData.activeOrders!.includes(order._id)
+            responseData.activeOrders!.includes(order._id) && order.paymentStatus === 'PAID'
           );
         } else {
           current = responseData.orders.filter((order: Order) =>
-            CURRENT_STATUSES.includes(order.status)
+            CURRENT_STATUSES.includes(order.status) && order.paymentStatus === 'PAID'
           );
         }
         console.log('[YourOrdersScreen] Current orders count:', current.length);
@@ -244,17 +247,20 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
       }
       console.log('[YourOrdersScreen] Fetching history orders - Page:', page);
 
-      // Use status filters to fetch only history orders directly from the API
-      // This ensures we get actual delivered/cancelled orders instead of fetching
-      // all orders and filtering client-side (which missed most history orders)
+      // Use status filters to fetch only history orders directly from the API.
+      // The API doesn't support filtering by paymentStatus, so for payment-failed
+      // orders we fetch the recent unfiltered list and filter client-side.
       const apiCalls: Promise<any>[] = [
         apiService.getMyOrders({ page, limit: 50, status: 'DELIVERED' }),
       ];
 
-      // On first load, also fetch cancelled and rejected orders
+      // On first load, also fetch cancelled, rejected, and an unfiltered batch
+      // (we'll keep only paymentStatus === 'FAILED' from the unfiltered batch)
+      const FAILED_PAYMENT_BATCH_INDEX = 3;
       if (page === 1) {
         apiCalls.push(apiService.getMyOrders({ page: 1, limit: 50, status: 'CANCELLED' }));
         apiCalls.push(apiService.getMyOrders({ page: 1, limit: 50, status: 'REJECTED' }));
+        apiCalls.push(apiService.getMyOrders({ page: 1, limit: 50 }));
       }
 
       const results = await Promise.allSettled(apiCalls);
@@ -266,13 +272,22 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
         const result = results[i];
         if (result.status === 'fulfilled') {
           const extracted = extractOrdersFromResponse(result.value);
-          allHistory = [...allHistory, ...extracted.orders];
+          // For the unfiltered batch, keep only payment-failed orders
+          const orders = i === FAILED_PAYMENT_BATCH_INDEX
+            ? extracted.orders.filter(o => o.paymentStatus === 'FAILED')
+            : extracted.orders;
+          allHistory = [...allHistory, ...orders];
           // Track pagination only for delivered orders (index 0) since they're most common
           if (i === 0) {
             deliveredHasMore = extracted.hasMore;
           }
         }
       }
+
+      // De-dup by _id (a CANCELLED + paymentStatus FAILED order would be in two batches)
+      const dedupMap = new Map<string, Order>();
+      for (const o of allHistory) dedupMap.set(o._id, o);
+      allHistory = Array.from(dedupMap.values());
 
       // Sort by date (newest first)
       allHistory.sort((a: Order, b: Order) =>
@@ -370,40 +385,8 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
     showAlert('Coming Soon', 'Reorder functionality will be available soon!', undefined, 'default');
   };
 
-  const handlePayNow = async (orderId: string) => {
-    if (payingOrderId) return;
-    try {
-      setPayingOrderId(orderId);
-      const result = await paymentService.retryOrderPayment(orderId);
-      if (result.success) {
-        dataPreloader.invalidateCache('orders');
-        await fetchCurrentOrders();
-        showAlert(
-          'Payment Successful',
-          'Your order has been confirmed.',
-          undefined,
-          'success',
-        );
-      } else if (result.error && result.error !== 'Payment cancelled') {
-        showAlert('Payment Failed', result.error, undefined, 'error');
-      }
-    } catch (err: any) {
-      showAlert(
-        'Payment Failed',
-        err?.message || 'Unable to complete payment. Please try again.',
-        undefined,
-        'error',
-      );
-    } finally {
-      setPayingOrderId(null);
-    }
-  };
-
   // Render current order card
   const renderCurrentOrderCard = (order: Order) => {
-    const paymentPending = isPaymentPending(order);
-    const amountDue = order.grandTotal - order.amountPaid;
-    const isPayingThisOrder = payingOrderId === order._id;
     return (
     <TouchableOpacity
       key={order._id}
@@ -433,7 +416,7 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
             <Text className="text-lg font-bold text-gray-900 flex-1" numberOfLines={1} style={{ marginRight: 8 }}>
               {getOrderTitle(order)}
             </Text>
-            <Text className="text-base font-bold text-gray-900">₹{order.amountPaid.toFixed(2)}</Text>
+            <Text className="text-base font-bold text-gray-900">₹{order.grandTotal.toFixed(2)}</Text>
           </View>
 
           {/* Row 2: Order ID */}
@@ -511,19 +494,8 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
 
       {/* Row 4: Status */}
       <View className="mb-4 flex-row items-center">
-        {paymentPending && (
-          <View
-            className="rounded-full mr-2"
-            style={{ width: 8, height: 8, backgroundColor: '#D97706' }}
-          />
-        )}
-        <Text
-          className="text-sm font-semibold"
-          style={{ color: paymentPending ? '#D97706' : '#6B7280' }}
-        >
-          {paymentPending
-            ? 'Payment pending — complete to confirm'
-            : getStatusMessage(order.status)}
+        <Text className="text-sm font-semibold" style={{ color: '#6B7280' }}>
+          {getStatusMessage(order.status)}
         </Text>
       </View>
 
@@ -532,27 +504,15 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
         <TouchableOpacity
           onPress={(e) => {
             e.stopPropagation();
-            if (paymentPending) {
-              handlePayNow(order._id);
-            } else {
-              handleTrackOrder(order._id);
-            }
+            handleTrackOrder(order._id);
           }}
-          disabled={isPayingThisOrder}
           className="py-2 rounded-full items-center justify-center"
           style={{
             width: 280,
             backgroundColor: 'rgba(255, 136, 0, 1)',
-            opacity: isPayingThisOrder ? 0.7 : 1,
           }}
         >
-          {isPayingThisOrder ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Text className="text-base font-semibold text-white">
-              {paymentPending ? `Pay Now ₹${amountDue.toFixed(2)}` : 'Track Order'}
-            </Text>
-          )}
+          <Text className="text-base font-semibold text-white">Track Order</Text>
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -590,7 +550,7 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
             <Text className="text-base font-bold text-gray-900 flex-1" numberOfLines={1} style={{ marginRight: 8 }}>
               {getOrderTitle(order)}
             </Text>
-            <Text className="text-base font-bold text-gray-900">₹{order.amountPaid.toFixed(2)}</Text>
+            <Text className="text-base font-bold text-gray-900">₹{order.grandTotal.toFixed(2)}</Text>
           </View>
           <View className="flex-row items-center">
             <Text className="text-sm" style={{ color: 'rgba(145, 145, 145, 1)' }} numberOfLines={1}>
@@ -666,20 +626,25 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
       <View className="mt-3">
         <View className="flex-row items-center justify-between mb-3">
           <View className="flex-row items-center">
-            <View
-              className="w-2 h-2 rounded-full mr-2"
-              style={{
-                backgroundColor: order.status === 'DELIVERED' ? '#16A34A' : '#EF4444',
-              }}
-            />
-            <Text
-              className="text-sm font-semibold"
-              style={{
-                color: order.status === 'DELIVERED' ? '#16A34A' : '#EF4444',
-              }}
-            >
-              {getStatusMessage(order.status)}
-            </Text>
+            {(() => {
+              const isPaymentFailed = order.paymentStatus === 'FAILED';
+              const isDelivered = order.status === 'DELIVERED';
+              const dotColor = isDelivered ? '#16A34A' : '#EF4444';
+              const label = isPaymentFailed
+                ? 'Payment Failed'
+                : getStatusMessage(order.status);
+              return (
+                <>
+                  <View
+                    className="w-2 h-2 rounded-full mr-2"
+                    style={{ backgroundColor: dotColor }}
+                  />
+                  <Text className="text-sm font-semibold" style={{ color: dotColor }}>
+                    {label}
+                  </Text>
+                </>
+              );
+            })()}
           </View>
         </View>
 
@@ -785,40 +750,41 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
             />
           </View>
 
-          {/* My Orders Title */}
+          {/* My Orders Title — matches "My Profile" sizing (FONT_SIZES.h4) for consistent header typography across screens */}
           <View className="flex-1 items-center">
-            <Text className="text-white text-xl font-bold">My Orders</Text>
+            <Text style={{ color: 'white', fontSize: FONT_SIZES.h4, fontWeight: 'bold' }}>My Orders</Text>
           </View>
 
-          {/* Voucher Button */}
-          <TouchableOpacity
-            onPress={() => navigation.navigate('MealPlans')}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              backgroundColor: 'white',
-              borderRadius: 20,
-              paddingVertical: 6,
-              paddingHorizontal: 10,
-              gap: 6,
-            }}
-          >
-            <Image
-              source={require('../../assets/icons/voucher5.png')}
-              style={{ width: 24, height: 24 }}
-              resizeMode="contain"
-            />
-            <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#FE8733' }}>
-              {usableVouchers}
-            </Text>
-          </TouchableOpacity>
+          {/* Voucher Button — hidden in guest mode; replaced with an invisible spacer matching the logo's footprint so "My Orders" stays centered */}
+          {isGuest ? (
+            <View style={{ width: 58 }} />
+          ) : (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('MealPlans')}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: 'white',
+                borderRadius: 20,
+                paddingVertical: 6,
+                paddingHorizontal: 10,
+                gap: 6,
+              }}
+            >
+              <Image
+                source={require('../../assets/icons/voucher5.png')}
+                style={{ width: 24, height: 24 }}
+                resizeMode="contain"
+              />
+              <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#FE8733' }}>
+                {usableVouchers}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
-              </SafeAreaView>
-      </LinearGradient>
-
-        {/* Tabs */}
-        <View style={{ paddingHorizontal: 20, marginTop: -20, marginBottom: 8 }}>
+        {/* Tabs — sit INSIDE the orange header for consistent iOS/Android rendering (no marginTop hack) */}
+        <View style={{ paddingHorizontal: 20, marginTop: 12 }}>
           <View className="flex-row bg-gray-100 rounded-full p-1">
             <TouchableOpacity
               onPress={() => setActiveTab('Current')}
@@ -847,7 +813,13 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => setActiveTab('History')}
+              onPress={() => {
+                if (isGuest) {
+                  setShowGuestLoginPrompt(true);
+                  return;
+                }
+                setActiveTab('History');
+              }}
               className={`flex-1 rounded-full ${
                 activeTab === 'History' ? 'bg-white' : 'bg-transparent'
               }`}
@@ -873,7 +845,13 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => setActiveTab('Auto')}
+              onPress={() => {
+                if (isGuest) {
+                  setShowGuestLoginPrompt(true);
+                  return;
+                }
+                setActiveTab('Auto');
+              }}
               className={`flex-1 rounded-full ${
                 activeTab === 'Auto' ? 'bg-white' : 'bg-transparent'
               }`}
@@ -899,6 +877,9 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         </View>
+
+        </SafeAreaView>
+      </LinearGradient>
 
       {/* Orders List */}
       <ScrollView
@@ -1002,6 +983,20 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
         <View style={{ height: 100 }} />
       </ScrollView>
 
+      {/* Login prompt for guest users tapping History or Auto Order tabs */}
+      <ConfirmationModal
+        visible={showGuestLoginPrompt}
+        title="Login Required"
+        message="Please login to view your order history and manage auto-orders."
+        confirmText="Login"
+        cancelText="Not Now"
+        confirmStyle="primary"
+        onConfirm={() => {
+          setShowGuestLoginPrompt(false);
+          exitGuestMode();
+        }}
+        onCancel={() => setShowGuestLoginPrompt(false)}
+      />
     </View>
   );
 };

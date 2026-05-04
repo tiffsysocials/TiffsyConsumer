@@ -232,8 +232,24 @@ class PaymentService {
       const isRealError = error?.description?.includes('BAD_REQUEST_ERROR')
         || error?.error?.code === 'BAD_REQUEST_ERROR'
         || error?.error?.reason === 'payment_error';
+      const isCancel = (error.code === 0 || error.code === 2) && !isRealError;
 
-      if ((error.code === 0 || error.code === 2) && !isRealError) {
+      // Tell the backend immediately so the order flips to FAILED — no PENDING
+      // limbo. /verify already does this for verify-side failures, but for
+      // cancellations and SDK errors we have to call the cancel endpoint.
+      // Idempotent on the backend, so safe to fire on every failure path.
+      apiService
+        .cancelOrderPayment(
+          orderId,
+          isCancel ? 'Customer dismissed Razorpay checkout' : (error?.description || error?.message || 'Checkout error'),
+        )
+        .catch((cancelErr: any) => {
+          // Don't fail the user-facing flow on cancel errors — the cron will
+          // sweep the order at its next run if this call doesn't land.
+          console.warn('[PaymentService] cancelOrderPayment call failed (cron will catch it):', cancelErr?.message);
+        });
+
+      if (isCancel) {
         console.log('[PaymentService] User cancelled payment');
         return {
           success: false,
@@ -337,86 +353,6 @@ class PaymentService {
         errorMessage = error.message;
       }
 
-      return {
-        success: false,
-        error: errorMessage,
-      };
-    }
-  }
-
-  /**
-   * Retry order payment for failed orders
-   */
-  async retryOrderPayment(orderId: string): Promise<OrderPaymentResult> {
-    try {
-      console.log('[PaymentService] Retrying order payment for orderId:', orderId);
-
-      // Step 1: Get new Razorpay order via retry endpoint
-      const retryResponse = await apiService.retryOrderPayment(orderId);
-      if (!retryResponse.success) {
-        throw new Error(retryResponse.message || 'Failed to retry payment');
-      }
-
-      console.log('[PaymentService] Retry initiated, new Razorpay order:', retryResponse.data.razorpayOrderId);
-
-      // Step 2: Open Razorpay checkout
-      const checkoutOptions: RazorpayOptions = {
-        key: retryResponse.data.key,
-        amount: retryResponse.data.amount,
-        currency: retryResponse.data.currency,
-        name: MERCHANT_NAME,
-        description: `Order Payment Retry`,
-        order_id: retryResponse.data.razorpayOrderId,
-        prefill: retryResponse.data.prefill
-          ? {
-              name: retryResponse.data.prefill.name,
-              contact: retryResponse.data.prefill.contact,
-              email: retryResponse.data.prefill.email,
-            }
-          : undefined,
-        theme: {
-          color: THEME_COLOR,
-        },
-      };
-
-      const paymentResponse = await this.openCheckout(checkoutOptions);
-
-      // Step 3: Verify payment
-      console.log('[PaymentService] Verifying retry payment...');
-      const verifyResponse = await apiService.verifyPayment({
-        razorpayOrderId: paymentResponse.razorpay_order_id,
-        razorpayPaymentId: paymentResponse.razorpay_payment_id,
-        razorpaySignature: paymentResponse.razorpay_signature,
-      });
-
-      if (!verifyResponse.success || !verifyResponse.data.success) {
-        throw new Error(verifyResponse.message || 'Payment verification failed');
-      }
-
-      console.log('[PaymentService] Retry payment completed successfully');
-      return {
-        success: true,
-        paymentId: paymentResponse.razorpay_payment_id,
-      };
-    } catch (error: any) {
-      console.error('[PaymentService] Retry payment failed:', error);
-      console.error('[PaymentService] Error details:', {
-        code: error?.code,
-        message: error?.message,
-        description: error?.description,
-      });
-
-      // Check if user cancelled
-      if (error.code === 0 || error.code === 2) {
-        console.log('[PaymentService] User cancelled retry payment');
-        return {
-          success: false,
-          error: 'Payment cancelled',
-        };
-      }
-
-      // Return user-friendly error message
-      const errorMessage = error.description || error.message || 'Payment failed. Please try again.';
       return {
         success: false,
         error: errorMessage,

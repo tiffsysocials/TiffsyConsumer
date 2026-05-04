@@ -33,7 +33,7 @@ export type AuthStackParamList = {
 // Main Tab Navigator
 export type MainTabParamList = {
   Home: undefined;
-  Address: undefined;
+  Address: { pickedLocation?: { latitude: number; longitude: number; addressLine1?: string; locality?: string; city?: string; state?: string; pincode?: string } } | undefined;
   Menu: undefined;
   Cart: { directCheckout?: boolean; scheduledDate?: string; deliveryAddressId?: string } | undefined;
   Profile: undefined;
@@ -62,6 +62,7 @@ ScheduledMealPricing: { deliveryAddressId: string; mealWindow: 'LUNCH' | 'DINNER
   };
   ChatSupport: undefined;  // Chat support screen with hardcoded responses
   AutoOrderAddons: { addressId: string };  // Add add-ons to auto-order meals
+  LocationPicker: undefined;  // Map-based location picker (results passed back to Address via route param)
 };
 
 // Root navigation props

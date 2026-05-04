@@ -9,13 +9,16 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackScreenProps } from '@react-navigation/stack';
+import { useFocusEffect } from '@react-navigation/native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { MainTabParamList } from '../../types/navigation';
 import { useAlert } from '../../context/AlertContext';
 import { useSubscription } from '../../context/SubscriptionContext';
+import { useAddress } from '../../context/AddressContext';
 import apiService, { BulkPricingData, BulkSlotPricing, AddonItem } from '../../services/api.service';
 import AddonSelector, { SelectedAddon } from '../../components/AddonSelector';
 import CouponSheet from '../../components/CouponSheet';
@@ -48,15 +51,25 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const { showAlert } = useAlert();
   const { fetchVouchers } = useSubscription();
+  const { addresses, getMainAddress } = useAddress();
+
+  // Local address state — initialized from route params, synced with main address
+  // when the user changes their default from the Address screen and returns here.
+  const [localAddressId, setLocalAddressId] = useState<string>(deliveryAddressId);
+  const initialFocusRef = useRef(true);
 
   const [pricingData, setPricingData] = useState<BulkPricingData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [vouchersToUse, setVouchersToUse] = useState(0);
-  const [specialInstructions, setSpecialInstructions] = useState('');
+  const [cookingInstructions, setCookingInstructions] = useState('');
+  const [showCookingInput, setShowCookingInput] = useState(false);
+  const [leaveAtDoor, setLeaveAtDoor] = useState(false);
+  const [doNotContact, setDoNotContact] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [allowDuplicates, setAllowDuplicates] = useState(false);
   const [allowAutoOrderConflict, setAllowAutoOrderConflict] = useState(false);
+  const [summaryExpanded, setSummaryExpanded] = useState(false);
 
   // Coupon state
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
@@ -131,7 +144,7 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
       setIsLoading(true);
       const effectiveCoupon = coupon !== undefined ? coupon : appliedCouponRef.current;
       const response = await apiService.getBulkSchedulePricing({
-        deliveryAddressId,
+        deliveryAddressId: localAddressId,
         slots: slotsOverride || buildSlotsWithAddons(),
         vouchersToUse: vouchers,
         couponCode: effectiveCoupon || undefined,
@@ -146,11 +159,26 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [deliveryAddressId, buildSlotsWithAddons]);
+  }, [localAddressId, buildSlotsWithAddons]);
 
   useEffect(() => {
     fetchPricing(vouchersToUse);
-  }, [vouchersToUse]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [vouchersToUse, localAddressId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // When user returns from the Address screen, pick up the new main address.
+  // First focus is the initial mount — keep the address that was passed in via route params.
+  useFocusEffect(
+    useCallback(() => {
+      if (initialFocusRef.current) {
+        initialFocusRef.current = false;
+        return;
+      }
+      const mainId = getMainAddress()?.id;
+      if (mainId && mainId !== localAddressId) {
+        setLocalAddressId(mainId);
+      }
+    }, [getMainAddress, localAddressId])
+  );
 
   // Fetch available addons once kitchen ID is known from pricing response
   useEffect(() => {
@@ -356,11 +384,13 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
     setIsSubmitting(true);
     try {
       const response = await apiService.createBulkScheduledMeals({
-        deliveryAddressId,
+        deliveryAddressId: localAddressId,
         slots: buildSlotsWithAddons(),
         vouchersToUse,
         couponCode: appliedCoupon || undefined,
-        specialInstructions: specialInstructions.trim() || undefined,
+        specialInstructions: cookingInstructions.trim() || undefined,
+        leaveAtDoor: leaveAtDoor || undefined,
+        doNotContact: doNotContact || undefined,
         allowDuplicates: allowDuplicates || undefined,
         allowAutoOrderConflict: allowAutoOrderConflict || undefined,
       });
@@ -440,94 +470,80 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
       setIsSubmitting(false);
     }
   }, [
-    pricingData, isSubmitting, deliveryAddressId, buildSlotsWithAddons, vouchersToUse, appliedCoupon,
-    specialInstructions, allowDuplicates, allowAutoOrderConflict, navigation,
+    pricingData, isSubmitting, localAddressId, buildSlotsWithAddons, vouchersToUse, appliedCoupon,
+    cookingInstructions, leaveAtDoor, doNotContact, allowDuplicates, allowAutoOrderConflict, navigation,
     showAlert, fetchVouchers,
   ]);
 
   const renderSlotBreakdown = (slot: BulkSlotPricing, index: number) => {
     const mealIcon = slot.mealWindow === 'LUNCH' ? 'white-balance-sunny' : 'moon-waning-crescent';
-    const mealIconColor = slot.mealWindow === 'LUNCH' ? '#F59E0B' : '#6366F1';
     const mealLabel = slot.mealWindow === 'LUNCH' ? 'Lunch' : 'Dinner';
+    const mealAccent = slot.mealWindow === 'LUNCH' ? '#F59E0B' : '#6366F1';
+    const mealAccentBg = slot.mealWindow === 'LUNCH' ? '#FEF3C7' : '#E0E7FF';
     const itemName = slot.items?.[0]?.name || 'Thali';
     const hasVoucher = slot.pricing.voucherCoverage && slot.pricing.voucherCoverage.voucherCount > 0;
+    const addonCount = slot.items?.[0]?.addons?.reduce((s, a) => s + (a.quantity || 0), 0) || 0;
+    const thumbnail = slot.mealWindow === 'LUNCH'
+      ? require('../../assets/images/homepage/lunchThali.png')
+      : require('../../assets/images/homepage/dinnerThali.png');
+    const isLast = index === (pricingData?.perSlotBreakdown.length || 0) - 1;
 
     return (
       <View
         key={`${slot.date}_${slot.mealWindow}`}
         style={{
-          paddingVertical: SPACING.md,
-          borderBottomWidth: index < (pricingData?.perSlotBreakdown.length || 0) - 1 ? 1 : 0,
+          paddingVertical: 12,
+          borderBottomWidth: isLast ? 0 : 1,
           borderBottomColor: '#F3F4F6',
         }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.xs }}>
-          <MaterialCommunityIcons name={mealIcon} size={18} color={mealIconColor} style={{ marginRight: SPACING.sm }} />
-          <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '700', color: '#1F2937', flex: 1 }}>
-            {formatSlotDate(slot.date)} - {mealLabel}
-          </Text>
-        </View>
-        <View style={{ marginLeft: SPACING.sm + 18, gap: 2 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={{ fontSize: FONT_SIZES.xs, color: '#6B7280' }}>{itemName}</Text>
-            <Text style={{ fontSize: FONT_SIZES.xs, color: '#1F2937' }}>
-              {'\u20B9'}{slot.pricing.subtotal}
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {/* Thumbnail */}
+          <Image
+            source={thumbnail}
+            style={{ width: 56, height: 56, borderRadius: 28 }}
+            resizeMode="cover"
+          />
+
+          {/* Details */}
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#111827', marginRight: 6 }}>
+                {itemName}
+              </Text>
+              <View style={{
+                backgroundColor: mealAccentBg,
+                borderRadius: 6,
+                paddingHorizontal: 6,
+                paddingVertical: 1,
+              }}>
+                <Text style={{ fontSize: 10, fontWeight: '700', color: mealAccent }}>{mealLabel.toUpperCase()}</Text>
+              </View>
+            </View>
+            <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
+              {formatSlotDate(slot.date)}{addonCount > 0 ? ` \u00B7 +${addonCount} add-on${addonCount > 1 ? 's' : ''}` : ''}
             </Text>
+            {hasVoucher && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                <MaterialCommunityIcons name="ticket-percent" size={12} color="#16A34A" style={{ marginRight: 3 }} />
+                <Text style={{ fontSize: 11, color: '#16A34A', fontWeight: '600' }}>Voucher Applied</Text>
+              </View>
+            )}
           </View>
-          {slot.pricing.addonsTotal > 0 && (
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: FONT_SIZES.xs, color: '#6B7280' }}>Add-ons</Text>
-              <Text style={{ fontSize: FONT_SIZES.xs, color: '#1F2937' }}>
-                {'\u20B9'}{slot.pricing.addonsTotal}
-              </Text>
-            </View>
-          )}
-          {(slot.pricing.charges.deliveryFee + slot.pricing.charges.serviceFee +
-            slot.pricing.charges.packagingFee + slot.pricing.charges.handlingFee +
-            slot.pricing.charges.taxAmount) > 0 && (
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: FONT_SIZES.xs, color: '#6B7280' }}>Charges</Text>
-              <Text style={{ fontSize: FONT_SIZES.xs, color: '#1F2937' }}>
-                {'\u20B9'}{slot.pricing.charges.deliveryFee + slot.pricing.charges.serviceFee +
-                  slot.pricing.charges.packagingFee + slot.pricing.charges.handlingFee +
-                  slot.pricing.charges.taxAmount}
-              </Text>
-            </View>
-          )}
-          {slot.pricing.discount && (
-            slot.pricing.discount.discountAmount > 0 ||
-            (slot.pricing.discount.addonDiscountAmount || 0) > 0 ||
-            (slot.pricing.discount.deliveryDiscount || 0) > 0 ||
-            (slot.pricing.discount.extraVouchersToIssue || 0) > 0
-          ) && (
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: FONT_SIZES.xs, color: '#10B981' }}>
-                {slot.pricing.discount.discountType === 'FREE_DELIVERY'
-                  ? 'Free Delivery'
-                  : slot.pricing.discount.discountType === 'FREE_EXTRA_VOUCHER'
-                  ? `+${slot.pricing.discount.extraVouchersToIssue} Bonus Voucher${(slot.pricing.discount.extraVouchersToIssue || 0) !== 1 ? 's' : ''}`
-                  : 'Coupon'}
-              </Text>
-              {slot.pricing.discount.discountType !== 'FREE_EXTRA_VOUCHER' && (
-                <Text style={{ fontSize: FONT_SIZES.xs, color: '#10B981' }}>
-                  -{'\u20B9'}{(slot.pricing.discount.discountAmount || 0) + (slot.pricing.discount.addonDiscountAmount || 0) + (slot.pricing.discount.deliveryDiscount || 0)}
-                </Text>
-              )}
-            </View>
-          )}
-          {hasVoucher && (
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: FONT_SIZES.xs, color: '#10B981' }}>Voucher</Text>
-              <Text style={{ fontSize: FONT_SIZES.xs, color: '#10B981' }}>
-                -{'\u20B9'}{slot.pricing.voucherCoverage!.value}
-              </Text>
-            </View>
-          )}
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 }}>
-            <Text style={{ fontSize: FONT_SIZES.xs, fontWeight: '600', color: '#1F2937' }}>Pay</Text>
-            <Text style={{ fontSize: FONT_SIZES.xs, fontWeight: '600', color: slot.pricing.amountToPay === 0 ? '#10B981' : '#1F2937' }}>
+
+          {/* Price */}
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={{
+              fontSize: 15, fontWeight: '700',
+              color: slot.pricing.amountToPay === 0 ? '#10B981' : '#111827',
+            }}>
               {slot.pricing.amountToPay === 0 ? 'Covered' : `\u20B9${slot.pricing.amountToPay}`}
             </Text>
+            {slot.pricing.amountToPay > 0 && slot.pricing.subtotal !== slot.pricing.amountToPay && (
+              <Text style={{ fontSize: 11, color: '#9CA3AF', textDecorationLine: 'line-through', marginTop: 1 }}>
+                {'\u20B9'}{slot.pricing.subtotal + slot.pricing.addonsTotal}
+              </Text>
+            )}
           </View>
         </View>
 
@@ -598,11 +614,17 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text style={{ marginTop: SPACING.md, fontSize: FONT_SIZES.sm, color: '#6B7280' }}>Calculating pricing...</Text>
         </View>
       ) : pricingData ? (
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 56 : 0}
+        >
           <ScrollView
             style={{ flex: 1 }}
             contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           >
             {/* Slot Count Badge */}
             <View style={{ paddingHorizontal: SPACING.lg, paddingTop: SPACING.lg }}>
@@ -622,121 +644,228 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
               </View>
             </View>
 
+            {/* Delivery Address Card */}
+            {(() => {
+              const selectedAddress = addresses.find(a => a.id === localAddressId) || addresses[0];
+              const isHomeLabel = selectedAddress?.label?.toLowerCase() === 'home';
+              return (
+                <View style={{
+                  marginHorizontal: SPACING.lg,
+                  marginTop: SPACING.lg,
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: 14,
+                  padding: SPACING.lg,
+                  borderWidth: 1,
+                  borderColor: '#E5E7EB',
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.sm }}>
+                    <MaterialCommunityIcons name="map-marker-outline" size={20} color="#FE8733" style={{ marginRight: SPACING.sm }} />
+                    <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '700', color: '#1F2937' }}>Delivery Address</Text>
+                  </View>
+                  {!selectedAddress ? (
+                    <TouchableOpacity
+                      onPress={() => navigation.navigate('Address' as any)}
+                      style={{ paddingVertical: 12, alignItems: 'center', borderTopWidth: 1, borderTopColor: '#F3F4F6' }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={{ color: '#FE8733', fontWeight: '600', fontSize: 14 }}>+ Add Delivery Address</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      onPress={() => navigation.navigate('Address' as any)}
+                      style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 4 }}
+                      activeOpacity={0.7}
+                    >
+                      <View style={{
+                        width: 40, height: 40, borderRadius: 10,
+                        backgroundColor: '#FFF7ED',
+                        alignItems: 'center', justifyContent: 'center',
+                        marginRight: 12,
+                      }}>
+                        <MaterialCommunityIcons
+                          name={isHomeLabel ? 'home-outline' : 'briefcase-outline'}
+                          size={22}
+                          color="#FE8733"
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontWeight: '700', color: '#111827' }}>{selectedAddress.label}</Text>
+                        <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }} numberOfLines={2}>
+                          {selectedAddress.addressLine1}
+                          {selectedAddress.locality ? `, ${selectedAddress.locality}` : ''}
+                          {selectedAddress.city ? `, ${selectedAddress.city}` : ''}
+                        </Text>
+                      </View>
+                      <Text style={{ color: '#FE8733', fontWeight: '600', fontSize: 13, marginLeft: 8 }}>Change</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              );
+            })()}
+
             {/* Voucher Card */}
-            {pricingData.vouchers.available > 0 && (
-              <View style={{
-                margin: SPACING.lg,
-                backgroundColor: '#FFFFFF',
-                borderRadius: 14,
-                padding: SPACING.lg,
-                borderWidth: 1,
-                borderColor: '#E5E7EB',
-              }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.md }}>
-                  <MaterialCommunityIcons name="ticket-percent-outline" size={20} color="#10B981" style={{ marginRight: SPACING.sm }} />
-                  <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '700', color: '#1F2937' }}>Vouchers</Text>
-                </View>
-
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm }}>
-                  <Text style={{ fontSize: FONT_SIZES.sm, color: '#6B7280' }}>Available</Text>
-                  <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: '#1F2937' }}>
-                    {pricingData.vouchers.available} voucher{pricingData.vouchers.available !== 1 ? 's' : ''}
-                  </Text>
-                </View>
-
-                {/* Voucher stepper */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={{ fontSize: FONT_SIZES.sm, color: '#6B7280' }}>Use</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <TouchableOpacity
-                      onPress={handleVoucherDecrement}
-                      disabled={vouchersToUse <= 0 || isLoading}
-                      style={{
-                        width: 36, height: 36, borderRadius: 18,
-                        backgroundColor: vouchersToUse <= 0 ? '#F3F4F6' : '#FFF7ED',
-                        alignItems: 'center', justifyContent: 'center',
-                        borderWidth: 1, borderColor: vouchersToUse <= 0 ? '#E5E7EB' : '#FE8733',
-                      }}
-                    >
-                      <MaterialCommunityIcons name="minus" size={20} color={vouchersToUse <= 0 ? '#D1D5DB' : '#FE8733'} />
-                    </TouchableOpacity>
-                    <Text style={{
-                      fontSize: FONT_SIZES.lg, fontWeight: '700', color: '#1F2937',
-                      minWidth: 40, textAlign: 'center',
-                    }}>
-                      {vouchersToUse}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={handleVoucherIncrement}
-                      disabled={vouchersToUse >= maxVouchers || isLoading}
-                      style={{
-                        width: 36, height: 36, borderRadius: 18,
-                        backgroundColor: vouchersToUse >= maxVouchers ? '#F3F4F6' : '#FFF7ED',
-                        alignItems: 'center', justifyContent: 'center',
-                        borderWidth: 1, borderColor: vouchersToUse >= maxVouchers ? '#E5E7EB' : '#FE8733',
-                      }}
-                    >
-                      <MaterialCommunityIcons name="plus" size={20} color={vouchersToUse >= maxVouchers ? '#D1D5DB' : '#FE8733'} />
-                    </TouchableOpacity>
+            {(() => {
+              const noVouchers = pricingData.vouchers.available <= 0;
+              return (
+                <View style={{
+                  margin: SPACING.lg,
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: 14,
+                  padding: SPACING.lg,
+                  borderWidth: 1,
+                  borderColor: '#E5E7EB',
+                  opacity: noVouchers ? 0.6 : 1,
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.md }}>
+                    <MaterialCommunityIcons name="ticket-percent-outline" size={20} color={noVouchers ? '#9CA3AF' : '#10B981'} style={{ marginRight: SPACING.sm }} />
+                    <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '700', color: '#1F2937' }}>Vouchers</Text>
                   </View>
-                </View>
 
-                {vouchersToUse > 0 && (
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: SPACING.sm }}>
-                    <Text style={{ fontSize: FONT_SIZES.xs, color: '#10B981' }}>Remaining after</Text>
-                    <Text style={{ fontSize: FONT_SIZES.xs, fontWeight: '600', color: '#10B981' }}>
-                      {pricingData.vouchers.remainingAfter} voucher{pricingData.vouchers.remainingAfter !== 1 ? 's' : ''}
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm }}>
+                    <Text style={{ fontSize: FONT_SIZES.sm, color: '#6B7280' }}>Available</Text>
+                    <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: noVouchers ? '#9CA3AF' : '#1F2937' }}>
+                      {pricingData.vouchers.available} voucher{pricingData.vouchers.available !== 1 ? 's' : ''}
                     </Text>
                   </View>
-                )}
-              </View>
-            )}
+
+                  {/* Voucher stepper */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: FONT_SIZES.sm, color: '#6B7280' }}>Use</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <TouchableOpacity
+                        onPress={handleVoucherDecrement}
+                        disabled={noVouchers || vouchersToUse <= 0 || isLoading}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        style={{
+                          width: 36, height: 36, borderRadius: 18,
+                          backgroundColor: '#F3F4F6',
+                          alignItems: 'center', justifyContent: 'center',
+                          borderWidth: 1, borderColor: '#E5E7EB',
+                        }}
+                      >
+                        <MaterialCommunityIcons name="minus" size={20} color={(noVouchers || vouchersToUse <= 0) ? '#D1D5DB' : '#FE8733'} />
+                      </TouchableOpacity>
+                      <Text style={{
+                        fontSize: FONT_SIZES.lg, fontWeight: '700', color: noVouchers ? '#9CA3AF' : '#1F2937',
+                        minWidth: 40, textAlign: 'center',
+                      }}>
+                        {vouchersToUse}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={handleVoucherIncrement}
+                        disabled={noVouchers || vouchersToUse >= maxVouchers || isLoading}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        style={{
+                          width: 36, height: 36, borderRadius: 18,
+                          backgroundColor: (noVouchers || vouchersToUse >= maxVouchers) ? '#F3F4F6' : '#FFF7ED',
+                          alignItems: 'center', justifyContent: 'center',
+                          borderWidth: 1, borderColor: (noVouchers || vouchersToUse >= maxVouchers) ? '#E5E7EB' : '#FE8733',
+                        }}
+                      >
+                        <MaterialCommunityIcons name="plus" size={20} color={(noVouchers || vouchersToUse >= maxVouchers) ? '#D1D5DB' : '#FE8733'} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {noVouchers ? (
+                    <Text style={{ fontSize: FONT_SIZES.xs, color: '#9CA3AF', marginTop: SPACING.sm, fontStyle: 'italic' }}>
+                      No vouchers available. Earn vouchers via referrals or subscriptions.
+                    </Text>
+                  ) : vouchersToUse > 0 && (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: SPACING.sm }}>
+                      <Text style={{ fontSize: FONT_SIZES.xs, color: '#10B981' }}>Remaining after</Text>
+                      <Text style={{ fontSize: FONT_SIZES.xs, fontWeight: '600', color: '#10B981' }}>
+                        {pricingData.vouchers.remainingAfter} voucher{pricingData.vouchers.remainingAfter !== 1 ? 's' : ''}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              );
+            })()}
 
             {/* Global Lunch Add-ons (hidden in per-slot mode) */}
-            {!customizePerSlot && hasLunchSlots && (addonsLoading || lunchAddons.length > 0) && (
-              <View style={{
-                marginHorizontal: SPACING.lg,
-                marginBottom: SPACING.lg,
-                backgroundColor: '#FFFFFF',
-                borderRadius: 14,
-                padding: SPACING.lg,
-                borderWidth: 1,
-                borderColor: '#E5E7EB',
-              }}>
-                <AddonSelector
-                  availableAddons={lunchAddons}
-                  selectedAddons={selectedLunchAddons}
-                  onAdd={handleLunchAddonAdd}
-                  onRemove={handleLunchAddonRemove}
-                  onQuantityChange={handleLunchAddonQuantityChange}
-                  loading={addonsLoading}
-                  title={`Lunch Add-ons (for ${selectedSlots.filter(s => s.mealWindow === 'LUNCH').length} meal${selectedSlots.filter(s => s.mealWindow === 'LUNCH').length > 1 ? 's' : ''})`}
-                />
-              </View>
-            )}
+            {!customizePerSlot && hasLunchSlots && (() => {
+              const lunchSlotCount = selectedSlots.filter(s => s.mealWindow === 'LUNCH').length;
+              const noAddons = !addonsLoading && lunchAddons.length === 0;
+              return (
+                <View style={{
+                  marginHorizontal: SPACING.lg,
+                  marginBottom: SPACING.lg,
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: 14,
+                  padding: SPACING.lg,
+                  borderWidth: 1,
+                  borderColor: '#E5E7EB',
+                  opacity: noAddons ? 0.6 : 1,
+                }}>
+                  {noAddons ? (
+                    <>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.sm }}>
+                        <MaterialCommunityIcons name="food-outline" size={20} color="#9CA3AF" style={{ marginRight: SPACING.sm }} />
+                        <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '700', color: '#1F2937' }}>
+                          Lunch Add-ons{lunchSlotCount > 0 ? ` (for ${lunchSlotCount} meal${lunchSlotCount > 1 ? 's' : ''})` : ''}
+                        </Text>
+                      </View>
+                      <Text style={{ fontSize: FONT_SIZES.xs, color: '#9CA3AF', fontStyle: 'italic' }}>
+                        No add-ons available for this kitchen.
+                      </Text>
+                    </>
+                  ) : (
+                    <AddonSelector
+                      availableAddons={lunchAddons}
+                      selectedAddons={selectedLunchAddons}
+                      onAdd={handleLunchAddonAdd}
+                      onRemove={handleLunchAddonRemove}
+                      onQuantityChange={handleLunchAddonQuantityChange}
+                      loading={addonsLoading}
+                      title={`Lunch Add-ons (for ${lunchSlotCount} meal${lunchSlotCount > 1 ? 's' : ''})`}
+                    />
+                  )}
+                </View>
+              );
+            })()}
 
             {/* Global Dinner Add-ons (hidden in per-slot mode) */}
-            {!customizePerSlot && hasDinnerSlots && (addonsLoading || dinnerAddons.length > 0) && (
-              <View style={{
-                marginHorizontal: SPACING.lg,
-                marginBottom: SPACING.lg,
-                backgroundColor: '#FFFFFF',
-                borderRadius: 14,
-                padding: SPACING.lg,
-                borderWidth: 1,
-                borderColor: '#E5E7EB',
-              }}>
-                <AddonSelector
-                  availableAddons={dinnerAddons}
-                  selectedAddons={selectedDinnerAddons}
-                  onAdd={handleDinnerAddonAdd}
-                  onRemove={handleDinnerAddonRemove}
-                  onQuantityChange={handleDinnerAddonQuantityChange}
-                  loading={addonsLoading}
-                  title={`Dinner Add-ons (for ${selectedSlots.filter(s => s.mealWindow === 'DINNER').length} meal${selectedSlots.filter(s => s.mealWindow === 'DINNER').length > 1 ? 's' : ''})`}
-                />
-              </View>
-            )}
+            {!customizePerSlot && hasDinnerSlots && (() => {
+              const dinnerSlotCount = selectedSlots.filter(s => s.mealWindow === 'DINNER').length;
+              const noAddons = !addonsLoading && dinnerAddons.length === 0;
+              return (
+                <View style={{
+                  marginHorizontal: SPACING.lg,
+                  marginBottom: SPACING.lg,
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: 14,
+                  padding: SPACING.lg,
+                  borderWidth: 1,
+                  borderColor: '#E5E7EB',
+                  opacity: noAddons ? 0.6 : 1,
+                }}>
+                  {noAddons ? (
+                    <>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.sm }}>
+                        <MaterialCommunityIcons name="food-outline" size={20} color="#9CA3AF" style={{ marginRight: SPACING.sm }} />
+                        <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '700', color: '#1F2937' }}>
+                          Dinner Add-ons{dinnerSlotCount > 0 ? ` (for ${dinnerSlotCount} meal${dinnerSlotCount > 1 ? 's' : ''})` : ''}
+                        </Text>
+                      </View>
+                      <Text style={{ fontSize: FONT_SIZES.xs, color: '#9CA3AF', fontStyle: 'italic' }}>
+                        No add-ons available for this kitchen.
+                      </Text>
+                    </>
+                  ) : (
+                    <AddonSelector
+                      availableAddons={dinnerAddons}
+                      selectedAddons={selectedDinnerAddons}
+                      onAdd={handleDinnerAddonAdd}
+                      onRemove={handleDinnerAddonRemove}
+                      onQuantityChange={handleDinnerAddonQuantityChange}
+                      loading={addonsLoading}
+                      title={`Dinner Add-ons (for ${dinnerSlotCount} meal${dinnerSlotCount > 1 ? 's' : ''})`}
+                    />
+                  )}
+                </View>
+              );
+            })()}
 
             {/* Customize per day toggle */}
             {addonsFetched && (lunchAddons.length > 0 || dinnerAddons.length > 0) && selectedSlots.length > 1 && (
@@ -795,86 +924,167 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
               borderWidth: 1,
               borderColor: '#E5E7EB',
             }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.md }}>
-                <MaterialCommunityIcons name="receipt" size={20} color="#FE8733" style={{ marginRight: SPACING.sm }} />
-                <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '700', color: '#1F2937' }}>Summary</Text>
-              </View>
+              {/* Collapsed Header — always visible (tap to toggle) */}
+              <TouchableOpacity
+                onPress={() => setSummaryExpanded(!summaryExpanded)}
+                activeOpacity={0.7}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827' }}>To Pay</Text>
+                  <MaterialCommunityIcons
+                    name="information-outline"
+                    size={18}
+                    color="#9CA3AF"
+                    style={{ marginLeft: 6 }}
+                  />
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  {isLoading ? (
+                    <ActivityIndicator size="small" color="#FE8733" />
+                  ) : (
+                    <Text style={{
+                      fontSize: 18, fontWeight: '700',
+                      color: pricingData.summary.totalAmountToPay === 0 ? '#10B981' : '#111827',
+                    }}>
+                      {pricingData.summary.totalAmountToPay === 0
+                        ? 'Fully Covered'
+                        : `₹${pricingData.summary.totalAmountToPay.toFixed(2)}`}
+                    </Text>
+                  )}
+                  <MaterialCommunityIcons
+                    name="chevron-down"
+                    size={20}
+                    color="#9CA3AF"
+                    style={{
+                      marginLeft: 6,
+                      transform: [{ rotate: summaryExpanded ? '180deg' : '0deg' }],
+                    }}
+                  />
+                </View>
+              </TouchableOpacity>
 
-              <View style={{ gap: SPACING.xs }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <Text style={{ fontSize: FONT_SIZES.sm, color: '#6B7280' }}>
+              {/* Expanded Breakdown */}
+              {summaryExpanded && (
+              <View style={{ marginTop: 14 }}>
+                {/* Subtotal */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <Text style={{ fontSize: 14, color: '#374151' }}>
                     Subtotal ({pricingData.totalSlots} meal{pricingData.totalSlots > 1 ? 's' : ''})
                   </Text>
-                  <Text style={{ fontSize: FONT_SIZES.sm, color: '#1F2937' }}>
-                    {'\u20B9'}{pricingData.summary.totalSubtotal}
+                  <Text style={{ fontSize: 14, color: '#374151' }}>
+                    {'\u20B9'}{pricingData.summary.totalSubtotal.toFixed(2)}
                   </Text>
                 </View>
 
+                {/* Add-ons */}
                 {pricingData.summary.totalAddons > 0 && (
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={{ fontSize: FONT_SIZES.sm, color: '#6B7280' }}>Add-ons</Text>
-                    <Text style={{ fontSize: FONT_SIZES.sm, color: '#1F2937' }}>
-                      {'\u20B9'}{pricingData.summary.totalAddons}
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <Text style={{ fontSize: 14, color: '#374151' }}>Add-ons</Text>
+                    <Text style={{ fontSize: 14, color: '#374151' }}>
+                      {'\u20B9'}{pricingData.summary.totalAddons.toFixed(2)}
                     </Text>
                   </View>
                 )}
 
-                {pricingData.summary.totalCharges > 0 && (
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={{ fontSize: FONT_SIZES.sm, color: '#6B7280' }}>Total Charges</Text>
-                    <Text style={{ fontSize: FONT_SIZES.sm, color: '#1F2937' }}>
-                      {'\u20B9'}{pricingData.summary.totalCharges}
-                    </Text>
-                  </View>
-                )}
+                {/* Charges & Taxes Breakdown */}
+                {pricingData.summary.totalCharges > 0 && (() => {
+                  const agg = pricingData.perSlotBreakdown.reduce(
+                    (acc, slot) => {
+                      const c: any = slot.pricing.charges;
+                      acc.deliveryFee += c.deliveryFee || 0;
+                      acc.serviceFee += c.serviceFee || 0;
+                      acc.packagingFee += c.packagingFee || 0;
+                      acc.handlingFee += c.handlingFee || 0;
+                      acc.platformFee += c.platformFee || 0;
+                      acc.surgeFee += c.surgeFee || 0;
+                      acc.smallOrderFee += c.smallOrderFee || 0;
+                      acc.lateNightFee += c.lateNightFee || 0;
+                      acc.taxAmount += c.taxAmount || 0;
+                      if (!acc.taxRate && c.taxBreakdown?.[0]?.rate) acc.taxRate = c.taxBreakdown[0].rate;
+                      return acc;
+                    },
+                    { deliveryFee: 0, serviceFee: 0, packagingFee: 0, handlingFee: 0, platformFee: 0, surgeFee: 0, smallOrderFee: 0, lateNightFee: 0, taxAmount: 0, taxRate: 0 as number }
+                  );
+                  const rowStyle = { flexDirection: 'row' as const, justifyContent: 'space-between' as const, marginBottom: 6 };
+                  const labelStyle = { fontSize: 13, color: '#6B7280' };
+                  const valueStyle = { fontSize: 13, color: '#374151' };
+                  const Row = ({ label, value }: { label: string; value: number }) => (
+                    <View style={rowStyle}>
+                      <Text style={labelStyle}>{label}</Text>
+                      <Text style={valueStyle}>{'\u20B9'}{value.toFixed(2)}</Text>
+                    </View>
+                  );
+                  return (
+                    <>
+                      {agg.deliveryFee > 0 && <Row label="Delivery Fee" value={agg.deliveryFee} />}
+                      {agg.serviceFee > 0 && <Row label="Service Charge" value={agg.serviceFee} />}
+                      {agg.packagingFee > 0 && <Row label="Packaging" value={agg.packagingFee} />}
+                      {agg.handlingFee > 0 && <Row label="Handling Fee" value={agg.handlingFee} />}
+                      {agg.platformFee > 0 && <Row label="Platform Fee" value={agg.platformFee} />}
+                      {agg.surgeFee > 0 && <Row label="Surge Fee" value={agg.surgeFee} />}
+                      {agg.smallOrderFee > 0 && <Row label="Small Order Fee" value={agg.smallOrderFee} />}
+                      {agg.lateNightFee > 0 && <Row label="Late Night Fee" value={agg.lateNightFee} />}
+                      {agg.taxAmount > 0 && <Row label={`GST${agg.taxRate ? ` (${agg.taxRate}%)` : ''}`} value={agg.taxAmount} />}
+                    </>
+                  );
+                })()}
 
+                {/* Coupon Discount */}
                 {pricingData.summary.totalDiscount > 0 && (
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={{ fontSize: FONT_SIZES.sm, color: '#10B981' }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <Text style={{ fontSize: 14, color: '#10B981' }}>
                       {pricingData.summary.appliedCouponType === 'FREE_DELIVERY'
                         ? `Free Delivery${appliedCoupon ? ` (${appliedCoupon})` : ''}`
                         : `Coupon Discount${appliedCoupon ? ` (${appliedCoupon})` : ''}`}
                     </Text>
-                    <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: '#10B981' }}>
-                      -{'\u20B9'}{pricingData.summary.totalDiscount}
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#10B981' }}>
+                      -{'\u20B9'}{pricingData.summary.totalDiscount.toFixed(2)}
                     </Text>
                   </View>
                 )}
 
+                {/* Bonus Vouchers */}
                 {(pricingData.summary.totalExtraVouchers || 0) > 0 && (
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={{ fontSize: FONT_SIZES.sm, color: '#10B981' }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <Text style={{ fontSize: 14, color: '#2563EB' }}>
                       Bonus Vouchers{appliedCoupon ? ` (${appliedCoupon})` : ''}
                     </Text>
-                    <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: '#10B981' }}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#2563EB' }}>
                       +{pricingData.summary.totalExtraVouchers}
                     </Text>
                   </View>
                 )}
 
+                {/* Voucher Savings */}
                 {pricingData.summary.voucherSavings > 0 && (
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={{ fontSize: FONT_SIZES.sm, color: '#10B981' }}>Voucher Savings</Text>
-                    <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: '#10B981' }}>
-                      -{'\u20B9'}{pricingData.summary.voucherSavings}
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <Text style={{ fontSize: 14, color: '#10B981' }}>
+                      Voucher{pricingData.summary.vouchersApplied > 1 ? `s (${pricingData.summary.vouchersApplied} used)` : ''}
+                    </Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#10B981' }}>
+                      -{'\u20B9'}{pricingData.summary.voucherSavings.toFixed(2)}
                     </Text>
                   </View>
                 )}
 
-                <View style={{ height: 1, backgroundColor: '#E5E7EB', marginVertical: SPACING.xs }} />
+                {/* Dashed divider */}
+                <View style={{ borderTopWidth: 1, borderTopColor: '#E5E7EB', borderStyle: 'dashed', marginVertical: 10 }} />
 
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '700', color: '#1F2937' }}>Total to Pay</Text>
+                {/* Total Amount */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827' }}>Total Amount:</Text>
                   <Text style={{
-                    fontSize: FONT_SIZES.base, fontWeight: '700',
-                    color: pricingData.summary.totalAmountToPay === 0 ? '#10B981' : '#1F2937',
+                    fontSize: 18, fontWeight: '700',
+                    color: pricingData.summary.totalAmountToPay === 0 ? '#10B981' : '#111827',
                   }}>
                     {pricingData.summary.totalAmountToPay === 0
                       ? 'Fully Covered'
-                      : `\u20B9${pricingData.summary.totalAmountToPay}`}
+                      : `\u20B9${pricingData.summary.totalAmountToPay.toFixed(2)}`}
                   </Text>
                 </View>
               </View>
+              )}
             </View>
 
             {/* Coupon Section */}
@@ -1022,88 +1232,238 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
               </View>
             )}
 
-            {/* Special Instructions */}
+            {/* Booking Instructions Card */}
             <View style={{
               marginHorizontal: SPACING.lg,
               marginBottom: SPACING.lg,
               backgroundColor: '#FFFFFF',
               borderRadius: 14,
-              padding: SPACING.lg,
+              paddingHorizontal: SPACING.lg,
+              paddingVertical: 4,
               borderWidth: 1,
               borderColor: '#E5E7EB',
             }}>
-              <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: '#1F2937', marginBottom: SPACING.sm }}>
-                Special Instructions (optional)
-              </Text>
-              <TextInput
-                value={specialInstructions}
-                onChangeText={setSpecialInstructions}
-                placeholder="e.g., Less spicy, no onion..."
-                placeholderTextColor="#9CA3AF"
-                multiline
-                maxLength={500}
-                style={{
-                  fontSize: FONT_SIZES.sm,
-                  color: '#1F2937',
-                  borderWidth: 1,
-                  borderColor: '#E5E7EB',
-                  borderRadius: 10,
-                  padding: SPACING.md,
-                  minHeight: 60,
-                  textAlignVertical: 'top',
-                }}
-              />
+              {/* Cooking Instructions */}
+              <TouchableOpacity
+                onPress={() => setShowCookingInput(!showCookingInput)}
+                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}
+              >
+                <View
+                  style={{
+                    width: 40, height: 40, borderRadius: 20,
+                    alignItems: 'center', justifyContent: 'center', marginRight: 12,
+                    backgroundColor: showCookingInput || cookingInstructions ? '#FFF7ED' : '#F3F4F6',
+                  }}
+                >
+                  <MaterialCommunityIcons
+                    name="note-edit-outline"
+                    size={20}
+                    color={showCookingInput || cookingInstructions ? '#FE8733' : '#6B7280'}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827' }}>Cooking Instructions</Text>
+                  <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }} numberOfLines={1}>
+                    {cookingInstructions || 'Add special requests for your meal'}
+                  </Text>
+                </View>
+                <MaterialCommunityIcons
+                  name="chevron-down"
+                  size={18}
+                  color="#9CA3AF"
+                  style={{ transform: [{ rotate: showCookingInput ? '180deg' : '0deg' }] }}
+                />
+              </TouchableOpacity>
+              {showCookingInput && (
+                <TextInput
+                  value={cookingInstructions}
+                  onChangeText={setCookingInstructions}
+                  placeholder="E.g., Less spicy, no onions..."
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                  maxLength={500}
+                  autoCorrect
+                  autoCapitalize="sentences"
+                  blurOnSubmit={false}
+                  returnKeyType="default"
+                  style={{
+                    fontSize: 14,
+                    color: '#111827',
+                    borderWidth: 1,
+                    borderColor: '#E5E7EB',
+                    borderRadius: 12,
+                    paddingHorizontal: 14,
+                    paddingVertical: Platform.OS === 'ios' ? 12 : 10,
+                    minHeight: 60,
+                    marginTop: 8,
+                    marginBottom: 8,
+                    textAlignVertical: 'top',
+                  }}
+                />
+              )}
+
+              {/* Leave at Door */}
+              <TouchableOpacity
+                onPress={() => setLeaveAtDoor(!leaveAtDoor)}
+                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}
+              >
+                <View
+                  style={{
+                    width: 40, height: 40, borderRadius: 20,
+                    alignItems: 'center', justifyContent: 'center', marginRight: 12,
+                    backgroundColor: leaveAtDoor ? '#FFF7ED' : '#F3F4F6',
+                  }}
+                >
+                  <MaterialCommunityIcons
+                    name="door-open"
+                    size={20}
+                    color={leaveAtDoor ? '#FE8733' : '#6B7280'}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827' }}>Leave at Door</Text>
+                  <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>Drop off without ringing the bell</Text>
+                </View>
+                <View
+                  style={{
+                    width: 20, height: 20, borderRadius: 4,
+                    alignItems: 'center', justifyContent: 'center',
+                    borderWidth: 1.5,
+                    borderColor: leaveAtDoor ? '#FE8733' : '#D1D5DB',
+                    backgroundColor: leaveAtDoor ? '#FE8733' : 'white',
+                  }}
+                >
+                  {leaveAtDoor && (
+                    <Text style={{ color: 'white', fontSize: 11, fontWeight: '700' }}>{'✓'}</Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+
+              {/* Do Not Contact */}
+              <TouchableOpacity
+                onPress={() => setDoNotContact(!doNotContact)}
+                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12 }}
+              >
+                <View
+                  style={{
+                    width: 40, height: 40, borderRadius: 20,
+                    alignItems: 'center', justifyContent: 'center', marginRight: 12,
+                    backgroundColor: doNotContact ? '#FFF7ED' : '#F3F4F6',
+                  }}
+                >
+                  <MaterialCommunityIcons
+                    name="bell-off-outline"
+                    size={20}
+                    color={doNotContact ? '#FE8733' : '#6B7280'}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827' }}>Do Not Contact</Text>
+                  <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>Avoid calls or messages on delivery</Text>
+                </View>
+                <View
+                  style={{
+                    width: 20, height: 20, borderRadius: 4,
+                    alignItems: 'center', justifyContent: 'center',
+                    borderWidth: 1.5,
+                    borderColor: doNotContact ? '#FE8733' : '#D1D5DB',
+                    backgroundColor: doNotContact ? '#FE8733' : 'white',
+                  }}
+                >
+                  {doNotContact && (
+                    <Text style={{ color: 'white', fontSize: 11, fontWeight: '700' }}>{'✓'}</Text>
+                  )}
+                </View>
+              </TouchableOpacity>
             </View>
           </ScrollView>
 
-          {/* Sticky CTA Button */}
-          <View style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            backgroundColor: '#FFFFFF',
-            paddingHorizontal: SPACING.xl,
-            paddingVertical: SPACING.md,
-            paddingBottom: SPACING.md + insets.bottom,
-            borderTopWidth: 1,
-            borderTopColor: '#E5E7EB',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 4,
-          }}>
-            <TouchableOpacity
-              onPress={handleScheduleAndPay}
-              disabled={isSubmitting || isLoading || (hasConflicts && !allowDuplicates && pricingData.conflicts.duplicates.length > 0) || (hasConflicts && !allowAutoOrderConflict && pricingData.conflicts.autoOrderConflicts.length > 0)}
-              style={{
-                backgroundColor: isSubmitting || isLoading ? '#fbb36b' : '#FE8733',
-                borderRadius: 12,
-                paddingVertical: SPACING.md,
-                alignItems: 'center',
-                flexDirection: 'row',
-                justifyContent: 'center',
-              }}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <>
-                  <MaterialCommunityIcons
-                    name={pricingData.summary.totalAmountToPay === 0 ? 'check-circle-outline' : 'credit-card-outline'}
-                    size={20}
-                    color="white"
-                    style={{ marginRight: SPACING.sm }}
-                  />
-                  <Text style={{ color: 'white', fontSize: FONT_SIZES.base, fontWeight: '700' }}>
-                    {pricingData.summary.totalAmountToPay === 0
-                      ? `Schedule ${pricingData.totalSlots} Meal${pricingData.totalSlots > 1 ? 's' : ''} (Fully Covered)`
-                      : `Schedule & Pay \u20B9${pricingData.summary.totalAmountToPay}`}
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
+          {/* Sticky Bottom Bar */}
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'white',
+              paddingBottom: Math.max(insets.bottom + 8, 16),
+              paddingTop: 12,
+              paddingHorizontal: 20,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: -2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 8,
+              elevation: 8,
+            }}
+          >
+            {(() => {
+              const isDisabled = isSubmitting || isLoading
+                || (hasConflicts && !allowDuplicates && pricingData.conflicts.duplicates.length > 0)
+                || (hasConflicts && !allowAutoOrderConflict && pricingData.conflicts.autoOrderConflicts.length > 0);
+              const isCovered = pricingData.summary.totalAmountToPay === 0;
+              return (
+                <View
+                  style={{
+                    backgroundColor: '#FE8733',
+                    borderRadius: 28,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    height: 56,
+                    paddingLeft: 20,
+                    paddingRight: 6,
+                    opacity: isDisabled ? 0.7 : 1,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', flex: 1 }}>
+                    {isCovered ? (
+                      <Text style={{ color: 'white', fontSize: 16, fontWeight: '700' }}>
+                        Fully Covered
+                      </Text>
+                    ) : (
+                      <>
+                        <Text style={{ color: 'white', fontSize: 20, fontWeight: '700', marginRight: 6 }}>
+                          {'\u20B9'}{pricingData.summary.totalAmountToPay.toFixed(2)}
+                        </Text>
+                        <Text style={{ color: 'white', fontSize: 13, opacity: 0.9 }}>Total</Text>
+                      </>
+                    )}
+                  </View>
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: 'white',
+                      borderRadius: 22,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      height: 44,
+                      paddingHorizontal: 20,
+                      minWidth: 130,
+                    }}
+                    onPress={handleScheduleAndPay}
+                    disabled={isDisabled}
+                    activeOpacity={0.8}
+                  >
+                    {isSubmitting ? (
+                      <ActivityIndicator size="small" color="#FE8733" />
+                    ) : (
+                      <>
+                        <Text style={{ color: '#FE8733', fontWeight: '700', fontSize: 15, marginRight: 6 }}>
+                          {isCovered
+                            ? `Schedule ${pricingData.totalSlots}`
+                            : 'Schedule & Pay'}
+                        </Text>
+                        <MaterialCommunityIcons
+                          name={isCovered ? 'check' : 'arrow-right'}
+                          size={16}
+                          color="#FE8733"
+                        />
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              );
+            })()}
           </View>
         </KeyboardAvoidingView>
       ) : null}

@@ -1,10 +1,19 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import apiService from '../services/api.service';
 import notificationService from '../services/notification.service';
 import dataPreloader from '../services/dataPreloader.service';
-import { hasValidToken, storeAuthToken, clearAuthToken } from '../services/auth.token.service';
+import {
+  hasValidToken,
+  storeAuthToken,
+  clearAuthToken,
+  refreshAuthToken,
+  isTokenExpiringSoon,
+} from '../services/auth.token.service';
+import { authEvents } from '../services/auth.events';
+
+const API_BASE_URL = 'https://d31od4t2t5epcb.cloudfront.net';
 
 // ============================================
 // OFFLINE MODE FLAG - Set to false to enable backend
@@ -128,12 +137,56 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setAuthError(null);
           }
         }
+      } else {
+        // No JWT, but if OTP was verified for a new user we cached a pending
+        // profile with a registrationToken. Restore it so the user resumes
+        // onboarding instead of being sent back to the OTP screen.
+        // Otherwise leave the cache alone — it acts as a fallback if a future
+        // sign-in restores the same user, and removing it here used to
+        // amplify auto-logout when the token was wiped by a transient error.
+        const storedUser = await AsyncStorage.getItem('user_profile');
+        if (storedUser) {
+          const parsedUser: UserProfile = JSON.parse(storedUser);
+          if (parsedUser.isNewUser && parsedUser.registrationToken && !parsedUser.isOnboarded) {
+            setUser(parsedUser);
+          }
+        }
       }
-      // No token = not authenticated, show login
       setIsLoading(false);
     };
 
     initializeAuth();
+  }, []);
+
+  // When the API layer detects a definitive auth failure (refresh endpoint
+  // returned 401/403), drop the in-memory user so the navigator routes to
+  // login. Transient network failures do NOT fire this event.
+  useEffect(() => {
+    const unsubscribe = authEvents.onAuthExpired(() => {
+      console.log('[UserContext] Auth expired — clearing user state');
+      setUser(null);
+      setIsGuest(false);
+      AsyncStorage.removeItem('user_profile').catch(() => {});
+    });
+    return unsubscribe;
+  }, []);
+
+  // Refresh the token when the app returns to the foreground after being
+  // backgrounded long enough for it to be near/past expiry. Without this,
+  // the first request on resume hits 401 and triggers reactive refresh —
+  // which is exactly the scenario where transient errors used to log users out.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', async (state) => {
+      if (state !== 'active') return;
+      try {
+        if (await isTokenExpiringSoon(10 * 60 * 1000)) {
+          await refreshAuthToken(API_BASE_URL);
+        }
+      } catch {
+        // Silent — response interceptor handles 401 via the same singleton.
+      }
+    });
+    return () => sub.remove();
   }, []);
 
   // Fetch user profile from /auth/me endpoint
@@ -148,8 +201,12 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return { userProfile: null };
     }
 
-    const response = await apiService.getProfile();
-    const userData = response.data?.user;
+    // Use /profile/status (not /profile) so we get the backend's authoritative
+    // isComplete flag. /profile alone has no completion field, which previously
+    // caused half-onboarded users to be marked onboarded on app relaunch.
+    const response = await apiService.getProfileStatus();
+    const userData = response.data?.profile;
+    const isComplete = !!response.data?.isComplete;
     if (userData) {
       const profileData: UserProfile = {
         id: userData._id,
@@ -158,8 +215,8 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         phone: userData.phone || undefined,
         profileImage: userData.profileImage || undefined,
         dietaryPreferences: userData.dietaryPreferences || undefined,
-        isOnboarded: true,
-        isProfileComplete: true,
+        isOnboarded: isComplete,
+        isProfileComplete: isComplete,
         isNewUser: false,
         createdAt: userData.createdAt ? new Date(userData.createdAt) : undefined,
       };
@@ -257,6 +314,9 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         registrationToken: registrationToken || undefined,
       };
       setUser(newUserProfile);
+      // Persist so a kill/restart between OTP and onboarding completion
+      // doesn't force the user to re-verify OTP.
+      await AsyncStorage.setItem('user_profile', JSON.stringify(newUserProfile));
     }
 
     // Register FCM token after successful login (fire-and-forget)

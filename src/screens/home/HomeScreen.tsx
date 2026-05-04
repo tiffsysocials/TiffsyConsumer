@@ -24,13 +24,19 @@ import { useNotifications } from '../../context/NotificationContext';
 import { useBanners } from '../../context/BannerContext';
 import { useUser } from '../../context/UserContext';
 import BannerSliderWidget from '../../components/BannerSliderWidget';
-import apiService, { KitchenInfo, MenuItem, AddonItem, extractKitchensFromResponse } from '../../services/api.service';
+import apiService, { KitchenInfo, MenuItem, AddonItem, Order, extractKitchensFromResponse } from '../../services/api.service';
 import dataPreloader from '../../services/dataPreloader.service';
 import MealWindowModal from '../../components/MealWindowModal';
+import ActiveOrderBanner from '../../components/ActiveOrderBanner';
+import ConfirmationModal from '../../components/ConfirmationModal';
+import {
+  getTodaysActiveBasicOrders,
+  getActiveOrderBannerContent,
+} from '../../utils/todaysOrdersBanner';
 import { getMealWindowInfo as getWindowInfo, isMealWindowAvailable } from '../../utils/timeUtils';
 import NotificationBell from '../../components/NotificationBell';
 import { useResponsive, useScaling } from '../../hooks/useResponsive';
-import { SPACING } from '../../constants/spacing';
+import { SPACING, TOUCH_TARGETS } from '../../constants/spacing';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { FONT_SIZES } from '../../constants/typography';
 import VoucherPaymentModal from '../../components/VoucherPaymentModal';
@@ -60,6 +66,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const {
     cartItems,
     replaceCart,
+    removeItem,
     updateQuantity: updateCartItemQuantity,
     setKitchenId,
     setMenuType,
@@ -106,6 +113,12 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const [autoOrderTextIndex, setAutoOrderTextIndex] = useState(0);
   const autoOrderSlideAnim = useRef(new Animated.Value(0)).current;
 
+  // Today's active basic orders — drives the "Your lunch/dinner is coming" banner
+  const [todaysActiveOrders, setTodaysActiveOrders] = useState<Order[]>([]);
+
+  // Login prompt for guests trying to add to cart or buy now
+  const [showGuestLoginPrompt, setShowGuestLoginPrompt] = useState(false);
+
   // Background data preload tracking
   const hasPreloadedRef = useRef(false);
 
@@ -122,43 +135,49 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   // Addons must come from the API with valid MongoDB ObjectIds
   // If no addons are returned from API, we show an empty list
 
-  // Get meal window info based on order cutoff times
-  // Defaults match backend system config: LUNCH cutoff 11:00, DINNER cutoff 21:00
+  // Get meal window info — driven by backend `canOrder` + `orderCutoffTime` from menu API.
+  // Pre-menu fallback uses time-of-day comparison against parsed backend cutoffs (or 11:00 / 21:00 if unknown).
+  // The "next window opens at" time (6:00 AM / 6:00 PM) is still a frontend default — backend has no
+  // window-open field. Replace once backend exposes `ordersOpenAt` / kitchen schedule.
   const mealWindowInfo = useMemo(() => {
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinutes = now.getMinutes();
-    const currentTotalMinutes = currentHour * 60 + currentMinutes;
+    const lunch = menuData?.lunch;
+    const dinner = menuData?.dinner;
 
-    // Default cutoff times matching backend config
-    const LUNCH_ORDER_CUTOFF = 11 * 60; // 11:00 AM = 660 min
-    const DINNER_ORDER_CUTOFF = 21 * 60; // 9:00 PM = 1260 min
+    const parseTimeToMinutes = (timeStr: string | undefined): number | null => {
+      if (!timeStr) return null;
+      const m = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+      if (!m) return null;
+      let hours = parseInt(m[1], 10);
+      const minutes = parseInt(m[2], 10);
+      const meridiem = m[3]?.toUpperCase();
+      if (meridiem === 'PM' && hours !== 12) hours += 12;
+      else if (meridiem === 'AM' && hours === 12) hours = 0;
+      return hours * 60 + minutes;
+    };
 
-    console.log('[HomeScreen] Calculating meal window info (cutoff-aware)');
-    console.log('[HomeScreen] Current time:', now.toLocaleString());
-    console.log('[HomeScreen] Current total minutes:', currentTotalMinutes);
+    // Once menu is loaded, prefer the backend's canOrder field — it accounts for
+    // kitchen-specific cutoffs, timezone, etc.
+    if (menuData) {
+      const lunchCanOrder = lunch?.canOrder !== false;
+      const dinnerCanOrder = dinner?.canOrder !== false;
+      const dinnerCutoffLabel = dinner?.orderCutoffTime || '6:00 PM';
 
-    if (currentTotalMinutes < LUNCH_ORDER_CUTOFF) {
-      // Before 11:00 AM -> lunch ordering still open
-      console.log('[HomeScreen] Before lunch cutoff (11:00) -> Lunch');
-      return {
-        activeMeal: 'lunch' as MealType,
-        isWindowOpen: true,
-        nextMealWindow: 'dinner' as MealType,
-        nextMealWindowTime: '6:00 PM',
-      };
-    } else if (currentTotalMinutes < DINNER_ORDER_CUTOFF) {
-      // 11:00 AM to 9:00 PM -> lunch closed, dinner available
-      console.log('[HomeScreen] Past lunch cutoff, before dinner cutoff (21:00) -> Dinner');
-      return {
-        activeMeal: 'dinner' as MealType,
-        isWindowOpen: true,
-        nextMealWindow: 'lunch' as MealType,
-        nextMealWindowTime: '6:00 AM tomorrow',
-      };
-    } else {
-      // After 9:00 PM -> all closed, next is tomorrow's lunch
-      console.log('[HomeScreen] Past all cutoffs -> Tomorrow Lunch');
+      if (lunchCanOrder) {
+        return {
+          activeMeal: 'lunch' as MealType,
+          isWindowOpen: true,
+          nextMealWindow: 'dinner' as MealType,
+          nextMealWindowTime: dinnerCutoffLabel,
+        };
+      }
+      if (dinnerCanOrder) {
+        return {
+          activeMeal: 'dinner' as MealType,
+          isWindowOpen: true,
+          nextMealWindow: 'lunch' as MealType,
+          nextMealWindowTime: '6:00 AM tomorrow',
+        };
+      }
       return {
         activeMeal: 'lunch' as MealType,
         isWindowOpen: false,
@@ -166,7 +185,37 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
         nextMealWindowTime: '6:00 AM tomorrow',
       };
     }
-  }, [focusCount]);
+
+    // Pre-load fallback: time-based comparison against backend cutoff strings if present, else defaults.
+    const now = new Date();
+    const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
+    const lunchCutoffMin = parseTimeToMinutes(lunch?.orderCutoffTime) ?? 11 * 60;
+    const dinnerCutoffMin = parseTimeToMinutes(dinner?.orderCutoffTime) ?? 21 * 60;
+    const dinnerCutoffLabel = dinner?.orderCutoffTime || '6:00 PM';
+
+    if (currentTotalMinutes < lunchCutoffMin) {
+      return {
+        activeMeal: 'lunch' as MealType,
+        isWindowOpen: true,
+        nextMealWindow: 'dinner' as MealType,
+        nextMealWindowTime: dinnerCutoffLabel,
+      };
+    }
+    if (currentTotalMinutes < dinnerCutoffMin) {
+      return {
+        activeMeal: 'dinner' as MealType,
+        isWindowOpen: true,
+        nextMealWindow: 'lunch' as MealType,
+        nextMealWindowTime: '6:00 AM tomorrow',
+      };
+    }
+    return {
+      activeMeal: 'lunch' as MealType,
+      isWindowOpen: false,
+      nextMealWindow: 'lunch' as MealType,
+      nextMealWindowTime: '6:00 AM tomorrow',
+    };
+  }, [menuData, focusCount]);
 
 
   // Initialize meal tab based on current time and show modal if outside window
@@ -468,6 +517,38 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
         setShowAutoOrderNotification(false);
       }
     }, [autoOrderConfigs])
+  );
+
+  // Load today's active orders (cache-first) for the "Your meal is coming" banner
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      const loadTodaysOrders = async () => {
+        try {
+          const cached = dataPreloader.getCachedOrders();
+          if (cached && !dataPreloader.isCacheExpired('orders')) {
+            if (!cancelled) setTodaysActiveOrders(getTodaysActiveBasicOrders(cached));
+            return;
+          }
+          const response = await apiService.getMyOrders({ limit: 20 });
+          const data = response.data;
+          if (!cancelled && response.success && data && typeof data !== 'string' && data.orders) {
+            setTodaysActiveOrders(getTodaysActiveBasicOrders(data.orders));
+          }
+        } catch (err) {
+          console.warn('[HomeScreen] Failed to load orders for active-order banner:', err);
+        }
+      };
+      loadTodaysOrders();
+      return () => {
+        cancelled = true;
+      };
+    }, [])
+  );
+
+  const activeOrderBanner = useMemo(
+    () => getActiveOrderBannerContent(todaysActiveOrders),
+    [todaysActiveOrders],
   );
 
   // Cycling text animation for auto-order enabled banner
@@ -811,6 +892,12 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleAddToCart = () => {
+    // Guests can browse but must login to actually order
+    if (isGuest) {
+      setShowGuestLoginPrompt(true);
+      return;
+    }
+
     const mealItem = getCurrentMealItem();
 
     // Don't allow adding to cart if ordering is closed
@@ -878,6 +965,12 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const handleBuyNow = useCallback(() => {
     console.log('[HomeScreen] handleBuyNow called');
 
+    // Guests can browse but must login to actually order
+    if (isGuest) {
+      setShowGuestLoginPrompt(true);
+      return;
+    }
+
     // Validation: Check if menu item exists
     const mealItem = getCurrentMealItem();
 
@@ -896,12 +989,12 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     const mainAddress = getMainAddress();
 
     if (!mainAddress) {
-      console.log('[HomeScreen] No main address, navigating to AddressSetupScreen');
-      // Set flag to resume Buy Now after address setup
+      console.log('[HomeScreen] No main address, navigating to Address screen');
+      // Set flag to resume Buy Now after address is added
       setIsBuyNowFlow(true);
 
-      // Navigate to AddressSetupScreen
-      navigation.navigate('AddressSetup' as any);
+      // Navigate to the regular Address tab (AddressSetup is no longer a forced gated screen)
+      navigation.navigate('Address');
       return;
     }
 
@@ -916,7 +1009,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
       console.log('[HomeScreen] No vouchers, proceeding with payment');
       proceedWithBuyNow(false);
     }
-  }, [getCurrentMealItem, getMainAddress, usableVouchers, navigation, setDeliveryAddressId]);
+  }, [isGuest, getCurrentMealItem, getMainAddress, usableVouchers, navigation, setDeliveryAddressId]);
 
   const proceedWithBuyNow = useCallback((useVoucher: boolean) => {
     console.log('[HomeScreen] proceedWithBuyNow, useVoucher:', useVoucher);
@@ -1058,28 +1151,30 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
                 {/* Notification Bell */}
                 <NotificationBell color="white" size={SPACING.iconSize - 2} />
 
-                {/* Voucher Button */}
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('MealPlans')}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    backgroundColor: 'white',
-                    borderRadius: SPACING.md,
-                    paddingVertical: SPACING.xs,
-                    paddingHorizontal: SPACING.sm - 2,
-                    gap: 3,
-                  }}
-                >
-                  <Image
-                    source={require('../../assets/icons/voucher5.png')}
-                    style={{ width: SPACING.iconSm, height: SPACING.iconSm }}
-                    resizeMode="contain"
-                  />
-                  <Text style={{ fontSize: FONT_SIZES.xs, fontWeight: 'bold', color: '#FE8733' }}>
-                    {usableVouchers}
-                  </Text>
-                </TouchableOpacity>
+                {/* Voucher Button — hidden in guest mode (no real voucher count to show) */}
+                {!isGuest && (
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('MealPlans')}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      backgroundColor: 'white',
+                      borderRadius: SPACING.md,
+                      paddingVertical: SPACING.xs,
+                      paddingHorizontal: SPACING.sm - 2,
+                      gap: 3,
+                    }}
+                  >
+                    <Image
+                      source={require('../../assets/icons/voucher5.png')}
+                      style={{ width: SPACING.iconSm, height: SPACING.iconSm }}
+                      resizeMode="contain"
+                    />
+                    <Text style={{ fontSize: FONT_SIZES.xs, fontWeight: 'bold', color: '#FE8733' }}>
+                      {usableVouchers}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
 
@@ -1605,14 +1700,52 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
             <Text className="text-white font-semibold" style={{ fontSize: FONT_SIZES.sm }} numberOfLines={1}>View Cart</Text>
           </TouchableOpacity>
 
-          {/* Close Button */}
+          {/* Close Button — removes the current meal from the cart so it doesn't reappear on the next sync */}
           <TouchableOpacity
-            onPress={() => setShowCartModal(false)}
+            onPress={() => {
+              const currentMealItem = getCurrentMealItem();
+              if (currentMealItem?._id) {
+                removeItem(currentMealItem._id);
+              }
+              setShowCartModal(false);
+            }}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             className="items-center justify-center"
-            style={{ width: SPACING.lg * 2, height: SPACING.lg * 2, marginRight: -12 }}
+            style={{
+              width: TOUCH_TARGETS.minimum,
+              height: TOUCH_TARGETS.minimum,
+              marginRight: -8,
+            }}
           >
             <Text className="text-gray-500" style={{ fontSize: FONT_SIZES.h3 }}>×</Text>
           </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Today's Active Order Banner — show ONLY when (a) there's a placed today's order AND (b) the cart is empty */}
+      {activeOrderBanner && cartItems.length === 0 && (
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: SPACING['4xl'] * 2 + insets.bottom,
+          }}
+          pointerEvents="box-none"
+        >
+          <ActiveOrderBanner
+            title={activeOrderBanner.title}
+            subtitle={activeOrderBanner.subtitle}
+            hasLunch={todaysActiveOrders.some(o => o.mealWindow === 'LUNCH')}
+            hasDinner={todaysActiveOrders.some(o => o.mealWindow === 'DINNER')}
+            onPress={() => {
+              if (activeOrderBanner.orderId) {
+                navigation.navigate('OrderDetail', { orderId: activeOrderBanner.orderId });
+              } else {
+                navigation.navigate('YourOrders');
+              }
+            }}
+          />
         </View>
       )}
 
@@ -1635,6 +1768,21 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
         onUseVoucher={() => proceedWithBuyNow(true)}
         onPayDirectly={() => proceedWithBuyNow(false)}
         onCancel={() => setShowVoucherModal(false)}
+      />
+
+      {/* Login prompt for guests trying to add to cart or buy now */}
+      <ConfirmationModal
+        visible={showGuestLoginPrompt}
+        title="Login Required"
+        message="Please login to place an order and start enjoying delicious meals delivered to you."
+        confirmText="Login"
+        cancelText="Not Now"
+        confirmStyle="primary"
+        onConfirm={() => {
+          setShowGuestLoginPrompt(false);
+          exitGuestMode();
+        }}
+        onCancel={() => setShowGuestLoginPrompt(false)}
       />
     </View>
   );

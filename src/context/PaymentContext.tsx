@@ -26,7 +26,6 @@ interface PaymentContextType {
   initializePayment: () => Promise<boolean>;
   processOrderPayment: (orderId: string) => Promise<OrderPaymentResult>;
   processSubscriptionPayment: (planId: string) => Promise<SubscriptionPaymentResult>;
-  retryOrderPayment: (orderId: string) => Promise<OrderPaymentResult>;
   fetchPaymentHistory: (params?: {
     status?: PaymentStatus;
     purchaseType?: 'ORDER' | 'SUBSCRIPTION';
@@ -122,34 +121,6 @@ export const PaymentProvider: React.FC<PaymentProviderProps> = ({ children }) =>
   );
 
   /**
-   * Retry failed order payment
-   */
-  const retryOrderPayment = useCallback(
-    async (orderId: string): Promise<OrderPaymentResult> => {
-      setIsProcessing(true);
-      setError(null);
-
-      try {
-        console.log('[PaymentContext] Retrying order payment:', orderId);
-        const result = await paymentService.retryOrderPayment(orderId);
-
-        if (!result.success && result.error !== 'Payment cancelled') {
-          setError(result.error || 'Payment failed');
-        }
-
-        return result;
-      } catch (err: any) {
-        const errorMsg = err.message || 'Retry payment failed';
-        setError(errorMsg);
-        return { success: false, error: errorMsg };
-      } finally {
-        setIsProcessing(false);
-      }
-    },
-    []
-  );
-
-  /**
    * Fetch payment history
    */
   const fetchPaymentHistory = useCallback(
@@ -220,7 +191,6 @@ export const PaymentProvider: React.FC<PaymentProviderProps> = ({ children }) =>
     initializePayment,
     processOrderPayment,
     processSubscriptionPayment,
-    retryOrderPayment,
     fetchPaymentHistory,
     checkPaymentStatus,
     clearError,

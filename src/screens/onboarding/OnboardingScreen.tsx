@@ -31,7 +31,7 @@ interface PageContent {
 const pages: PageContent[] = [
   {
     id: 0,
-    title: "Taste\nTasty Meals\nEvery Day",
+    title: "Enjoy\nTasty Meals\nEvery Day",
     subtitle: "Fresh, delicious meals from trusted kitchens,\nprepared daily and made just for you.",
     image: require('../../assets/images/onboarding/onboarding1.png'),
     backgroundImage: require('../../assets/images/onboarding/fastfood.png'),
@@ -40,7 +40,7 @@ const pages: PageContent[] = [
   {
     id: 1,
     title: "Get Coupons\nFor Auto\nDelivery",
-    subtitle: "Save more with auto-renewing meal coupons.\nThe more you order, the more you save.",
+    subtitle: "Save more with auto-ordering of meals .\nThe more you order, the more you save.",
     image: require('../../assets/images/onboarding/onboarding2-new.png'),
     backgroundImage: require('../../assets/images/onboarding/couponbackground.png'),
     imageAnimation: 'float',

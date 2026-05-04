@@ -1,5 +1,6 @@
 import { Platform, PermissionsAndroid, Alert } from 'react-native';
 import Geolocation from 'react-native-geolocation-service';
+import { GOOGLE_MAPS_API_KEY } from '../constants/config';
 
 export interface LocationCoordinates {
   latitude: number;
@@ -157,7 +158,7 @@ class LocationService {
       // Google Maps Geocoding API - Most accurate for India
       // Get your free API key from: https://console.cloud.google.com/
       // Enable "Geocoding API" in your project
-      const GOOGLE_API_KEY = 'AIzaSyCJLEZUNQP8gtDQh-oW3FxgsNCdJHEaYQc'; // Replace with your actual key
+      const GOOGLE_API_KEY = GOOGLE_MAPS_API_KEY;
 
       const response = await fetch(
         `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_API_KEY}&language=en&result_type=street_address|sublocality|locality`
@@ -296,7 +297,7 @@ class LocationService {
    */
   async forwardGeocode(address: string): Promise<LocationCoordinates | null> {
     try {
-      const GOOGLE_API_KEY = 'AIzaSyCJLEZUNQP8gtDQh-oW3FxgsNCdJHEaYQc';
+      const GOOGLE_API_KEY = GOOGLE_MAPS_API_KEY;
       const response = await fetch(
         `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${GOOGLE_API_KEY}&language=en`
       );
