@@ -1,0 +1,178 @@
+diff --git a/node_modules/react-native-maps/android/src/main/java/com/rnmaps/maps/MapView.java b/node_modules/react-native-maps/android/src/main/java/com/rnmaps/maps/MapView.java
+index c89a9e1..7fa7c5a 100644
+--- a/node_modules/react-native-maps/android/src/main/java/com/rnmaps/maps/MapView.java
++++ b/node_modules/react-native-maps/android/src/main/java/com/rnmaps/maps/MapView.java
+@@ -25,7 +25,9 @@ import com.facebook.react.bridge.WritableNativeArray;
+ import com.facebook.react.bridge.WritableNativeMap;
+ import com.facebook.react.bridge.Arguments;
+ import com.facebook.react.uimanager.ThemedReactContext;
++import com.facebook.react.uimanager.UIManagerHelper;
+ import com.facebook.react.uimanager.UIManagerModule;
++import com.facebook.react.uimanager.events.Event;
+ import com.facebook.react.uimanager.events.EventDispatcher;
+ import com.google.android.gms.maps.CameraUpdate;
+ import com.google.android.gms.maps.CameraUpdateFactory;
+@@ -117,9 +119,23 @@ public class MapView extends com.google.android.gms.maps.MapView implements Goog
+   private boolean paused = false;
+   private boolean destroyed = false;
+   private final ThemedReactContext context;
+-  private final EventDispatcher eventDispatcher;
++  private EventDispatcher eventDispatcher;
+   private final FusedLocationSource fusedLocationSource;
+ 
++  // Fabric-safe event dispatch: in the New Architecture (Fabric), the legacy
++  // UIManagerModule is unavailable, so eventDispatcher cached at construction
++  // time is null. UIManagerHelper resolves the correct dispatcher dynamically
++  // for both Paper and Fabric.
++  private void dispatchMapEvent(Event<?> event) {
++    EventDispatcher dispatcher = eventDispatcher;
++    if (dispatcher == null) {
++      dispatcher = UIManagerHelper.getEventDispatcherForReactTag(context, getId());
++    }
++    if (dispatcher != null) {
++      dispatcher.dispatchEvent(event);
++    }
++  }
++
+   private final ViewAttacherGroup attacherGroup;
+   private LatLng tapLocation;
+ 
+@@ -198,7 +214,12 @@ public class MapView extends com.google.android.gms.maps.MapView implements Goog
+       }
+     });
+ 
+-    eventDispatcher = reactContext.getNativeModule(UIManagerModule.class).getEventDispatcher();
++    // Fabric-safe: legacy UIManagerModule is null in the New Architecture.
++    // Fall back to UIManagerHelper, which works for both Paper and Fabric.
++    UIManagerModule uiManagerModule = reactContext.getNativeModule(UIManagerModule.class);
++    eventDispatcher = uiManagerModule != null
++        ? uiManagerModule.getEventDispatcher()
++        : null;
+ 
+     // Set up a parent view for triggering visibility in subviews that depend on it.
+     // Mainly ReactImageView depends on Fresco which depends on onVisibilityChanged() event
+@@ -369,7 +390,7 @@ public class MapView extends com.google.android.gms.maps.MapView implements Goog
+         boolean isGesture = GoogleMap.OnCameraMoveStartedListener.REASON_GESTURE == cameraMoveReason;
+ 
+         RegionChangeEvent event = new RegionChangeEvent(getId(), bounds, true, isGesture);
+-        eventDispatcher.dispatchEvent(event);
++        dispatchMapEvent(event);
+       }
+     });
+ 
+@@ -385,7 +406,7 @@ public class MapView extends com.google.android.gms.maps.MapView implements Goog
+           boolean isGesture = GoogleMap.OnCameraMoveStartedListener.REASON_GESTURE == cameraMoveReason;
+ 
+           RegionChangeEvent event = new RegionChangeEvent(getId(), bounds, false, isGesture);
+-          eventDispatcher.dispatchEvent(event);
++          dispatchMapEvent(event);
+         }
+       }
+     });
+diff --git a/node_modules/react-native-maps/android/src/main/java/com/rnmaps/maps/MapViewModule.java b/node_modules/react-native-maps/android/src/main/java/com/rnmaps/maps/MapViewModule.java
+index fa838b4..d9fb82a 100644
+--- a/node_modules/react-native-maps/android/src/main/java/com/rnmaps/maps/MapViewModule.java
++++ b/node_modules/react-native-maps/android/src/main/java/com/rnmaps/maps/MapViewModule.java
+@@ -20,9 +20,14 @@ import com.facebook.react.bridge.ReadableArray;
+ import com.facebook.react.bridge.ReadableMap;
+ import com.facebook.react.bridge.WritableMap;
+ import com.facebook.react.bridge.WritableNativeMap;
++import com.facebook.react.bridge.UIManager;
++import com.facebook.react.bridge.UiThreadUtil;
+ import com.facebook.react.uimanager.NativeViewHierarchyManager;
+ import com.facebook.react.uimanager.UIBlock;
++import com.facebook.react.uimanager.UIManagerHelper;
+ import com.facebook.react.uimanager.UIManagerModule;
++import com.facebook.react.uimanager.common.UIManagerType;
++import android.view.View;
+ import com.google.android.gms.maps.CameraUpdate;
+ import com.google.android.gms.maps.CameraUpdateFactory;
+ import com.google.android.gms.maps.GoogleMap;
+@@ -64,6 +69,54 @@ public class MapViewModule extends ReactContextBaseJavaModule {
+     return constants;
+   }
+ 
++  /**
++   * Fabric-safe view resolution. In the New Architecture, the legacy
++   * UIManagerModule is null, so we resolve the view via UIManagerHelper
++   * (FabricUIManager) on the UI thread. Falls through to addUIBlock for Paper.
++   */
++  private interface MapViewAction {
++    void run(MapView view);
++  }
++
++  private void withMapView(final int tag, final Promise promise, final MapViewAction action) {
++    UIManagerModule paperUiManager = context.getNativeModule(UIManagerModule.class);
++    if (paperUiManager != null) {
++      paperUiManager.addUIBlock(new UIBlock() {
++        @Override
++        public void execute(NativeViewHierarchyManager nvhm) {
++          MapView view = (MapView) nvhm.resolveView(tag);
++          if (view == null) {
++            if (promise != null) promise.reject("RNMMapView not found");
++            return;
++          }
++          if (view.map == null) {
++            if (promise != null) promise.reject("RNMMapView.map is not valid");
++            return;
++          }
++          action.run(view);
++        }
++      });
++      return;
++    }
++    UiThreadUtil.runOnUiThread(new Runnable() {
++      @Override
++      public void run() {
++        UIManager fabricUiManager = UIManagerHelper.getUIManager(context, UIManagerType.FABRIC);
++        View resolved = fabricUiManager != null ? fabricUiManager.resolveView(tag) : null;
++        if (!(resolved instanceof MapView)) {
++          if (promise != null) promise.reject("RNMMapView not found");
++          return;
++        }
++        MapView view = (MapView) resolved;
++        if (view.map == null) {
++          if (promise != null) promise.reject("RNMMapView.map is not valid");
++          return;
++        }
++        action.run(view);
++      }
++    });
++  }
++
+   public static void closeQuietly(Closeable closeable) {
+     if (closeable == null) return;
+     try {
+@@ -341,28 +394,19 @@ public class MapViewModule extends ReactContextBaseJavaModule {
+   }
+ 
+   @ReactMethod
+-  public void animateToRegion(final int tag, ReadableMap region, int duration, final Promise promise) {
++  public void animateToRegion(final int tag, ReadableMap region, final int duration, final Promise promise) {
+     double lng = region.getDouble("longitude");
+     double lat = region.getDouble("latitude");
+     double lngDelta = region.getDouble("longitudeDelta");
+     double latDelta = region.getDouble("latitudeDelta");
+-    LatLngBounds bounds = new LatLngBounds(
++    final LatLngBounds bounds = new LatLngBounds(
+             new LatLng(lat - latDelta / 2, lng - lngDelta / 2), // southwest
+             new LatLng(lat + latDelta / 2, lng + lngDelta / 2)  // northeast
+     );
+ 
+-    context.getNativeModule(UIManagerModule.class).addUIBlock(new UIBlock() {
++    withMapView(tag, promise, new MapViewAction() {
+       @Override
+-      public void execute(NativeViewHierarchyManager nativeViewHierarchyManager) {
+-        MapView view = (MapView) nativeViewHierarchyManager.resolveView(tag);
+-        if (view == null) {
+-          promise.reject("RNMMapView not found");
+-          return;
+-        }
+-        if (view.map == null) {
+-          promise.reject("RNMMapView.map is not valid");
+-          return;
+-        }
++      public void run(MapView view) {
+         if (duration <= 0) {
+           view.map.moveCamera(CameraUpdateFactory.newLatLngBounds(bounds, 0));
+           promise.resolve(null);

@@ -53,6 +53,9 @@ const LocationPickerScreen: React.FC<Props> = ({ navigation }) => {
 
   const reverseGeocodeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Monotonic request id so out-of-order reverse-geocode responses don't
+  // clobber the address we just resolved for the current pin location.
+  const geocodeRequestId = useRef(0);
 
   // On mount, try to center on user's current GPS location
   useEffect(() => {
@@ -71,6 +74,10 @@ const LocationPickerScreen: React.FC<Props> = ({ navigation }) => {
         };
         setRegion(initial);
         mapRef.current?.animateToRegion(initial, 600);
+        // Resolve address immediately rather than waiting for the user to pan.
+        // animateToRegion does not always fire onRegionChangeComplete on Android
+        // Fabric in 2.0.0-beta.15.
+        runReverseGeocode(coords.latitude, coords.longitude);
       } catch (err) {
         console.warn('[LocationPicker] Could not get current location:', err);
       }
@@ -82,17 +89,24 @@ const LocationPickerScreen: React.FC<Props> = ({ navigation }) => {
     };
   }, []);
 
-  // Reverse-geocode whenever the map settles on a new region
+  // Reverse-geocode whenever the map settles on a new region.
+  // Each call gets a request id; only the latest response is allowed to
+  // update state, so a slow earlier response can't overwrite a faster later one.
   const runReverseGeocode = useCallback(async (lat: number, lng: number) => {
+    const requestId = ++geocodeRequestId.current;
     setIsResolving(true);
     try {
       const result = await locationService.reverseGeocode({ latitude: lat, longitude: lng });
+      if (requestId !== geocodeRequestId.current) return;
       setResolvedAddress(result);
     } catch (err) {
+      if (requestId !== geocodeRequestId.current) return;
       console.warn('[LocationPicker] Reverse-geocode failed:', err);
       setResolvedAddress({ coordinates: { latitude: lat, longitude: lng } });
     } finally {
-      setIsResolving(false);
+      if (requestId === geocodeRequestId.current) {
+        setIsResolving(false);
+      }
     }
   }, []);
 
@@ -172,6 +186,29 @@ const LocationPickerScreen: React.FC<Props> = ({ navigation }) => {
       console.warn('[LocationPicker] Place details failed:', err);
     }
   };
+
+  // Re-center the map on the user's current GPS coordinates.
+  const handleLocateMe = useCallback(async () => {
+    try {
+      const granted = await locationService.requestLocationPermission();
+      if (!granted) return;
+      setIsResolving(true);
+      const coords = await locationService.getCurrentLocation();
+      if (!coords) return;
+      const next: Region = {
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        latitudeDelta: 0.008,
+        longitudeDelta: 0.008,
+      };
+      setRegion(next);
+      mapRef.current?.animateToRegion(next, 600);
+      runReverseGeocode(coords.latitude, coords.longitude);
+    } catch (err) {
+      console.warn('[LocationPicker] Locate-me failed:', err);
+      setIsResolving(false);
+    }
+  }, [runReverseGeocode]);
 
   const handleConfirm = () => {
     const payload = {
@@ -293,6 +330,28 @@ const LocationPickerScreen: React.FC<Props> = ({ navigation }) => {
             <Path d="M12 13.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" fill="white" />
           </Svg>
         </View>
+
+        {/* Floating "Locate Me" button — re-centers on the user's GPS coords. */}
+        <TouchableOpacity
+          onPress={handleLocateMe}
+          activeOpacity={0.85}
+          style={styles.locateMeButton}
+          accessibilityLabel="Center map on my location"
+        >
+          <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+            <Path
+              d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"
+              stroke="#FE8733"
+              strokeWidth={2}
+            />
+            <Path
+              d="M12 2v3M12 19v3M2 12h3M19 12h3"
+              stroke="#FE8733"
+              strokeWidth={2}
+              strokeLinecap="round"
+            />
+          </Svg>
+        </TouchableOpacity>
       </View>
 
       {/* Bottom address card + Confirm CTA */}
@@ -434,6 +493,28 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: -2,
     left: 15,
+  },
+  locateMeButton: {
+    position: 'absolute',
+    right: SPACING.md,
+    bottom: SPACING.md,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'white',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOpacity: 0.18,
+        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 2 },
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   bottomPanel: {
     backgroundColor: 'white',
