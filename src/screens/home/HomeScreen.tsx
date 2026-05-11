@@ -97,6 +97,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const locationTourTarget = useTourTarget('location');
   const vouchersTourTarget = useTourTarget('vouchers');
   const planAheadTourTarget = useTourTarget('planAhead');
+  const autoOrdersTourTarget = useTourTarget('autoOrders');
   const addToCartTourTarget = useTourTarget('addToCart');
   const [selectedMeal, setSelectedMeal] = useState<MealType>(() => {
     const now = new Date();
@@ -229,33 +230,45 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     selectedMeal === 'lunch' ? mealWindowInfo.lunchState : mealWindowInfo.dinnerState;
 
 
-  // Sync selectedMeal with computed activeMeal; show MealWindowModal only when both meals are closed.
+  // Tracks whether the user has explicitly dismissed the all-closed modal during the
+  // current all-closed cycle. Once dismissed, the auto-open effect must not reopen the
+  // modal even if it re-runs (which it does frequently: focusCount bumps from focus /
+  // setTimeout / AppState 'active' each give mealWindowInfo a new reference). Resets when
+  // the day reopens.
+  const wasAllClosedRef = useRef(false);
+  const userDismissedClosedModalRef = useRef(false);
+
+  // Show MealWindowModal only when both meals are closed.
   // cash_only does NOT trigger a tab switch — the banner + Buy Now branching handle that case.
   // Gate on menuData — pre-fetch, the memo treats null menu as 'closed' which would falsely
   // pop the modal before the menu has loaded. Also skip if kitchen has no menu at all
   // (the "No Meal Available" panel handles that case).
-  // Use a ref to track the previous all-closed state so the modal only auto-opens on the
-  // FIRST entry into all-closed — subsequent re-runs (memo recomputes from focusCount /
-  // timer / AppState 'active') shouldn't re-pop a modal the user has already dismissed.
-  const wasAllClosedRef = useRef(false);
   useEffect(() => {
     if (!menuData) {
       setShowMealWindowModal(false);
       wasAllClosedRef.current = false;
+      userDismissedClosedModalRef.current = false;
       return;
     }
     const hasAnyMealItem = !!(menuData.lunch || menuData.dinner);
     const shouldShowClosedModal = hasAnyMealItem && mealWindowInfo.isAllClosedForToday;
-    setSelectedMeal(mealWindowInfo.activeMeal);
-    if (shouldShowClosedModal && !wasAllClosedRef.current) {
+    if (shouldShowClosedModal && !wasAllClosedRef.current && !userDismissedClosedModalRef.current) {
       // Transitioned from open → all-closed — auto-open the modal once.
       setShowMealWindowModal(true);
     } else if (!shouldShowClosedModal) {
       // Back to open (or no menu items) — close the modal and reset for the next closure.
       setShowMealWindowModal(false);
+      userDismissedClosedModalRef.current = false;
     }
     wasAllClosedRef.current = shouldShowClosedModal;
   }, [mealWindowInfo, menuData]);
+
+  // Sync selectedMeal with the computed activeMeal. Kept in its own effect so it doesn't
+  // cause the all-closed modal effect above to re-render on every recompute.
+  useEffect(() => {
+    if (!menuData) return;
+    setSelectedMeal(prev => (prev === mealWindowInfo.activeMeal ? prev : mealWindowInfo.activeMeal));
+  }, [mealWindowInfo.activeMeal, menuData]);
 
   // Schedule a setTimeout to the next state transition (cutoff or midnight rollover).
   // This drives auto-flip without burning battery on a 1-minute interval.
@@ -281,11 +294,14 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     return () => sub.remove();
   }, []);
 
-  // Handle modal close - switch to the next meal window tab
-  const handleMealWindowModalClose = () => {
+  // Handle modal close - switch to the next meal window tab. Wrapped in useCallback so the
+  // Modal receives a stable onClose reference across re-renders (prevents the TouchableOpacity
+  // from missing presses while the parent re-renders from focusCount / AppState churn).
+  const handleMealWindowModalClose = useCallback(() => {
+    userDismissedClosedModalRef.current = true;
     setShowMealWindowModal(false);
     setSelectedMeal(mealWindowInfo.nextMealWindow);
-  };
+  }, [mealWindowInfo.nextMealWindow]);
 
   // Fetch menu using new flow: address → kitchens → menu
   const fetchMenu = async () => {
@@ -1223,9 +1239,9 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
                 {/* Notification Bell */}
                 <NotificationBell color="white" size={SPACING.iconSize - 2} />
 
-                {/* Voucher Button — hidden in guest mode and when current meal is cash-only/closed
-                    (vouchers can't be applied to today's order in those states). */}
-                {!isGuest && currentMealState === 'available' && (
+                {/* Voucher Button — hidden in guest mode only. Logged-in users
+                    always see their voucher balance, regardless of today's meal state. */}
+                {!isGuest && (
                   <TouchableOpacity
                     ref={vouchersTourTarget.ref}
                     onLayout={vouchersTourTarget.onLayout}
@@ -1321,6 +1337,8 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
 
           {/* Auto Orders */}
           <TouchableOpacity
+            ref={autoOrdersTourTarget.ref}
+            onLayout={autoOrdersTourTarget.onLayout}
             activeOpacity={0.7}
             onPress={() => navigation.navigate('AutoOrderSettings')}
             style={{
@@ -1914,6 +1932,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
           // Only expose Schedule CTA in the 9 PM - midnight window when truly done for today.
           mealWindowInfo.isAllClosedForToday && mealWindowInfo.isInScheduleWindow
             ? () => {
+                userDismissedClosedModalRef.current = true;
                 setShowMealWindowModal(false);
                 const tomorrow = new Date();
                 tomorrow.setDate(tomorrow.getDate() + 1);

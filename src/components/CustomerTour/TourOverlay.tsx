@@ -1,13 +1,14 @@
 import React, { useMemo } from 'react';
 import {
-  Dimensions,
   Modal,
   Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TourStep, TourTargetRect } from './types';
 
 interface Props {
@@ -18,29 +19,64 @@ interface Props {
   onSkip: () => void;
 }
 
-const SCREEN = Dimensions.get('window');
 const DIM_COLOR = 'rgba(15, 23, 42, 0.78)';
 const RING_PADDING = 8;
-const TOOLTIP_WIDTH = Math.min(SCREEN.width - 32, 340);
+const TOOLTIP_HEIGHT_ESTIMATE = 170;
 const TOOLTIP_GAP = 12;
+const EDGE_PADDING = 16;
 
 const TourOverlay: React.FC<Props> = ({ step, target, isLast, onNext, onSkip }) => {
-  // Decide whether tooltip sits above or below the target. If the target is in
-  // the bottom half of the screen we float the tooltip above it, otherwise below.
-  // For step.placement explicitly set, honor it.
+  const insets = useSafeAreaInsets();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const tooltipWidth = Math.min(screenWidth - 32, 340);
+
+  // Why this offset exists: the host activity uses a translucent status bar,
+  // so `measureInWindow` returns Y values whose origin sits *below* the
+  // status bar / notch / dynamic island. The overlay Modal uses
+  // `statusBarTranslucent` and renders y=0 at the absolute top of the
+  // screen. Without compensation the spotlight ring sits status-bar-height
+  // pixels too high. We use the safe-area top inset instead of
+  // `StatusBar.currentHeight` because it correctly accounts for notches,
+  // punch-holes, and the iPhone Dynamic Island on every device.
+  //
+  // iOS does NOT need this: its Modal's coordinate space already matches
+  // `measureInWindow` output, so adding the inset would push the ring down
+  // by the safe-area amount and break alignment.
+  const verticalOffset = Platform.OS === 'android' ? insets.top : 0;
+
   const layout = useMemo(() => {
     if (!target) {
       return { mode: 'center' as const };
     }
-    const ringTop = target.y - RING_PADDING;
+    const adjustedY = target.y + verticalOffset;
+    const ringTop = adjustedY - RING_PADDING;
     const ringLeft = target.x - RING_PADDING;
     const ringWidth = target.width + RING_PADDING * 2;
     const ringHeight = target.height + RING_PADDING * 2;
 
-    const targetCenterY = target.y + target.height / 2;
+    const targetCenterY = adjustedY + target.height / 2;
     const placeAbove =
       step.placement === 'above' ||
-      (step.placement !== 'below' && targetCenterY > SCREEN.height * 0.55);
+      (step.placement !== 'below' && targetCenterY > screenHeight * 0.55);
+
+    const rawTooltipTop = placeAbove
+      ? ringTop - TOOLTIP_GAP - TOOLTIP_HEIGHT_ESTIMATE
+      : ringTop + ringHeight + TOOLTIP_GAP;
+
+    // Clamp the tooltip so it stays clear of notches at the top and the
+    // gesture / nav bar at the bottom on every device.
+    const minTooltipTop = Math.max(40, insets.top + 8);
+    const maxTooltipTop =
+      screenHeight - TOOLTIP_HEIGHT_ESTIMATE - Math.max(40, insets.bottom + 8);
+    const tooltipTop = Math.max(minTooltipTop, Math.min(maxTooltipTop, rawTooltipTop));
+
+    const tooltipLeft = Math.max(
+      EDGE_PADDING + insets.left,
+      Math.min(
+        screenWidth - tooltipWidth - EDGE_PADDING - insets.right,
+        target.x + target.width / 2 - tooltipWidth / 2,
+      ),
+    );
 
     return {
       mode: 'spotlight' as const,
@@ -48,15 +84,21 @@ const TourOverlay: React.FC<Props> = ({ step, target, isLast, onNext, onSkip }) 
       ringLeft,
       ringWidth,
       ringHeight,
-      tooltipTop: placeAbove
-        ? Math.max(40, ringTop - TOOLTIP_GAP - 200)
-        : ringTop + ringHeight + TOOLTIP_GAP,
-      tooltipLeft: Math.max(
-        16,
-        Math.min(SCREEN.width - TOOLTIP_WIDTH - 16, target.x + target.width / 2 - TOOLTIP_WIDTH / 2),
-      ),
+      tooltipTop,
+      tooltipLeft,
     };
-  }, [target, step.placement]);
+  }, [
+    target,
+    step.placement,
+    verticalOffset,
+    insets.top,
+    insets.bottom,
+    insets.left,
+    insets.right,
+    screenWidth,
+    screenHeight,
+    tooltipWidth,
+  ]);
 
   return (
     <Modal
@@ -126,8 +168,18 @@ const TourOverlay: React.FC<Props> = ({ step, target, isLast, onNext, onSkip }) 
         style={[
           styles.tooltip,
           layout.mode === 'spotlight'
-            ? { position: 'absolute', top: layout.tooltipTop, left: layout.tooltipLeft, width: TOOLTIP_WIDTH }
-            : styles.tooltipCenter,
+            ? {
+                position: 'absolute',
+                top: layout.tooltipTop,
+                left: layout.tooltipLeft,
+                width: tooltipWidth,
+              }
+            : {
+                position: 'absolute',
+                left: (screenWidth - tooltipWidth) / 2,
+                top: screenHeight / 2 - 100,
+                width: tooltipWidth,
+              },
         ]}
       >
         <Text style={styles.title}>{step.title}</Text>
@@ -175,12 +227,6 @@ const styles = StyleSheet.create({
       },
       android: { elevation: 12 },
     }),
-  },
-  tooltipCenter: {
-    position: 'absolute',
-    left: (SCREEN.width - TOOLTIP_WIDTH) / 2,
-    top: SCREEN.height / 2 - 100,
-    width: TOOLTIP_WIDTH,
   },
   title: {
     fontSize: 18,

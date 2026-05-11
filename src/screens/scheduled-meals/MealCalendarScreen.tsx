@@ -64,6 +64,27 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation, route }) => {
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
+  // Sundays are non-serving days. Pre-compute the next ~90 days of Sundays
+  // so they can be rendered as disabled in the calendar.
+  const sundayDates = useMemo(() => {
+    const out: string[] = [];
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    for (let i = 0; i < 90; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      if (d.getDay() === 0) {
+        out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+      }
+    }
+    return out;
+  }, []);
+
+  const isSunday = useCallback((dateStr: string): boolean => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d).getDay() === 0;
+  }, []);
+
   const [selectedDate, setSelectedDate] = useState<string | null>(route.params?.scheduledDate ?? null);
   const [mergedData, setMergedData] = useState<Map<string, MergedDayData>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
@@ -252,8 +273,18 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation, route }) => {
       }
     });
 
-    // Highlight selected date
-    if (selectedDate) {
+    // Override Sundays as non-serving days — replaces any other dots and blocks taps.
+    sundayDates.forEach(date => {
+      marked[date] = {
+        disabled: true,
+        disableTouchEvent: true,
+        dots: [{ key: 'unavailable', color: '#EF4444' }],
+        marked: true,
+      };
+    });
+
+    // Highlight selected date (only if it's not a Sunday — Sundays stay disabled)
+    if (selectedDate && !isSunday(selectedDate)) {
       marked[selectedDate] = {
         ...marked[selectedDate],
         selected: true,
@@ -262,11 +293,16 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation, route }) => {
     }
 
     return marked;
-  }, [mergedData, selectedDate, selectedSlots]);
+  }, [mergedData, selectedDate, selectedSlots, sundayDates, isSunday]);
 
   // Handle date tap
   const handleDatePress = useCallback((day: DateData) => {
     const dateStr = day.dateString;
+    // Sundays are non-serving — disableTouchEvent should block this, but guard anyway.
+    if (isSunday(dateStr)) {
+      showAlert('Closed on Sundays', 'We don\'t deliver on Sundays. Please pick another day.', undefined, 'warning');
+      return;
+    }
     setSelectedDate(dateStr);
 
     Animated.spring(panelHeight, {
@@ -275,7 +311,7 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation, route }) => {
       tension: 50,
       friction: 7,
     }).start();
-  }, [panelHeight]);
+  }, [panelHeight, isSunday, showAlert]);
 
   const closePanel = useCallback(() => {
     Animated.spring(panelHeight, {
@@ -343,6 +379,31 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation, route }) => {
   // Render a slot card in the bottom panel
   const renderSlotCard = (mealWindow: 'LUNCH' | 'DINNER') => {
     if (!selectedDate) return null;
+
+    // Sundays are non-serving — render once (for LUNCH only) to avoid duplication.
+    if (isSunday(selectedDate)) {
+      if (mealWindow !== 'LUNCH') return null;
+      return (
+        <View style={{
+          backgroundColor: '#FEF2F2',
+          borderRadius: 14,
+          borderWidth: 1,
+          borderColor: '#FECACA',
+          padding: SPACING.lg,
+          marginBottom: SPACING.md,
+          alignItems: 'center',
+        }}>
+          <MaterialCommunityIcons name="close-circle-outline" size={28} color="#DC2626" style={{ marginBottom: SPACING.sm }} />
+          <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '700', color: '#DC2626', marginBottom: 4 }}>
+            Not Delivering on Sundays
+          </Text>
+          <Text style={{ fontSize: FONT_SIZES.xs, color: '#991B1B', textAlign: 'center' }}>
+            Please pick another day to schedule a meal.
+          </Text>
+        </View>
+      );
+    }
+
     const dayData = mergedData.get(selectedDate);
     if (!dayData) return null;
 
@@ -735,7 +796,7 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation, route }) => {
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md }}>
                   {[
                     { color: '#10B981', label: 'Auto-Order' },
-                    { color: '#EF4444', label: 'Skipped' },
+                    { color: '#EF4444', label: 'Skipped / Closed (Sun)' },
                     { color: '#3B82F6', label: 'Scheduled' },
                     { color: '#D1D5DB', label: 'Available' },
                   ].map(item => (

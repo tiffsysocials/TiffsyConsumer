@@ -669,6 +669,14 @@ export interface Order {
   deliveryNotes?: string;
   leaveAtDoor?: boolean;
   doNotContact?: boolean;
+  // Derived/added by backend based on leaveAtDoor — drives the OTP-vs-photo proof flow.
+  requiresOTP?: boolean;
+  // Set by rider when leaveAtDoor=true and the drop-off is captured.
+  proofPhotoUrl?: string | null;
+  // Set when the customer taps "I've Received It" in-app (doNotContact flow).
+  customerConfirmedAt?: string | null;
+  // Audit trail for how delivery was confirmed.
+  deliveryConfirmedBy?: 'OTP' | 'PHOTO' | 'CUSTOMER_TAP' | 'AUTO' | null;
   estimatedDeliveryTime?: string;
   actualDeliveryTime?: string;
   rating?: OrderRating;
@@ -1908,6 +1916,19 @@ class ApiService {
   // Track order status and timeline
   async trackOrder(orderId: string): Promise<OrderTrackingResponse> {
     return this.api.get(`/api/orders/${orderId}/track`);
+  }
+
+  // Customer-side tap-to-confirm delivery. Used in the doNotContact flow when the rider
+  // has arrived but doesn't want to call/SMS. Server validates the order is in
+  // OUT_FOR_DELIVERY and (when required) that doNotContact is set on the order.
+  async confirmDelivery(orderId: string): Promise<{
+    success: boolean;
+    message: string;
+    data?: { order: Order };
+  }> {
+    return this.api.post(`/api/orders/${orderId}/confirm-delivery`, {
+      method: 'CUSTOMER_TAP',
+    });
   }
 
   // Cancel an order (if allowed by business rules)

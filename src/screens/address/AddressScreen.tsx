@@ -114,10 +114,16 @@ const AddressScreen: React.FC<Props> = ({ navigation, route }) => {
       contactPhone: prev.contactPhone || user?.phone || '',
     }));
     setFormCoordinates({ latitude: picked.latitude, longitude: picked.longitude });
-    setShowAddModal(true);
+    // Reopen whichever modal the user came from. If editingAddress is set, they
+    // were editing; otherwise they were adding a new address.
+    if (editingAddress) {
+      setShowEditModal(true);
+    } else {
+      setShowAddModal(true);
+    }
     // Clear the param so it doesn't re-fire on re-render
     navigation.setParams({ pickedLocation: undefined });
-  }, [route.params?.pickedLocation, navigation, user]);
+  }, [route.params?.pickedLocation, navigation, user, editingAddress]);
 
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -432,10 +438,18 @@ const AddressScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const renderAddressForm = (isEdit: boolean) => (
     <ScrollView showsVerticalScrollIndicator={false}>
-      {/* Use Current Location — opens the map picker centered on user's GPS. Only shown for new addresses. */}
-      {!isEdit && (
-        <TouchableOpacity
-          onPress={() => navigation.navigate('LocationPicker')}
+      {/* Use Current Location — opens the map picker. Shown for both add and edit so users can re-pin an existing address. */}
+      <TouchableOpacity
+          onPress={() => {
+            // Close the current modal before navigating so the map picker isn't covered.
+            // The pickedLocation effect will reopen the correct modal on return.
+            if (isEdit) {
+              setShowEditModal(false);
+            } else {
+              setShowAddModal(false);
+            }
+            navigation.navigate('LocationPicker');
+          }}
           activeOpacity={0.85}
           style={{
             marginBottom: 20,
@@ -479,7 +493,6 @@ const AddressScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
           <Text style={{ fontSize: 20, color: '#FE8733', fontWeight: '700' }}>›</Text>
         </TouchableOpacity>
-      )}
 
       {/* Label Selection */}
       <View className="mb-4">
@@ -681,7 +694,7 @@ const AddressScreen: React.FC<Props> = ({ navigation, route }) => {
         <View style={{ paddingHorizontal: isSmallDevice ? SPACING.lg : SPACING.xl, paddingTop: SPACING.md, paddingBottom: SPACING['2xl'] }}>
           <View className="flex-row items-center mb-2">
             <TouchableOpacity
-              onPress={() => navigation.goBack()}
+              onPress={() => navigation.navigate('Home')}
               style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#FE8733', alignItems: 'center', justifyContent: 'center' }}
             >
               <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">

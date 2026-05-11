@@ -244,7 +244,7 @@ const LocationPickerScreen: React.FC<Props> = ({ navigation }) => {
       {/* Top bar with close + search */}
       <View style={styles.topBar}>
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.navigate('Home')}
           style={styles.closeButton}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >

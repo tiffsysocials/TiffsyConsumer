@@ -8,10 +8,17 @@
       "Bash(git checkout stash -- .)",
       "Bash(git stash drop)",
       "Bash(npx react-native run-android)",
-      "Bash(adb uninstall:*)"
+      "Bash(adb uninstall:*)",
+      "Bash(Get-ChildItem -Path \"e:\\\\TiffsyConsumer\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Read(//tmp/**)"
     ],
     "additionalDirectories": [
-      "d:\\Tiffsy\\android\\app\\src\\main\\java\\com\\tiffindelivery"
+      "d:\\Tiffsy\\android\\app\\src\\main\\java\\com\\tiffindelivery",
+      "D:\\AIB Innovations\\Tiffsy\\New Backend\\backend\\services",
+      "D:\\AIB Innovations\\Tiffsy\\New Backend\\backend\\src\\order",
+      "D:\\AIB Innovations\\Tiffsy\\New Backend\\backend\\cron",
+      "D:\\AIB Innovations\\Tiffsy\\New Backend\\backend\\src\\scheduling"
     ]
   }
 }

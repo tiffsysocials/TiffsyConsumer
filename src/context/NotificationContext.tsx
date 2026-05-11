@@ -1,7 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiService from '../services/api.service';
 import notificationStorageService from '../services/notificationStorage.service';
 import { useUser } from './UserContext';
+
+// Per-device flag for the static "Closed on Sundays" pinned notice. Bump the
+// version suffix to re-trigger the unread state for all users on next launch.
+const SUNDAY_NOTICE_READ_KEY = '@notif_sunday_closed_read_v1';
 
 export interface NotificationData {
   _id: string;
@@ -28,11 +33,13 @@ interface NotificationContextType {
   hasMore: boolean;
   latestUnreadNotification: NotificationData | null;
   showPopup: boolean;
+  sundayNoticeRead: boolean;
   fetchNotifications: (page?: number) => Promise<void>;
   fetchLatestUnread: () => Promise<void>;
   fetchUnreadCount: () => Promise<void>;
   markAsRead: (notificationId: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
+  markSundayNoticeRead: () => Promise<void>;
   deleteNotification: (notificationId: string) => Promise<void>;
   dismissPopup: () => void;
   refreshNotifications: () => Promise<void>;
@@ -53,6 +60,31 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
   const [hasMore, setHasMore] = useState(true);
   const [latestUnreadNotification, setLatestUnreadNotification] = useState<NotificationData | null>(null);
   const [showPopup, setShowPopup] = useState(false);
+  // Per-device flag for the static Sunday-closed pinned notice. Starts unread so
+  // the bell badge shows +1 until the user opens the Notifications screen.
+  const [sundayNoticeRead, setSundayNoticeRead] = useState(true);
+
+  // Hydrate Sunday-notice read flag from storage on mount.
+  useEffect(() => {
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem(SUNDAY_NOTICE_READ_KEY);
+        setSundayNoticeRead(stored === 'true');
+      } catch (err) {
+        console.warn('[NotificationContext] Failed to read Sunday notice flag:', err);
+        setSundayNoticeRead(false);
+      }
+    })();
+  }, []);
+
+  const markSundayNoticeRead = useCallback(async () => {
+    setSundayNoticeRead(true);
+    try {
+      await AsyncStorage.setItem(SUNDAY_NOTICE_READ_KEY, 'true');
+    } catch (err) {
+      console.warn('[NotificationContext] Failed to persist Sunday notice flag:', err);
+    }
+  }, []);
 
   // Fetch notifications with pagination
   const fetchNotifications = useCallback(async (page: number = 1) => {
@@ -203,7 +235,9 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     } catch (error) {
       console.error('Error marking all as read:', error);
     }
-  }, []);
+    // "Mark all read" should also clear the static Sunday notice.
+    await markSundayNoticeRead();
+  }, [markSundayNoticeRead]);
 
   // Delete notification
   const deleteNotification = useCallback(async (notificationId: string) => {
@@ -256,17 +290,20 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
   const value: NotificationContextType = {
     notifications,
-    unreadCount,
+    // Add +1 to the badge until the user has read the static Sunday notice.
+    unreadCount: unreadCount + (sundayNoticeRead ? 0 : 1),
     isLoading,
     isRefreshing,
     hasMore,
     latestUnreadNotification,
     showPopup,
+    sundayNoticeRead,
     fetchNotifications,
     fetchLatestUnread,
     fetchUnreadCount,
     markAsRead,
     markAllAsRead,
+    markSundayNoticeRead,
     deleteNotification,
     dismissPopup,
     refreshNotifications,

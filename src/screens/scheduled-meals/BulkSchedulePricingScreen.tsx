@@ -22,6 +22,7 @@ import { useAddress } from '../../context/AddressContext';
 import apiService, { BulkPricingData, BulkSlotPricing, AddonItem } from '../../services/api.service';
 import AddonSelector, { SelectedAddon } from '../../components/AddonSelector';
 import CouponSheet from '../../components/CouponSheet';
+import DeliveryPreferenceToggles from '../../components/DeliveryPreferenceToggles';
 import paymentService from '../../services/payment.service';
 import { useResponsive } from '../../hooks/useResponsive';
 import { SPACING } from '../../constants/spacing';
@@ -1373,79 +1374,13 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
                 />
               )}
 
-              {/* Leave at Door */}
-              <TouchableOpacity
-                onPress={() => setLeaveAtDoor(!leaveAtDoor)}
-                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}
-              >
-                <View
-                  style={{
-                    width: 40, height: 40, borderRadius: 20,
-                    alignItems: 'center', justifyContent: 'center', marginRight: 12,
-                    backgroundColor: leaveAtDoor ? '#FFF7ED' : '#F3F4F6',
-                  }}
-                >
-                  <MaterialCommunityIcons
-                    name="door-open"
-                    size={20}
-                    color={leaveAtDoor ? '#FE8733' : '#6B7280'}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827' }}>Leave at Door</Text>
-                  <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>Drop off without ringing the bell</Text>
-                </View>
-                <View
-                  style={{
-                    width: 20, height: 20, borderRadius: 4,
-                    alignItems: 'center', justifyContent: 'center',
-                    borderWidth: 1.5,
-                    borderColor: leaveAtDoor ? '#FE8733' : '#D1D5DB',
-                    backgroundColor: leaveAtDoor ? '#FE8733' : 'white',
-                  }}
-                >
-                  {leaveAtDoor && (
-                    <Text style={{ color: 'white', fontSize: 11, fontWeight: '700' }}>{'✓'}</Text>
-                  )}
-                </View>
-              </TouchableOpacity>
-
-              {/* Do Not Contact */}
-              <TouchableOpacity
-                onPress={() => setDoNotContact(!doNotContact)}
-                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12 }}
-              >
-                <View
-                  style={{
-                    width: 40, height: 40, borderRadius: 20,
-                    alignItems: 'center', justifyContent: 'center', marginRight: 12,
-                    backgroundColor: doNotContact ? '#FFF7ED' : '#F3F4F6',
-                  }}
-                >
-                  <MaterialCommunityIcons
-                    name="bell-off-outline"
-                    size={20}
-                    color={doNotContact ? '#FE8733' : '#6B7280'}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827' }}>Do Not Contact</Text>
-                  <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>Avoid calls or messages on delivery</Text>
-                </View>
-                <View
-                  style={{
-                    width: 20, height: 20, borderRadius: 4,
-                    alignItems: 'center', justifyContent: 'center',
-                    borderWidth: 1.5,
-                    borderColor: doNotContact ? '#FE8733' : '#D1D5DB',
-                    backgroundColor: doNotContact ? '#FE8733' : 'white',
-                  }}
-                >
-                  {doNotContact && (
-                    <Text style={{ color: 'white', fontSize: 11, fontWeight: '700' }}>{'✓'}</Text>
-                  )}
-                </View>
-              </TouchableOpacity>
+              <DeliveryPreferenceToggles
+                value={{ leaveAtDoor, doNotContact }}
+                onChange={next => {
+                  setLeaveAtDoor(next.leaveAtDoor);
+                  setDoNotContact(next.doNotContact);
+                }}
+              />
             </View>
           </ScrollView>
 

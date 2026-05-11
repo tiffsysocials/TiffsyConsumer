@@ -31,6 +31,7 @@ import apiService, {
 } from '../../services/api.service';
 import AddonSelector from '../../components/AddonSelector';
 import CouponSheet from '../../components/CouponSheet';
+import DeliveryPreferenceToggles from '../../components/DeliveryPreferenceToggles';
 import dataPreloader from '../../services/dataPreloader.service';
 import { useResponsive } from '../../hooks/useResponsive';
 import { SPACING, TOUCH_TARGETS } from '../../constants/spacing';
@@ -93,29 +94,39 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
   const isSchedulingMode = !!scheduledDate;
 
   // Compare current GPS location vs saved addresses on (locality + pincode), case-insensitively.
+  // Pincode is digits-only to absorb formatting variants ("560 001" vs "560001").
   // If GPS is missing or no saved address matches, an inline banner appears at the bottom of
   // the cart with two actions: "Add Address" or "Use Saved Address". The bottom CTA (Pay Now)
   // stays functional throughout — banner is a nudge, not a gate. Skip in scheduling mode.
   const normaliseAddressKey = (locality?: string, pincode?: string): string =>
-    `${(locality || '').trim().toLowerCase()}|${(pincode || '').trim()}`;
+    `${(locality || '').trim().toLowerCase()}|${(pincode || '').replace(/\D/g, '')}`;
   const gpsAddressKey = currentLocation
     ? normaliseAddressKey(currentLocation.address?.locality, currentLocation.pincode)
     : null;
-  const hasMatchingGpsAddress =
-    !!gpsAddressKey &&
-    addresses.some(a => normaliseAddressKey(a.locality, a.pincode) === gpsAddressKey);
+  const gpsMatchingAddresses = gpsAddressKey
+    ? addresses.filter(a => normaliseAddressKey(a.locality, a.pincode) === gpsAddressKey)
+    : [];
+  const hasMatchingGpsAddress = gpsMatchingAddresses.length > 0;
   const gpsLocationMissing = !currentLocation;
   // Screen-scoped dismissal flag — resets on unmount, so each fresh cart visit re-prompts.
   // Auto-clears when the mismatch resolves (user added a matching address or GPS updated).
   const [userBypassedLocationCheck, setUserBypassedLocationCheck] = useState(false);
   useEffect(() => {
-    if (hasMatchingGpsAddress) setUserBypassedLocationCheck(false);
-  }, [hasMatchingGpsAddress]);
+    if (selectedAddressMatchesGps) setUserBypassedLocationCheck(false);
+  }, [selectedAddressMatchesGps]);
+  // Treat the selected address as "verified against GPS" if it appears in the
+  // GPS-matching list. When multiple saved addresses share the same locality
+  // +pincode and the currently-selected one isn't among them, surface the
+  // banner so the user can switch instead of silently shipping to the wrong
+  // address.
+  const selectedAddressMatchesGps =
+    hasMatchingGpsAddress &&
+    gpsMatchingAddresses.some(a => a.id === localSelectedAddressId);
   const showLocationMismatchBanner =
     !isSchedulingMode &&
     addresses.length > 0 &&
     !userBypassedLocationCheck &&
-    (gpsLocationMissing || !hasMatchingGpsAddress);
+    (gpsLocationMissing || !hasMatchingGpsAddress || !selectedAddressMatchesGps);
 
   // Local state for selected address (display purposes)
   const [localSelectedAddressId, setLocalSelectedAddressId] = useState<string>(
@@ -248,6 +259,26 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
       setDeliveryAddressId(localSelectedAddressId);
     }
   }, [localSelectedAddressId]);
+
+  // Auto-select the saved address that matches the user's current GPS location,
+  // so the order is delivered to where the user actually is rather than to the
+  // default address. Skipped when (a) the caller pre-selected an address via
+  // route params, (b) scheduling mode (GPS at order-time isn't relevant for a
+  // future date), or (c) multiple saved addresses share the same locality+pincode
+  // — ambiguous matches fall back to the existing default so we don't silently
+  // pick the wrong one.
+  const gpsAutoSelectAppliedRef = useRef(false);
+  useEffect(() => {
+    if (route.params?.deliveryAddressId) return;
+    if (isSchedulingMode) return;
+    if (gpsAutoSelectAppliedRef.current) return;
+    if (gpsMatchingAddresses.length !== 1) return;
+    const match = gpsMatchingAddresses[0];
+    if (match.id !== localSelectedAddressId) {
+      setLocalSelectedAddressId(match.id);
+    }
+    gpsAutoSelectAppliedRef.current = true;
+  }, [gpsMatchingAddresses, isSchedulingMode]);
 
   // When slots are toggled, add/remove items for that slot
   const handleToggleSlot = useCallback(async (slot: 'LUNCH' | 'DINNER') => {
@@ -796,8 +827,16 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const lunchCharges = lunchPricing.pricing?.charges ?? { deliveryFee: 0, serviceFee: 0, packagingFee: 0, handlingFee: 0, platformFee: 0, surgeFee: 0, smallOrderFee: 0, lateNightFee: 0, taxAmount: 0 };
   const dinnerCharges = dinnerPricing.pricing?.charges ?? { deliveryFee: 0, serviceFee: 0, packagingFee: 0, handlingFee: 0, platformFee: 0, surgeFee: 0, smallOrderFee: 0, lateNightFee: 0, taxAmount: 0 };
-  const totalCharges = (lunchCharges.deliveryFee + lunchCharges.serviceFee + lunchCharges.packagingFee + (lunchCharges.platformFee || 0) + (lunchCharges.surgeFee || 0) + (lunchCharges.smallOrderFee || 0) + (lunchCharges.lateNightFee || 0) + lunchCharges.taxAmount)
-    + (dinnerCharges.deliveryFee + dinnerCharges.serviceFee + dinnerCharges.packagingFee + (dinnerCharges.platformFee || 0) + (dinnerCharges.surgeFee || 0) + (dinnerCharges.smallOrderFee || 0) + (dinnerCharges.lateNightFee || 0) + dinnerCharges.taxAmount);
+  // Sum every fee + the GST line. Order of operations on the bill must be:
+  //   subtotal + (delivery + service + packaging + handling + platform + surge + smallOrder + lateNight + tax)
+  //   then subtract voucher + coupon discounts.
+  // Tax is computed by the backend on the pre-discount base, so it is a regular
+  // line inside `totalCharges` — the discount is NEVER subtracted before tax.
+  const sumCharges = (c: PricingCharges) =>
+    (c.deliveryFee || 0) + (c.serviceFee || 0) + (c.packagingFee || 0) + (c.handlingFee || 0)
+    + (c.platformFee || 0) + (c.surgeFee || 0) + (c.smallOrderFee || 0) + (c.lateNightFee || 0)
+    + (c.taxAmount || 0);
+  const totalCharges = sumCharges(lunchCharges) + sumCharges(dinnerCharges);
 
   const voucherDiscount = (lunchPricing.pricing?.voucherCoverage?.value ?? 0) + (dinnerPricing.pricing?.voucherCoverage?.value ?? 0);
 
@@ -1080,14 +1119,45 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
         </View>
         <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-6xl mb-4">🛒</Text>
-          <Text className="text-xl font-bold text-gray-900 mb-2">Your cart is empty</Text>
-          <Text className="text-gray-500 text-center mb-6">Add some delicious meals to get started!</Text>
-          <TouchableOpacity
-            className="bg-orange-400 px-8 py-3 rounded-full"
-            onPress={() => navigation.navigate('Home')}
+          {/* Iconographic empty state — large cart inside a soft orange circle */}
+          <View
+            style={{
+              width: 140,
+              height: 140,
+              borderRadius: 70,
+              backgroundColor: 'rgba(254, 135, 51, 0.10)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 24,
+            }}
           >
-            <Text className="text-white font-semibold text-base">Browse Menu</Text>
+            <MaterialCommunityIcons name="cart-outline" size={72} color="#FE8733" />
+          </View>
+          <Text style={{ fontSize: 22, fontWeight: '700', color: '#1F2937', marginBottom: 8 }}>
+            Your cart is empty
+          </Text>
+          <Text style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', lineHeight: 20, marginBottom: 28, maxWidth: 280 }}>
+            Looks like you haven't added any meals yet. Tap below to explore today's menu.
+          </Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Home')}
+            activeOpacity={0.85}
+            style={{
+              backgroundColor: '#FE8733',
+              paddingHorizontal: 32,
+              paddingVertical: 14,
+              borderRadius: 30,
+              flexDirection: 'row',
+              alignItems: 'center',
+              shadowColor: '#FE8733',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.25,
+              shadowRadius: 8,
+              elevation: 4,
+            }}
+          >
+            <MaterialCommunityIcons name="silverware-fork-knife" size={18} color="white" style={{ marginRight: 8 }} />
+            <Text style={{ color: 'white', fontWeight: '600', fontSize: 15 }}>Browse Menu</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -1612,63 +1682,13 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
             />
           )}
 
-          {/* Leave at Door */}
-          <TouchableOpacity
-            onPress={() => setLeaveAtDoor(!leaveAtDoor)}
-            className="flex-row items-center py-3 border-b border-gray-100"
-          >
-            <View
-              className="w-10 h-10 rounded-full items-center justify-center mr-3"
-              style={{ backgroundColor: leaveAtDoor ? '#FFF7ED' : '#F3F4F6' }}
-            >
-              <MaterialCommunityIcons name="door-open" size={20} color={leaveAtDoor ? '#FE8733' : '#6B7280'} />
-            </View>
-            <View className="flex-1">
-              <Text className="text-base font-semibold text-gray-900">Leave at Door</Text>
-              <Text className="text-xs text-gray-500 mt-0.5">Drop off without ringing the bell</Text>
-            </View>
-            <View
-              className="w-5 h-5 rounded items-center justify-center"
-              style={{
-                borderWidth: 1.5,
-                borderColor: leaveAtDoor ? '#FE8733' : '#D1D5DB',
-                backgroundColor: leaveAtDoor ? '#FE8733' : 'white',
-              }}
-            >
-              {leaveAtDoor && (
-                <Text style={{ color: 'white', fontSize: 11, fontWeight: '700' }}>✓</Text>
-              )}
-            </View>
-          </TouchableOpacity>
-
-          {/* Do Not Contact */}
-          <TouchableOpacity
-            onPress={() => setDoNotContact(!doNotContact)}
-            className="flex-row items-center py-3"
-          >
-            <View
-              className="w-10 h-10 rounded-full items-center justify-center mr-3"
-              style={{ backgroundColor: doNotContact ? '#FFF7ED' : '#F3F4F6' }}
-            >
-              <MaterialCommunityIcons name="bell-off-outline" size={20} color={doNotContact ? '#FE8733' : '#6B7280'} />
-            </View>
-            <View className="flex-1">
-              <Text className="text-base font-semibold text-gray-900">Do Not Contact</Text>
-              <Text className="text-xs text-gray-500 mt-0.5">Avoid calls or messages on delivery</Text>
-            </View>
-            <View
-              className="w-5 h-5 rounded items-center justify-center"
-              style={{
-                borderWidth: 1.5,
-                borderColor: doNotContact ? '#FE8733' : '#D1D5DB',
-                backgroundColor: doNotContact ? '#FE8733' : 'white',
-              }}
-            >
-              {doNotContact && (
-                <Text style={{ color: 'white', fontSize: 11, fontWeight: '700' }}>✓</Text>
-              )}
-            </View>
-          </TouchableOpacity>
+          <DeliveryPreferenceToggles
+            value={{ leaveAtDoor, doNotContact }}
+            onChange={next => {
+              setLeaveAtDoor(next.leaveAtDoor);
+              setDoNotContact(next.doNotContact);
+            }}
+          />
         </View>
 
         {/* Coupon Section */}
@@ -1978,20 +1998,22 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
             a new address, or explicitly choose to use their saved address. */}
         {showLocationMismatchBanner && (
           <View style={{
-            backgroundColor: '#FEF3C7',
+            backgroundColor: '#FFF7ED',
             borderRadius: 10,
             borderWidth: 1,
-            borderColor: '#FCD34D',
+            borderColor: '#FED7AA',
             paddingVertical: 10,
             paddingHorizontal: 12,
             marginBottom: 10,
           }}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-              <MaterialCommunityIcons name="map-marker-alert" size={18} color="#92400E" style={{ marginRight: 8, marginTop: 1 }} />
-              <Text style={{ flex: 1, fontSize: 12, color: '#92400E', fontWeight: '500' }}>
+              <MaterialCommunityIcons name="map-marker-alert" size={18} color="#FE8733" style={{ marginRight: 8, marginTop: 1 }} />
+              <Text style={{ flex: 1, fontSize: 12, color: '#9A3412', fontWeight: '500' }}>
                 {gpsLocationMissing
                   ? "We can't detect your current location. Add a delivery address or continue with your saved one."
-                  : `Your current location (${currentLocation?.address?.locality || 'Unknown'}) isn't in your saved addresses.`}
+                  : !hasMatchingGpsAddress
+                    ? `Your current location (${currentLocation?.address?.locality || 'Unknown'}) isn't in your saved addresses.`
+                    : `Your current location matches a different saved address than the one set as default. Tap Change to switch.`}
               </Text>
             </View>
             <View style={{ flexDirection: 'row', marginTop: 10, marginLeft: 26, gap: 8 }}>
@@ -1999,7 +2021,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
                 onPress={() => navigation.navigate('Address')}
                 activeOpacity={0.7}
                 style={{
-                  backgroundColor: '#92400E',
+                  backgroundColor: '#FE8733',
                   borderRadius: 16,
                   paddingVertical: 6,
                   paddingHorizontal: 12,
@@ -2016,12 +2038,12 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
                   backgroundColor: 'transparent',
                   borderRadius: 16,
                   borderWidth: 1,
-                  borderColor: '#92400E',
+                  borderColor: '#FE8733',
                   paddingVertical: 6,
                   paddingHorizontal: 12,
                 }}
               >
-                <Text style={{ fontSize: 12, color: '#92400E', fontWeight: '700' }}>
+                <Text style={{ fontSize: 12, color: '#FE8733', fontWeight: '700' }}>
                   Use Saved Address
                 </Text>
               </TouchableOpacity>

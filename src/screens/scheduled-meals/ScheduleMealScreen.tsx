@@ -30,7 +30,13 @@ interface GroupedSlots {
   dayName: string;
   lunch: ScheduledMealSlot | null;
   dinner: ScheduledMealSlot | null;
+  isSundayClosed?: boolean;
 }
+
+const isSundayDate = (dateStr: string): boolean => {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).getDay() === 0;
+};
 
 const SLOT_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   available: { bg: '#D1FAE5', text: '#065F46', border: '#6EE7B7' },
@@ -172,6 +178,28 @@ const ScheduleMealScreen: React.FC<Props> = ({ navigation }) => {
     if (slot.mealWindow === 'DINNER') group.dinner = slot;
     return groups;
   }, []);
+
+  // Inject Sunday rows for the next 30 days (or visible window) so users see
+  // Sundays explicitly marked as non-serving days instead of just missing.
+  const displayedGroups: GroupedSlots[] = (() => {
+    const result = [...groupedSlots];
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    // Cover at least the same span the API returns (30 days), or extend a bit.
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      if (d.getDay() !== 0) continue;
+      const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const existing = result.find(g => g.date === ds);
+      if (existing) {
+        existing.isSundayClosed = true;
+      } else {
+        result.push({ date: ds, dayName: 'Sunday', lunch: null, dinner: null, isSundayClosed: true });
+      }
+    }
+    return result.sort((a, b) => a.date.localeCompare(b.date));
+  })();
 
   const currentAddress = addresses.find(a => a.id === currentAddressId);
   const hasAddresses = addresses.length > 0;
@@ -376,25 +404,47 @@ const ScheduleMealScreen: React.FC<Props> = ({ navigation }) => {
             </View>
 
             {/* Slot Rows */}
-            {groupedSlots.map((group) => (
+            {displayedGroups.map((group) => (
               <View key={group.date} style={{ flexDirection: 'row', marginBottom: SPACING.sm, alignItems: 'center' }}>
                 {/* Date Label */}
                 <View style={{ flex: 1.2, paddingRight: SPACING.sm }}>
-                  <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: '#1F2937' }}>{formatDate(group.date)}</Text>
+                  <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: group.isSundayClosed ? '#9CA3AF' : '#1F2937' }}>{formatDate(group.date)}</Text>
                   <Text style={{ fontSize: FONT_SIZES.xs, color: '#9CA3AF', textTransform: 'capitalize' }}>{group.dayName}</Text>
                 </View>
 
-                {/* Lunch Slot */}
-                {renderSlotCell(group.lunch, 'LUNCH')}
+                {group.isSundayClosed ? (
+                  <View style={{
+                    flex: 2,
+                    backgroundColor: '#FEF2F2',
+                    borderRadius: 10,
+                    borderWidth: 1.5,
+                    borderColor: '#FECACA',
+                    minHeight: 60,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexDirection: 'row',
+                    paddingHorizontal: SPACING.sm,
+                  }}>
+                    <MaterialCommunityIcons name="close-circle-outline" size={18} color="#DC2626" style={{ marginRight: 6 }} />
+                    <Text style={{ fontSize: FONT_SIZES.xs, color: '#DC2626', fontWeight: '600' }}>
+                      Not Delivering on Sundays
+                    </Text>
+                  </View>
+                ) : (
+                  <>
+                    {/* Lunch Slot */}
+                    {renderSlotCell(group.lunch, 'LUNCH')}
 
-                <View style={{ width: SPACING.sm }} />
+                    <View style={{ width: SPACING.sm }} />
 
-                {/* Dinner Slot */}
-                {renderSlotCell(group.dinner, 'DINNER')}
+                    {/* Dinner Slot */}
+                    {renderSlotCell(group.dinner, 'DINNER')}
+                  </>
+                )}
               </View>
             ))}
 
-            {groupedSlots.length === 0 && (
+            {displayedGroups.length === 0 && (
               <View style={{ paddingVertical: SPACING['4xl'], alignItems: 'center' }}>
                 <MaterialCommunityIcons name="calendar-blank-outline" size={48} color="#D1D5DB" />
                 <Text style={{ marginTop: SPACING.md, fontSize: FONT_SIZES.sm, color: '#6B7280', textAlign: 'center' }}>

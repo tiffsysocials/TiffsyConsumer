@@ -19,6 +19,7 @@ import { useAlert } from '../../context/AlertContext';
 import apiService, { ScheduledMealPricingData, AddonItem } from '../../services/api.service';
 import paymentService from '../../services/payment.service';
 import AddonSelector, { SelectedAddon } from '../../components/AddonSelector';
+import DeliveryPreferenceToggles from '../../components/DeliveryPreferenceToggles';
 import { useResponsive, useScaling } from '../../hooks/useResponsive';
 import { SPACING } from '../../constants/spacing';
 import { FONT_SIZES } from '../../constants/typography';
@@ -57,6 +58,8 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [deliveryNotes, setDeliveryNotes] = useState('');
+  const [leaveAtDoor, setLeaveAtDoor] = useState(false);
+  const [doNotContact, setDoNotContact] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
   // Add-on state
@@ -237,6 +240,8 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
         couponCode: appliedCoupon || undefined,
         specialInstructions: specialInstructions.trim() || undefined,
         deliveryNotes: deliveryNotes.trim() || undefined,
+        leaveAtDoor: leaveAtDoor || undefined,
+        doNotContact: doNotContact || undefined,
         ...(buildItemsWithAddons() ? { items: buildItemsWithAddons() } : {}),
       });
 
@@ -285,7 +290,7 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
     } finally {
       setIsCreating(false);
     }
-  }, [pricingData, isCreating, deliveryAddressId, mealWindow, scheduledDate, voucherCount, appliedCoupon, specialInstructions, deliveryNotes, showAlert, navigation, buildItemsWithAddons]);
+  }, [pricingData, isCreating, deliveryAddressId, mealWindow, scheduledDate, voucherCount, appliedCoupon, specialInstructions, deliveryNotes, leaveAtDoor, doNotContact, showAlert, navigation, buildItemsWithAddons]);
 
   if (isLoading) {
     return (
@@ -659,6 +664,18 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
             <Text style={{ fontSize: FONT_SIZES.xs, color: '#9CA3AF', marginTop: 4, textAlign: 'right' }}>
               {deliveryNotes.length}/200
             </Text>
+          </View>
+
+          {/* Delivery Preferences */}
+          <View style={{ paddingHorizontal: SPACING.lg, marginBottom: SPACING.lg }}>
+            <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'bold', color: '#1F2937', marginBottom: SPACING.sm }}>Delivery Preferences</Text>
+            <DeliveryPreferenceToggles
+              value={{ leaveAtDoor, doNotContact }}
+              onChange={next => {
+                setLeaveAtDoor(next.leaveAtDoor);
+                setDoNotContact(next.doNotContact);
+              }}
+            />
           </View>
 
           <View style={{ height: 100 + insets.bottom }} />

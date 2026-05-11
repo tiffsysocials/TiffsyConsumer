@@ -16,19 +16,25 @@ export const useTourTarget = (id: TourStepId | null) => {
   const measure = useCallback(() => {
     if (!id || !ref.current) return;
     ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
-      if (width > 0 && height > 0) {
+      if (width > 0 && height > 0 && Number.isFinite(x) && Number.isFinite(y)) {
         registerTarget(id, { x, y, width, height });
       }
     });
   }, [id, registerTarget]);
 
-  // Re-measure when this step becomes active so layout-shifted targets stay accurate.
+  // Re-measure when this step becomes active. We schedule several staggered
+  // attempts because:
+  //  - SafeAreaView insets / scroll snaps can settle on a delay
+  //  - Conditionally-rendered siblings (banners, error states) can shift this
+  //    target after the first measurement
+  //  - The Modal animation finishes ~250ms in; measuring after that catches
+  //    any layout jitter that happens during the fade-in.
   useEffect(() => {
-    if (id && active && currentStep?.id === id) {
-      // Slight delay so any pre-step layout settle (keyboard close, scroll snap) completes.
-      const t = setTimeout(measure, 120);
-      return () => clearTimeout(t);
-    }
+    if (!id || !active || currentStep?.id !== id) return;
+    const timers = [60, 200, 450].map((delay) => setTimeout(measure, delay));
+    return () => {
+      timers.forEach(clearTimeout);
+    };
   }, [active, currentStep?.id, id, measure]);
 
   // Unregister on unmount to avoid pointing the spotlight at a stale rect.

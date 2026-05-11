@@ -21,6 +21,7 @@ import { useAlert } from '../../context/AlertContext';
 import apiService, { OrderTrackingData, Order, OrderStatus } from '../../services/api.service';
 import CancelOrderModal from '../../components/CancelOrderModal';
 import RateOrderModal from '../../components/RateOrderModal';
+import DeliveryPreferenceToggles from '../../components/DeliveryPreferenceToggles';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Svg, { Path } from 'react-native-svg';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -112,9 +113,8 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
   const [copiedOrderId, setCopiedOrderId] = useState(false);
   const [savedNotes, setSavedNotes] = useState<string[]>([]);
   const [isSavingNotes, setIsSavingNotes] = useState(false);
-  const [leaveAtDoor, setLeaveAtDoor] = useState(false);
-  const [doNotContact, setDoNotContact] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isConfirmingDelivery, setIsConfirmingDelivery] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showRateModal, setShowRateModal] = useState(false);
   const [isRating, setIsRating] = useState(false);
@@ -237,6 +237,32 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
       Linking.openURL(`sms:${tracking.driver.phone}`);
     } else {
       showAlert('Not Available', 'Driver contact is not available yet', undefined, 'warning');
+    }
+  };
+
+  // Handle customer-side delivery confirmation (Do-Not-Contact / Leave-at-Door fallback).
+  // Optimistic UI: flip status locally, refetch on success, rollback on error.
+  const handleConfirmDelivery = async () => {
+    if (isConfirmingDelivery) return;
+    setIsConfirmingDelivery(true);
+    try {
+      const response = await apiService.confirmDelivery(orderId);
+      if (response.success) {
+        showAlert(
+          'Delivery Confirmed',
+          'Thanks! We\'ve marked your order as delivered.',
+          undefined,
+          'success',
+        );
+        // Refetch to pick up the new status + timestamps.
+        fetchTracking();
+      } else {
+        showAlert('Could not confirm', response.message || 'Please try again.', undefined, 'error');
+      }
+    } catch (err: any) {
+      showAlert('Could not confirm', err.message || 'Please try again.', undefined, 'error');
+    } finally {
+      setIsConfirmingDelivery(false);
     }
   };
 
@@ -705,71 +731,78 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
             </View>
           )}
 
-          {/* Leave at Door & Do Not Contact */}
-          {!isCancelledOrRejected && tracking?.status !== 'DELIVERED' && (
+          {/* Delivery preferences — readonly recap of what the customer chose at checkout.
+              Renders nothing when neither was selected. */}
+          {!isCancelledOrRejected && (order?.leaveAtDoor || order?.doNotContact) && (
             <View className="mb-6">
-              {/* Leave at Door */}
-              <TouchableOpacity
-                onPress={() => setLeaveAtDoor(!leaveAtDoor)}
-                className="flex-row items-center py-3 border-b border-gray-100"
-              >
-                <View
-                  className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                  style={{ backgroundColor: leaveAtDoor ? '#FFF7ED' : '#F3F4F6' }}
-                >
-                  <MaterialCommunityIcons name="door-open" size={20} color={leaveAtDoor ? '#FE8733' : '#6B7280'} />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-base font-semibold text-gray-900">Leave at Door</Text>
-                  <Text className="text-xs text-gray-500 mt-0.5">Drop off without ringing the bell</Text>
-                </View>
-                <View
-                  className="w-5 h-5 rounded items-center justify-center"
-                  style={{
-                    borderWidth: 1.5,
-                    borderColor: leaveAtDoor ? '#FE8733' : '#D1D5DB',
-                    backgroundColor: leaveAtDoor ? '#FE8733' : 'white',
-                  }}
-                >
-                  {leaveAtDoor && (
-                    <Text style={{ color: 'white', fontSize: 11, fontWeight: '700' }}>✓</Text>
-                  )}
-                </View>
-              </TouchableOpacity>
-
-              {/* Do Not Contact */}
-              <TouchableOpacity
-                onPress={() => setDoNotContact(!doNotContact)}
-                className="flex-row items-center py-3"
-              >
-                <View
-                  className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                  style={{ backgroundColor: doNotContact ? '#FFF7ED' : '#F3F4F6' }}
-                >
-                  <MaterialCommunityIcons name="bell-off-outline" size={20} color={doNotContact ? '#FE8733' : '#6B7280'} />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-base font-semibold text-gray-900">Do Not Contact</Text>
-                  <Text className="text-xs text-gray-500 mt-0.5">Avoid calls or messages on delivery</Text>
-                </View>
-                <View
-                  className="w-5 h-5 rounded items-center justify-center"
-                  style={{
-                    borderWidth: 1.5,
-                    borderColor: doNotContact ? '#FE8733' : '#D1D5DB',
-                    backgroundColor: doNotContact ? '#FE8733' : 'white',
-                  }}
-                >
-                  {doNotContact && (
-                    <Text style={{ color: 'white', fontSize: 11, fontWeight: '700' }}>✓</Text>
-                  )}
-                </View>
-              </TouchableOpacity>
+              <Text className="text-sm font-semibold text-gray-700 mb-2">Delivery Preferences</Text>
+              <DeliveryPreferenceToggles
+                value={{
+                  leaveAtDoor: !!order?.leaveAtDoor,
+                  doNotContact: !!order?.doNotContact,
+                }}
+                variant="readonly"
+              />
             </View>
           )}
 
-          {/* OTP Section - Only show when out for delivery */}
-          {shouldShowOtp && deliveryOtp && (
+          {/* Delivery handoff section — branches on the customer's preference:
+              - Leave at Door  → OTP-waived card + photo proof (when delivered)
+              - Do Not Contact → OTP + tap-to-confirm button
+              - Neither        → standard OTP card                                       */}
+
+          {/* (A) Leave at Door — OTP waived. Show different copy in-flight vs. delivered. */}
+          {order?.leaveAtDoor && shouldShowOtp && (
+            <View
+              style={{
+                backgroundColor: '#FFF7ED',
+                borderRadius: 12,
+                padding: 20,
+                borderWidth: 1.5,
+                borderColor: '#FED7AA',
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <MaterialCommunityIcons name="door-open" size={20} color="#9A3412" />
+                <Text style={{ fontSize: 14, color: '#9A3412', fontWeight: '700', marginLeft: 8 }}>
+                  OTP Waived — Leave at Door
+                </Text>
+              </View>
+              <Text style={{ fontSize: 13, color: '#9A3412', lineHeight: 18 }}>
+                Your rider will leave the order at your door and upload a photo as proof.
+                You'll see the photo here once it's delivered.
+              </Text>
+            </View>
+          )}
+
+          {/* (A2) Delivered + photo proof available — show the photo. */}
+          {order?.leaveAtDoor && order?.proofPhotoUrl && (
+            <View
+              style={{
+                backgroundColor: '#F0FDF4',
+                borderRadius: 12,
+                padding: 16,
+                borderWidth: 1,
+                borderColor: '#BBF7D0',
+                marginTop: shouldShowOtp ? 12 : 0,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                <MaterialCommunityIcons name="check-circle" size={20} color="#047857" />
+                <Text style={{ fontSize: 14, color: '#047857', fontWeight: '700', marginLeft: 8 }}>
+                  Photo Proof of Delivery
+                </Text>
+              </View>
+              <Image
+                source={{ uri: order.proofPhotoUrl }}
+                style={{ width: '100%', height: 220, borderRadius: 10, backgroundColor: '#E5E7EB' }}
+                resizeMode="cover"
+              />
+            </View>
+          )}
+
+          {/* (B) Standard OTP — shown when NOT leaveAtDoor and OTP available. */}
+          {!order?.leaveAtDoor && shouldShowOtp && deliveryOtp && (
             <View
               style={{
                 backgroundColor: '#E8F5E9',
@@ -819,13 +852,15 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
                   textAlign: 'center',
                 }}
               >
-                Share this code with your delivery partner
+                {order?.doNotContact
+                  ? "Your rider won't call. Share this code only if asked."
+                  : 'Share this code with your delivery partner'}
               </Text>
             </View>
           )}
 
-          {/* OTP Error - Show when out for delivery but OTP is missing */}
-          {shouldShowOtp && !deliveryOtp && (
+          {/* OTP missing fallback (standard flow only). */}
+          {!order?.leaveAtDoor && shouldShowOtp && !deliveryOtp && (
             <View
               style={{
                 backgroundColor: '#FFF3E0',
@@ -846,6 +881,38 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
               </Text>
             </View>
           )}
+
+          {/* (C) Tap-to-confirm — shown when customer picked Do-Not-Contact OR Leave-at-Door
+              and the order is out for delivery but not yet marked delivered. Lets the user
+              short-circuit the handoff without needing the rider to interact. */}
+          {shouldShowOtp &&
+            (order?.doNotContact || order?.leaveAtDoor) &&
+            !order?.customerConfirmedAt && (
+              <TouchableOpacity
+                onPress={handleConfirmDelivery}
+                disabled={isConfirmingDelivery}
+                style={{
+                  marginTop: 12,
+                  backgroundColor: isConfirmingDelivery ? '#FDBA74' : '#FE8733',
+                  borderRadius: 14,
+                  paddingVertical: 14,
+                  alignItems: 'center',
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                }}
+              >
+                {isConfirmingDelivery ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <>
+                    <MaterialCommunityIcons name="check-circle-outline" size={20} color="white" style={{ marginRight: 8 }} />
+                    <Text style={{ color: 'white', fontSize: 15, fontWeight: '700' }}>
+                      I've Received It
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
         </View>
 
         {/* Order Summary */}

@@ -19,8 +19,14 @@ export function getTodaysActiveBasicOrders(orders: Order[]): Order[] {
   return orders.filter(o => {
     if (o.isAutoOrder || o.orderSource === 'AUTO_ORDER') return false;
     if (TERMINAL_STATUSES.includes(o.status)) return false;
-    // Also drop payment-failed orders even if status isn't yet FAILED — they're dead.
+    // Drop payment-failed orders — they're dead.
     if (o.paymentStatus === 'FAILED') return false;
+    // Drop payment-pending orders — they're either in-flight (Razorpay still open) or
+    // abandoned (app killed mid-checkout). Surfacing them as "your meal is coming" is
+    // misleading; the backend's reconcile-on-read flow will resolve them within seconds
+    // of the user opening the app, after which they'll either become PAID (and reappear
+    // here legitimately) or FAILED (and show in History).
+    if (o.paymentStatus === 'PENDING') return false;
     return isSameDay(getTargetDate(o), now);
   });
 }

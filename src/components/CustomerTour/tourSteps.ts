@@ -29,6 +29,13 @@ export const TOUR_STEPS: TourStep[] = [
     placement: 'below',
   },
   {
+    id: 'autoOrders',
+    title: 'Set it and forget it',
+    body: 'Turn on Auto Orders to have your favourite meals delivered on the days you choose — no need to reorder every time.',
+    hasTarget: true,
+    placement: 'below',
+  },
+  {
     id: 'addToCart',
     title: 'Order in one tap',
     body: 'Tap Add to Cart to start your order. You can also schedule meals for later.',

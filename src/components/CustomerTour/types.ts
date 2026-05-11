@@ -3,6 +3,7 @@ export type TourStepId =
   | 'location'
   | 'vouchers'
   | 'planAhead'
+  | 'autoOrders'
   | 'addToCart'
   | 'navOrders'
   | 'navOnDemand'

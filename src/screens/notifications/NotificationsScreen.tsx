@@ -32,11 +32,13 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
     isLoading,
     isRefreshing,
     hasMore,
+    sundayNoticeRead,
     fetchNotifications,
     refreshNotifications,
     loadMoreNotifications,
     markAsRead,
     markAllAsRead,
+    markSundayNoticeRead,
     deleteNotification,
   } = useNotifications();
   const { isSmallDevice } = useResponsive();
@@ -48,7 +50,15 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
   useFocusEffect(
     useCallback(() => {
       fetchNotifications(1);
-    }, [fetchNotifications])
+      // Mark the static Sunday notice as read shortly after the user lands on
+      // this screen — gives them a moment to see the unread dot before it clears.
+      const timer = setTimeout(() => {
+        if (!sundayNoticeRead) {
+          markSundayNoticeRead();
+        }
+      }, 1500);
+      return () => clearTimeout(timer);
+    }, [fetchNotifications, sundayNoticeRead, markSundayNoticeRead])
   );
 
   // Handle pull to refresh
@@ -229,15 +239,53 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
     );
   };
 
-  // Render pinned section header + items
+  // Static, always-pinned notice that we don't serve on Sundays. This isn't a
+  // server-side notification — it's a permanent informational card. It shows
+  // as unread (bell badge +1, unread dot, white bg) until the user has seen it.
+  const renderSundayClosedNotice = () => {
+    const isUnread = !sundayNoticeRead;
+    return (
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() => { if (isUnread) markSundayNoticeRead(); }}
+        style={[
+          styles.notificationItem,
+          styles.pinnedNotification,
+          styles.sundayNoticeItem,
+          isUnread && styles.unreadNotification,
+        ]}
+      >
+        <View style={[styles.iconContainer, { backgroundColor: '#FEE2E2' }]}>
+          <MaterialCommunityIcons name="calendar-remove" size={24} color="#DC2626" />
+        </View>
+        <View style={styles.contentContainer}>
+          <View style={styles.headerRow}>
+            <Text style={[styles.title, isUnread && styles.unreadTitle]} numberOfLines={1}>
+              Closed on Sundays
+            </Text>
+            {isUnread && <View style={styles.unreadDot} />}
+          </View>
+          <Text style={styles.body}>
+            We don't deliver meals on Sundays. Auto-orders and scheduling are unavailable for Sundays — please pick another day.
+          </Text>
+        </View>
+        <View style={styles.pinBadge}>
+          <Ionicons name="pin" size={12} color="#FD9E2F" />
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  // Render pinned section header + items. The Sunday-closed notice is always shown,
+  // so this section is never empty.
   const renderPinnedSection = (pinned: NotificationData[]) => {
-    if (pinned.length === 0) return null;
     return (
       <View>
         <View style={styles.sectionHeader}>
           <Ionicons name="pin" size={14} color="#FD9E2F" />
           <Text style={styles.sectionHeaderText}>Pinned</Text>
         </View>
+        {renderSundayClosedNotice()}
         {pinned.map(item => (
           <View key={item._id}>
             {renderNotificationItem({ item, pinned: true })}
@@ -248,23 +296,6 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
           <Ionicons name="notifications-outline" size={14} color="#9CA3AF" />
           <Text style={[styles.sectionHeaderText, { color: '#9CA3AF' }]}>All Notifications</Text>
         </View>
-      </View>
-    );
-  };
-
-  // Render empty state
-  const renderEmptyState = () => {
-    if (isLoading) return null;
-
-    return (
-      <View style={styles.emptyContainer}>
-        <View style={styles.emptyIconContainer}>
-          <Ionicons name="notifications-outline" size={64} color="#D1D5DB" />
-        </View>
-        <Text style={styles.emptyTitle}>No notifications yet</Text>
-        <Text style={styles.emptyMessage}>
-          We'll notify you when there's something new!
-        </Text>
       </View>
     );
   };
@@ -280,7 +311,7 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
     );
   };
 
-  const hasUnreadNotifications = notifications.some((n) => !n.isRead);
+  const hasUnreadNotifications = !sundayNoticeRead || notifications.some((n) => !n.isRead);
 
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -331,7 +362,7 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
         keyExtractor={(item) => item._id}
         renderItem={renderNotificationItem}
         ListHeaderComponent={() => renderPinnedSection(pinnedNotifications)}
-        ListEmptyComponent={pinnedNotifications.length === 0 ? renderEmptyState : null}
+        ListEmptyComponent={null}
         ListFooterComponent={renderFooter}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
@@ -471,6 +502,10 @@ const styles = StyleSheet.create({
   pinnedNotification: {
     borderLeftWidth: 3,
     borderLeftColor: '#FD9E2F',
+  },
+  sundayNoticeItem: {
+    backgroundColor: '#FFF7ED',
+    borderLeftColor: '#DC2626',
   },
   pinBadge: {
     position: 'absolute',

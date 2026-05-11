@@ -174,7 +174,9 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const unsubscribe = authEvents.onAuthExpired(() => {
       console.log('[UserContext] Auth expired — clearing user state');
       setUser(null);
-      setIsGuest(false);
+      // Don't reset isGuest here — guests never had a token, so a 401 on a
+      // protected endpoint isn't an "expiry" for them. Wiping the flag would
+      // bounce them out of guest mode and back to onboarding.
       AsyncStorage.removeItem('user_profile').catch(() => {});
     });
     return unsubscribe;

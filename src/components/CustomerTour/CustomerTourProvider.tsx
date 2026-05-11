@@ -87,15 +87,41 @@ export const CustomerTourProvider: React.FC<{ children: ReactNode }> = ({ childr
   const currentTarget =
     currentStep?.hasTarget ? targetsRef.current[currentStep.id] ?? null : null;
 
+  // If a step's target is conditionally rendered and currently absent (e.g.,
+  // voucher button hidden because the meal isn't available, or Add-to-Cart
+  // hidden because no meal item is loaded), the spotlight has nothing to
+  // anchor to. Wait briefly for late registration; if it still isn't there,
+  // skip ahead so the user doesn't see an empty/misaligned highlight box.
+  useEffect(() => {
+    if (!active || !currentStep || !currentStep.hasTarget) return;
+    if (currentTarget) return;
+    const timer = setTimeout(() => {
+      if (!targetsRef.current[currentStep.id]) {
+        if (stepIndex >= TOUR_STEPS.length - 1) {
+          finish();
+        } else {
+          setStepIndex((idx) => idx + 1);
+        }
+      }
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [active, currentStep, currentTarget, stepIndex, finish]);
+
   const value = useMemo<CustomerTourContextValue>(
     () => ({ active, currentStep, registerTarget, next, skip, startTour }),
     [active, currentStep, registerTarget, next, skip, startTour],
   );
 
+  // Only render the overlay once we actually have a target rect for steps
+  // that need one — prevents a half-second flash of dim-only background while
+  // the target finishes registering.
+  const shouldRenderOverlay =
+    active && !!currentStep && (!currentStep.hasTarget || !!currentTarget);
+
   return (
     <CustomerTourContext.Provider value={value}>
       {children}
-      {active && currentStep && (
+      {shouldRenderOverlay && currentStep && (
         <TourOverlay
           step={currentStep}
           target={currentTarget}
