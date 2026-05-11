@@ -93,45 +93,92 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
   const scheduledDate = route.params?.scheduledDate;
   const isSchedulingMode = !!scheduledDate;
 
-  // Compare current GPS location vs saved addresses on (locality + pincode), case-insensitively.
-  // Pincode is digits-only to absorb formatting variants ("560 001" vs "560001").
-  // If GPS is missing or no saved address matches, an inline banner appears at the bottom of
-  // the cart with two actions: "Add Address" or "Use Saved Address". The bottom CTA (Pay Now)
-  // stays functional throughout — banner is a nudge, not a gate. Skip in scheduling mode.
+  // Compare current GPS location vs saved addresses. Primary check is a radius
+  // around the saved address's stored coordinates (~250m) — stable against GPS
+  // jitter inside a home and against reverse-geocoder locality variations
+  // ("Indiranagar" vs "HAL 2nd Stage"). When a saved address has no stored
+  // coordinates we fall back to a (locality + pincode) string match. Pincode is
+  // digits-only to absorb formatting variants ("560 001" vs "560001").
+  const MATCH_RADIUS_METERS = 250;
+  const haversineMeters = (
+    a: { latitude: number; longitude: number },
+    b: { latitude: number; longitude: number },
+  ): number => {
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+    const R = 6371000;
+    const dLat = toRad(b.latitude - a.latitude);
+    const dLon = toRad(b.longitude - a.longitude);
+    const lat1 = toRad(a.latitude);
+    const lat2 = toRad(b.latitude);
+    const h =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  };
   const normaliseAddressKey = (locality?: string, pincode?: string): string =>
     `${(locality || '').trim().toLowerCase()}|${(pincode || '').replace(/\D/g, '')}`;
+  const gpsCoords = currentLocation?.coordinates;
   const gpsAddressKey = currentLocation
     ? normaliseAddressKey(currentLocation.address?.locality, currentLocation.pincode)
     : null;
-  const gpsMatchingAddresses = gpsAddressKey
-    ? addresses.filter(a => normaliseAddressKey(a.locality, a.pincode) === gpsAddressKey)
-    : [];
+  const isAddressNearGps = (a: typeof addresses[number]): boolean => {
+    if (gpsCoords && a.coordinates) {
+      return haversineMeters(gpsCoords, a.coordinates) <= MATCH_RADIUS_METERS;
+    }
+    // Fallback for addresses saved before coordinates were captured.
+    return !!gpsAddressKey && normaliseAddressKey(a.locality, a.pincode) === gpsAddressKey;
+  };
+  const gpsMatchingAddresses = currentLocation ? addresses.filter(isAddressNearGps) : [];
   const hasMatchingGpsAddress = gpsMatchingAddresses.length > 0;
   const gpsLocationMissing = !currentLocation;
   // Screen-scoped dismissal flag — resets on unmount, so each fresh cart visit re-prompts.
-  // Auto-clears when the mismatch resolves (user added a matching address or GPS updated).
   const [userBypassedLocationCheck, setUserBypassedLocationCheck] = useState(false);
-  useEffect(() => {
-    if (selectedAddressMatchesGps) setUserBypassedLocationCheck(false);
-  }, [selectedAddressMatchesGps]);
-  // Treat the selected address as "verified against GPS" if it appears in the
-  // GPS-matching list. When multiple saved addresses share the same locality
-  // +pincode and the currently-selected one isn't among them, surface the
-  // banner so the user can switch instead of silently shipping to the wrong
-  // address.
-  const selectedAddressMatchesGps =
-    hasMatchingGpsAddress &&
-    gpsMatchingAddresses.some(a => a.id === localSelectedAddressId);
-  const showLocationMismatchBanner =
-    !isSchedulingMode &&
-    addresses.length > 0 &&
-    !userBypassedLocationCheck &&
-    (gpsLocationMissing || !hasMatchingGpsAddress || !selectedAddressMatchesGps);
 
   // Local state for selected address (display purposes)
   const [localSelectedAddressId, setLocalSelectedAddressId] = useState<string>(
     route.params?.deliveryAddressId || deliveryAddressId || getMainAddress()?.id || (addresses.length > 0 ? addresses[0].id : '')
   );
+
+  // Treat the selected address as "verified against GPS" if it appears in the
+  // GPS-matching list. Declared after localSelectedAddressId because it depends
+  // on it — keeping the const before its first use avoids the TDZ issue.
+  const selectedAddressMatchesGps =
+    hasMatchingGpsAddress &&
+    gpsMatchingAddresses.some(a => a.id === localSelectedAddressId);
+  // !hasMatchingGpsAddress is subsumed by !selectedAddressMatchesGps (the
+  // latter requires the former), so drop the redundant middle clause.
+  const showLocationMismatchBanner =
+    !isSchedulingMode &&
+    addresses.length > 0 &&
+    !userBypassedLocationCheck &&
+    (gpsLocationMissing || !selectedAddressMatchesGps);
+
+  // Bypass dismisses the banner for the *current* situation. Two events
+  // legitimately invalidate that dismissal:
+  //   (1) the mismatch resolves on its own — selection now matches GPS
+  //   (2) the user moves to a meaningfully different location, where the old
+  //       dismissal no longer applies (different place, possibly a different
+  //       mismatch worth re-warning about).
+  // We remember the coords at the moment of bypass and clear the flag once
+  // either condition holds.
+  const BYPASS_RESET_RADIUS_METERS = 500;
+  const bypassedAtCoordsRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  useEffect(() => {
+    if (selectedAddressMatchesGps) {
+      setUserBypassedLocationCheck(false);
+      bypassedAtCoordsRef.current = null;
+      return;
+    }
+    if (
+      userBypassedLocationCheck &&
+      bypassedAtCoordsRef.current &&
+      gpsCoords &&
+      haversineMeters(gpsCoords, bypassedAtCoordsRef.current) > BYPASS_RESET_RADIUS_METERS
+    ) {
+      setUserBypassedLocationCheck(false);
+      bypassedAtCoordsRef.current = null;
+    }
+  }, [selectedAddressMatchesGps, userBypassedLocationCheck, gpsCoords?.latitude, gpsCoords?.longitude]);
 
   // Per-slot pricing state
   interface SlotPricing {
@@ -253,32 +300,58 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
     }, [kitchenId])
   );
 
-  // Sync local address selection with cart context
+  // Keep localSelectedAddressId valid against the live addresses list. The
+  // initial useState runs once on mount and falls back to '' when addresses
+  // are still loading from the network — without this effect that stale ''
+  // would persist (silently corrupting the order payload) and the banner
+  // would wrongly fire because the empty id never appears in
+  // gpsMatchingAddresses. Also resolves the deleted-address case: if the
+  // currently-selected address was removed elsewhere, we re-pick the main
+  // address (or first available) instead of keeping a dead id.
   useEffect(() => {
-    if (localSelectedAddressId && localSelectedAddressId !== deliveryAddressId) {
-      setDeliveryAddressId(localSelectedAddressId);
-    }
-  }, [localSelectedAddressId]);
+    if (addresses.length === 0) return;
+    const isSelectionValid = addresses.some(a => a.id === localSelectedAddressId);
+    if (isSelectionValid) return;
+    const fallbackId =
+      route.params?.deliveryAddressId && addresses.some(a => a.id === route.params!.deliveryAddressId)
+        ? route.params!.deliveryAddressId!
+        : deliveryAddressId && addresses.some(a => a.id === deliveryAddressId)
+          ? deliveryAddressId
+          : getMainAddress()?.id || addresses[0].id;
+    setLocalSelectedAddressId(fallbackId);
+  }, [addresses, localSelectedAddressId]);
+
+  // Sync local address selection with cart context — only when we have a
+  // genuinely valid id, to avoid overwriting context with a transient ''.
+  useEffect(() => {
+    if (!localSelectedAddressId) return;
+    if (localSelectedAddressId === deliveryAddressId) return;
+    if (!addresses.some(a => a.id === localSelectedAddressId)) return;
+    setDeliveryAddressId(localSelectedAddressId);
+  }, [localSelectedAddressId, addresses]);
 
   // Auto-select the saved address that matches the user's current GPS location,
   // so the order is delivered to where the user actually is rather than to the
   // default address. Skipped when (a) the caller pre-selected an address via
   // route params, (b) scheduling mode (GPS at order-time isn't relevant for a
-  // future date), or (c) multiple saved addresses share the same locality+pincode
-  // — ambiguous matches fall back to the existing default so we don't silently
-  // pick the wrong one.
-  const gpsAutoSelectAppliedRef = useRef(false);
+  // future date), or (c) multiple saved addresses match — ambiguous matches
+  // fall back to the existing default so we don't silently pick the wrong one.
+  // The ref tracks the GPS match-set key we last auto-selected for; when GPS
+  // drifts to a different match-set we auto-select again, but a manual user
+  // pick within the same match-set is preserved (the key hasn't changed).
+  const gpsAutoSelectKeyRef = useRef<string | null>(null);
+  const gpsMatchSetKey = gpsMatchingAddresses.map(a => a.id).sort().join(',');
   useEffect(() => {
     if (route.params?.deliveryAddressId) return;
     if (isSchedulingMode) return;
-    if (gpsAutoSelectAppliedRef.current) return;
     if (gpsMatchingAddresses.length !== 1) return;
+    if (gpsAutoSelectKeyRef.current === gpsMatchSetKey) return;
     const match = gpsMatchingAddresses[0];
     if (match.id !== localSelectedAddressId) {
       setLocalSelectedAddressId(match.id);
     }
-    gpsAutoSelectAppliedRef.current = true;
-  }, [gpsMatchingAddresses, isSchedulingMode]);
+    gpsAutoSelectKeyRef.current = gpsMatchSetKey;
+  }, [gpsMatchSetKey, isSchedulingMode]);
 
   // When slots are toggled, add/remove items for that slot
   const handleToggleSlot = useCallback(async (slot: 'LUNCH' | 'DINNER') => {
@@ -2013,7 +2086,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
                   ? "We can't detect your current location. Add a delivery address or continue with your saved one."
                   : !hasMatchingGpsAddress
                     ? `Your current location (${currentLocation?.address?.locality || 'Unknown'}) isn't in your saved addresses.`
-                    : `Your current location matches a different saved address than the one set as default. Tap Change to switch.`}
+                    : `Your current location matches a different saved address than the one selected. Tap Change to switch.`}
               </Text>
             </View>
             <View style={{ flexDirection: 'row', marginTop: 10, marginLeft: 26, gap: 8 }}>
@@ -2032,7 +2105,10 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => setUserBypassedLocationCheck(true)}
+                onPress={() => {
+                  bypassedAtCoordsRef.current = gpsCoords || null;
+                  setUserBypassedLocationCheck(true);
+                }}
                 activeOpacity={0.7}
                 style={{
                   backgroundColor: 'transparent',
