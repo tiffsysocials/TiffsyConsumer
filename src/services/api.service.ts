@@ -290,6 +290,47 @@ export interface KitchenMenuResponse {
   };
 }
 
+/**
+ * Phase 6: matched DeliveryZone pricing for a single meal window.
+ * Returned as part of ServiceableKitchensV2Response when the backend
+ * resolves the customer's address against the new DeliveryZone model.
+ */
+export interface MatchedZonePricing {
+  deliveryFee: number;
+  platformFee: number;
+  handlingFee: number;
+  serviceFee: number;
+  packagingFee: number;
+  minOrderAmount: number;
+  freeDeliveryAbove: number | null;
+}
+
+export interface ServiceableKitchenV2 {
+  kitchen: KitchenInfo;
+  matchedZone: {
+    _id: string;
+    name: string;
+    priority: number;
+  };
+  matchedArea: {
+    _id: string;
+    name: string;
+    pincode: string;
+  } | null;
+  fees: MatchedZonePricing;
+}
+
+export interface ServiceableKitchensV2Response {
+  success: boolean;
+  message?: string;
+  data: {
+    kitchens: ServiceableKitchenV2[];
+    count: number;
+    mealWindow: 'LUNCH' | 'DINNER';
+    message?: string;
+  };
+}
+
 export interface AddressKitchensResponse {
   success: boolean;
   message?: string;
@@ -375,6 +416,8 @@ export interface Coupon {
 export interface GetAvailableCouponsParams {
   kitchenId?: string;
   zoneId?: string;
+  /** Phase 6: per-kitchen DeliveryZone ID (preferred over zoneId post-cutover) */
+  deliveryZoneId?: string;
   orderValue?: number;
   menuType?: 'MEAL_MENU' | 'ON_DEMAND_MENU';
 }
@@ -391,7 +434,10 @@ export interface GetAvailableCouponsResponse {
 export interface ValidateCouponRequest {
   code: string;
   kitchenId: string;
+  /** Legacy pincode-Zone ID. Send empty string if not available. */
   zoneId: string;
+  /** Phase 6: per-kitchen DeliveryZone ID from the matched zone. Optional. */
+  deliveryZoneId?: string;
   orderValue: number;
   itemCount: number;
   menuType: 'MEAL_MENU' | 'ON_DEMAND_MENU';
@@ -1780,6 +1826,22 @@ class ApiService {
   ): Promise<AddressKitchensResponse> {
     const params = menuType ? { menuType } : undefined;
     return this.api.get(`/api/address/${addressId}/kitchens`, { params });
+  }
+
+  /**
+   * Phase 6: NEW discovery endpoint using the DeliveryZone model.
+   * Returns kitchens with their matched zone + per-meal-window pricing.
+   *
+   * Parallel to getAddressKitchens during the cutover. When ready to
+   * cut HomeScreen over, swap the call site to this method and read
+   * pricing from kitchen.fees instead of kitchen-level config.
+   */
+  async getServiceableKitchensV2(
+    addressId: string,
+    mealWindow?: 'LUNCH' | 'DINNER',
+  ): Promise<ServiceableKitchensV2Response> {
+    const params = mealWindow ? { mealWindow } : undefined;
+    return this.api.get(`/api/address/${addressId}/serviceable-kitchens-v2`, { params });
   }
 
   // ============================================
