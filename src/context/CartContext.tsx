@@ -1,7 +1,7 @@
 // src/context/CartContext.tsx
 import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { OrderItem, OrderItemAddon } from '../services/api.service';
+import { OrderItem, OrderItemAddon, MatchedZonePricing } from '../services/api.service';
 
 const CART_STORAGE_KEY = '@tiffsy_cart';
 const CART_CONTEXT_STORAGE_KEY = '@tiffsy_cart_context';
@@ -36,6 +36,17 @@ export type MealWindow = 'LUNCH' | 'DINNER';
 // Per-slot voucher counts
 export type SlotVoucherCounts = Record<MealWindow, number>;
 
+// Per-meal-window zone fees, populated by HomeScreen after a v2 match.
+export type MatchedZoneFees = Partial<Record<MealWindow, MatchedZonePricing>>;
+
+// Payload for setMatchedZone(): id + name + the fees keyed by the meal window
+// they were fetched for. Pass `null` to clear.
+export interface MatchedZonePayload {
+  id: string;
+  name: string;
+  fees: MatchedZoneFees;
+}
+
 interface CartContextType {
   // Cart items
   cartItems: CartItem[];
@@ -55,6 +66,12 @@ interface CartContextType {
   menuType: MenuType | null;
   mealWindow: MealWindow | null;  // backward compat: returns first selected window
   deliveryAddressId: string | null;
+  // True once the user has *deliberately* chosen the delivery address for this
+  // cart session (changed their default, or picked one in-cart). Lives at the
+  // app level so it survives Cart-screen remounts. The cart uses it to stop GPS
+  // auto-select from overriding a deliberate choice ("GPS first, but changes
+  // win"). Reset when the cart/order context is reset.
+  addressManuallyChosen: boolean;
   voucherCount: number;           // backward compat: total across slots
   couponCode: string | null;
   specialInstructions: string;
@@ -65,6 +82,7 @@ interface CartContextType {
   setMenuType: (type: MenuType | null) => void;
   setMealWindow: (window: MealWindow | null) => void;
   setDeliveryAddressId: (id: string | null) => void;
+  setAddressManuallyChosen: (chosen: boolean) => void;
   setVoucherCount: (count: number) => void;
   setCouponCode: (code: string | null) => void;
   setSpecialInstructions: (instructions: string) => void;
@@ -81,6 +99,15 @@ interface CartContextType {
   // Per-slot voucher tracking
   slotVoucherCounts: SlotVoucherCounts;
   setSlotVoucherCount: (window: MealWindow, count: number) => void;
+
+  // Matched DeliveryZone state (Phase 6: per-zone fees flow)
+  matchedZoneId: string | null;
+  matchedZoneName: string | null;
+  matchedZoneFees: MatchedZoneFees;
+  setMatchedZone: (payload: MatchedZonePayload | null) => void;
+  // Merge fees for a single meal window into matchedZoneFees (used when the
+  // consumer switches LUNCH ↔ DINNER and we refetch v2 for the new window).
+  setMatchedZoneFeesForWindow: (window: MealWindow, fees: MatchedZonePricing) => void;
 
   // Helper to build order items for API
   getOrderItems: () => OrderItem[];
@@ -104,10 +131,35 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [menuType, setMenuType] = useState<MenuType | null>(null);
   const [selectedMealWindowsState, setSelectedMealWindowsState] = useState<MealWindow[]>([]);
   const [deliveryAddressId, setDeliveryAddressId] = useState<string | null>(null);
+  const [addressManuallyChosen, setAddressManuallyChosen] = useState(false);
   const [slotVoucherCounts, setSlotVoucherCounts] = useState<SlotVoucherCounts>({ LUNCH: 0, DINNER: 0 });
   const [couponCode, setCouponCode] = useState<string | null>(null);
   const [specialInstructions, setSpecialInstructions] = useState<string>('');
   const [deliveryNotes, setDeliveryNotes] = useState<string>('');
+
+  // Matched DeliveryZone state — set by HomeScreen on v2 match
+  const [matchedZoneId, setMatchedZoneId] = useState<string | null>(null);
+  const [matchedZoneName, setMatchedZoneName] = useState<string | null>(null);
+  const [matchedZoneFees, setMatchedZoneFees] = useState<MatchedZoneFees>({});
+
+  const setMatchedZone = useCallback((payload: MatchedZonePayload | null) => {
+    if (!payload) {
+      setMatchedZoneId(null);
+      setMatchedZoneName(null);
+      setMatchedZoneFees({});
+      return;
+    }
+    setMatchedZoneId(payload.id);
+    setMatchedZoneName(payload.name);
+    setMatchedZoneFees(payload.fees || {});
+  }, []);
+
+  const setMatchedZoneFeesForWindow = useCallback(
+    (window: MealWindow, fees: MatchedZonePricing) => {
+      setMatchedZoneFees((prev) => ({ ...prev, [window]: fees }));
+    },
+    []
+  );
 
   // Backward compat: mealWindow returns first selected window
   const mealWindow: MealWindow | null = selectedMealWindowsState.length > 0
@@ -184,6 +236,11 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           if (context.couponCode) setCouponCode(context.couponCode);
           if (context.specialInstructions) setSpecialInstructions(context.specialInstructions);
           if (context.deliveryNotes) setDeliveryNotes(context.deliveryNotes);
+          if (context.matchedZoneId) setMatchedZoneId(context.matchedZoneId);
+          if (context.matchedZoneName) setMatchedZoneName(context.matchedZoneName);
+          if (context.matchedZoneFees && typeof context.matchedZoneFees === 'object') {
+            setMatchedZoneFees(context.matchedZoneFees);
+          }
           console.log('[CartContext] Loaded cart context from storage');
         }
 
@@ -248,6 +305,9 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           couponCode,
           specialInstructions,
           deliveryNotes,
+          matchedZoneId,
+          matchedZoneName,
+          matchedZoneFees,
         };
         await AsyncStorage.setItem(CART_CONTEXT_STORAGE_KEY, JSON.stringify(context));
         console.log('[CartContext] Saved cart context to storage');
@@ -257,7 +317,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     saveContext();
-  }, [kitchenId, menuType, mealWindow, selectedMealWindowsState, deliveryAddressId, slotVoucherCounts, couponCode, specialInstructions, deliveryNotes, isLoaded]);
+  }, [kitchenId, menuType, mealWindow, selectedMealWindowsState, deliveryAddressId, slotVoucherCounts, couponCode, specialInstructions, deliveryNotes, matchedZoneId, matchedZoneName, matchedZoneFees, isLoaded]);
 
   const addToCart = useCallback((item: CartItem) => {
     console.log('[CartContext] addToCart called with item:', JSON.stringify({
@@ -306,6 +366,9 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setCouponCode(null);
     setSpecialInstructions('');
     setDeliveryNotes('');
+    // New cart session → resume GPS-first address selection until the user
+    // deliberately changes it again.
+    setAddressManuallyChosen(false);
   }, []);
 
   const updateQuantity = useCallback((id: string, quantity: number) => {
@@ -504,11 +567,16 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setKitchenId(null);
     setMenuType(null);
     setSelectedMealWindowsState([]);
-    // Keep delivery address selected
+    // Keep delivery address selected, but clear the deliberate-choice marker so
+    // the next cart session starts GPS-first again.
+    setAddressManuallyChosen(false);
     setSlotVoucherCounts({ LUNCH: 0, DINNER: 0 });
     setCouponCode(null);
     setSpecialInstructions('');
     setDeliveryNotes('');
+    setMatchedZoneId(null);
+    setMatchedZoneName(null);
+    setMatchedZoneFees({});
 
     // Clear from AsyncStorage
     try {
@@ -552,6 +620,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         menuType,
         mealWindow,
         deliveryAddressId,
+        addressManuallyChosen,
         voucherCount,
         couponCode,
         specialInstructions,
@@ -562,6 +631,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setMenuType,
         setMealWindow,
         setDeliveryAddressId,
+        setAddressManuallyChosen,
         setVoucherCount,
         setCouponCode,
         setSpecialInstructions,
@@ -578,6 +648,13 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Per-slot vouchers
         slotVoucherCounts,
         setSlotVoucherCount,
+
+        // Matched DeliveryZone (Phase 6)
+        matchedZoneId,
+        matchedZoneName,
+        matchedZoneFees,
+        setMatchedZone,
+        setMatchedZoneFeesForWindow,
 
         // Helpers
         getOrderItems,

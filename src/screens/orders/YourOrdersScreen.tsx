@@ -390,7 +390,7 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
     return (
     <TouchableOpacity
       key={order._id}
-      onPress={() => handleViewOrderDetail(order._id)}
+      onPress={() => handleTrackOrder(order._id)}
       activeOpacity={0.7}
       className="bg-white rounded-3xl mb-4"
       style={{
@@ -499,22 +499,7 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
         </Text>
       </View>
 
-      {/* Action Buttons */}
-      <View className="flex-row justify-center">
-        <TouchableOpacity
-          onPress={(e) => {
-            e.stopPropagation();
-            handleTrackOrder(order._id);
-          }}
-          className="py-2 rounded-full items-center justify-center"
-          style={{
-            width: 280,
-            backgroundColor: 'rgba(255, 136, 0, 1)',
-          }}
-        >
-          <Text className="text-base font-semibold text-white">Track Order</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Tapping the card opens the Track Order screen; details are reachable from there. */}
     </TouchableOpacity>
     );
   };

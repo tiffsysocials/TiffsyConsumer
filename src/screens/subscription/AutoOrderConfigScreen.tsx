@@ -59,6 +59,7 @@ const AutoOrderConfigScreen: React.FC<Props> = ({ route, navigation }) => {
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(addressId || null);
   const [isEnabled, setIsEnabled] = useState(true);
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule>(null);
+  const [thaliQuantity, setThaliQuantity] = useState(1);
   const [selectedKitchenId, setSelectedKitchenId] = useState<string | null>(null);
   const [selectedKitchenName, setSelectedKitchenName] = useState<string | null>(null);
 
@@ -92,6 +93,7 @@ const AutoOrderConfigScreen: React.FC<Props> = ({ route, navigation }) => {
       setConfig(existingConfig);
       setIsEnabled(existingConfig.enabled);
       setWeeklySchedule(existingConfig.weeklySchedule);
+      setThaliQuantity(existingConfig.thaliQuantity || 1);
       setSelectedKitchenId(existingConfig.kitchen?._id || null);
       setSelectedKitchenName(existingConfig.kitchen?.name || null);
     }
@@ -156,7 +158,10 @@ const AutoOrderConfigScreen: React.FC<Props> = ({ route, navigation }) => {
     setHasChanges(true);
   };
 
-  // Save config
+  // Save config — when the customer turns Enable on and the per-config
+  // wallet balance is empty, we route to the wallet top-up screen first so
+  // the cron has funds to deduct from. The toggle isn't persisted until the
+  // wallet is funded.
   const handleSave = async () => {
     if (!selectedAddressId) {
       setModalTitle('Missing Address');
@@ -171,6 +176,42 @@ const AutoOrderConfigScreen: React.FC<Props> = ({ route, navigation }) => {
       return;
     }
 
+    // Auto-order wallet gating: when Enable is being turned on, the wallet
+    // for this address must have a positive balance. If not, redirect to
+    // top-up; the toggle save happens after the customer returns with a
+    // funded wallet (handled by useFocusEffect re-running).
+    if (isEnabled) {
+      try {
+        const walletsResp = await apiService.getAutoOrderWallets();
+        const thisWallet = walletsResp.success
+          ? walletsResp.data.wallets.find((w) => w.addressId === selectedAddressId)
+          : null;
+        if (!thisWallet || thisWallet.balance <= 0) {
+          // Fetch a suggested amount for this address specifically.
+          let suggested = thisWallet?.suggestedTopup || 0;
+          if (!suggested) {
+            try {
+              const sResp = await apiService.getSuggestedAutoOrderTopup({
+                addressId: selectedAddressId,
+              });
+              if (sResp.success) suggested = sResp.data.suggestedAmount;
+            } catch {
+              // best-effort; user can edit the amount on the wallet screen
+            }
+          }
+          navigation.navigate('AutoOrderWallets', {
+            focusAddressId: selectedAddressId,
+            suggestedAmount: suggested,
+          });
+          return;
+        }
+      } catch (err) {
+        // If the wallet check fails, fall through and let the save attempt
+        // — the cron will still skip the order if funds are missing.
+        console.warn('[AutoOrderConfig] Wallet check failed (non-blocking)', err);
+      }
+    }
+
     setIsSaving(true);
     try {
       await updateAutoOrderConfig({
@@ -178,6 +219,7 @@ const AutoOrderConfigScreen: React.FC<Props> = ({ route, navigation }) => {
         enabled: isEnabled,
         kitchenId: selectedKitchenId,
         weeklySchedule: weeklySchedule,
+        thaliQuantity,
         autoOrderingEnabled: true,
       });
       setHasChanges(false);
@@ -405,6 +447,44 @@ const AutoOrderConfigScreen: React.FC<Props> = ({ route, navigation }) => {
               onChange={handleScheduleChange}
               disabled={isSaving || !isEnabled}
             />
+          </View>
+        )}
+
+        {/* Thalis per meal */}
+        {selectedAddressId && !kitchensLoading && (
+          <View className="mx-4 mb-4" style={{ opacity: isEnabled ? 1 : 0.4 }} pointerEvents={isEnabled ? 'auto' : 'none'}>
+            <View className="flex-row items-center mb-3">
+              <View className="w-2 h-6 bg-orange-400 rounded-full mr-3" />
+              <Text className="text-xl font-bold text-gray-900" numberOfLines={1}>
+                Thalis Per Meal
+              </Text>
+            </View>
+            <Text className="text-sm text-gray-600 mb-4 pl-1" numberOfLines={2}>
+              How many thalis to auto-order for each scheduled meal (uses one voucher per thali)
+            </Text>
+            <View style={{
+              backgroundColor: 'white', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E5E7EB',
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '600', color: '#111827' }}>Quantity</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <TouchableOpacity
+                  onPress={() => { setThaliQuantity(q => Math.max(1, q - 1)); setHasChanges(true); }}
+                  disabled={isSaving || thaliQuantity <= 1}
+                  style={{ width: 36, height: 36, borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center', opacity: thaliQuantity <= 1 ? 0.4 : 1 }}
+                >
+                  <MaterialCommunityIcons name="minus" size={20} color="#FE8733" />
+                </TouchableOpacity>
+                <Text style={{ marginHorizontal: 18, fontSize: FONT_SIZES.lg, fontWeight: '700', color: '#111827', minWidth: 24, textAlign: 'center' }}>{thaliQuantity}</Text>
+                <TouchableOpacity
+                  onPress={() => { setThaliQuantity(q => Math.min(10, q + 1)); setHasChanges(true); }}
+                  disabled={isSaving || thaliQuantity >= 10}
+                  style={{ width: 36, height: 36, borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center', opacity: thaliQuantity >= 10 ? 0.4 : 1 }}
+                >
+                  <MaterialCommunityIcons name="plus" size={20} color="#FE8733" />
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         )}
 

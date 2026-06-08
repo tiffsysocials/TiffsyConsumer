@@ -357,9 +357,23 @@ class NotificationService {
           },
         };
 
-      // Auto-order failed - navigate to auto-order settings so user can take action
+      // Auto-order failed - navigate to auto-order settings (or directly to
+      // the wallet top-up sheet when the failure is a WALLET_INSUFFICIENT,
+      // so the customer can resume with one tap).
       case NotificationType.AUTO_ORDER_FAILED:
         console.log('[NotificationService] Handling AUTO_ORDER_FAILED notification');
+        if (data.failureCategory === 'WALLET_INSUFFICIENT' && data.addressId) {
+          return {
+            screen: 'AutoOrderWallets',
+            params: {
+              focusAddressId: data.addressId,
+              suggestedAmount: data.suggestedAmount
+                ? Number(data.suggestedAmount)
+                : undefined,
+              fromNotification: true,
+            },
+          };
+        }
         return {
           screen: 'AutoOrderSettings',
           params: {
@@ -513,6 +527,23 @@ class NotificationService {
       // General notifications
       case NotificationType.MENU_UPDATE:
         console.log('[NotificationService] Handling MENU_UPDATE notification');
+        if (data.kitchenId) {
+          return {
+            screen: 'KitchenMenu',
+            params: {
+              kitchenId: data.kitchenId,
+            },
+          };
+        }
+        // Fallback to home if no kitchen ID
+        return {
+          screen: 'Home',
+        };
+
+      // Kitchen broadcasts ("we're open" / order-cutoff reminder) - open the kitchen's menu
+      case NotificationType.KITCHEN_OPEN:
+      case NotificationType.ORDER_CUTOFF_REMINDER:
+        console.log(`[NotificationService] Handling ${type} notification`);
         if (data.kitchenId) {
           return {
             screen: 'KitchenMenu',

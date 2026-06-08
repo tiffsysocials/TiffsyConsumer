@@ -13,11 +13,15 @@ import {
 interface RateOrderModalProps {
   visible: boolean;
   onClose: () => void;
-  onSubmit: (stars: number, comment?: string) => Promise<void>;
+  onSubmit: (stars: number, comment?: string, tags?: string[]) => Promise<void>;
   onSkip?: () => void;
   orderNumber?: string;
   isLoading?: boolean;
 }
+
+// Quick tags shown contextually based on the selected star rating.
+const PRAISE_TAGS = ['Tasty', 'Hot & fresh', 'On time', 'Good packaging', 'Generous portion'];
+const PROBLEM_TAGS = ['Late delivery', 'Cold food', 'Small portion', 'Spilled/leaked', 'Wrong item'];
 
 const RateOrderModal: React.FC<RateOrderModalProps> = ({
   visible,
@@ -29,6 +33,7 @@ const RateOrderModal: React.FC<RateOrderModalProps> = ({
 }) => {
   const [stars, setStars] = useState(0);
   const [comment, setComment] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // Reset state when modal opens
@@ -36,9 +41,19 @@ const RateOrderModal: React.FC<RateOrderModalProps> = ({
     if (visible) {
       setStars(0);
       setComment('');
+      setSelectedTags([]);
       setError(null);
     }
   }, [visible]);
+
+  // When the rating crosses the praise/problem boundary, clear tags that no
+  // longer belong to the visible set.
+  const availableTags = stars >= 4 ? PRAISE_TAGS : PROBLEM_TAGS;
+  const toggleTag = (tag: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
+    );
+  };
 
   const handleSubmit = async () => {
     // Validate stars
@@ -54,8 +69,8 @@ const RateOrderModal: React.FC<RateOrderModalProps> = ({
     }
 
     setError(null);
-    console.log('[RateOrderModal] Submitting rating - Stars:', stars, 'Comment:', comment || 'None');
-    await onSubmit(stars, comment.trim() || undefined);
+    console.log('[RateOrderModal] Submitting rating - Stars:', stars, 'Comment:', comment || 'None', 'Tags:', selectedTags);
+    await onSubmit(stars, comment.trim() || undefined, selectedTags.length ? selectedTags : undefined);
   };
 
   const handleSkip = () => {
@@ -74,6 +89,8 @@ const RateOrderModal: React.FC<RateOrderModalProps> = ({
       <TouchableOpacity
         key={index}
         onPress={() => {
+          // Clear tags when crossing the praise (>=4) / problem (<4) boundary.
+          if (index >= 4 !== stars >= 4) setSelectedTags([]);
           setStars(index);
           if (error) setError(null);
         }}
@@ -135,6 +152,42 @@ const RateOrderModal: React.FC<RateOrderModalProps> = ({
               {stars === 4 && 'Very Good'}
               {stars === 5 && 'Excellent!'}
             </Text>
+          )}
+
+          {/* Quick Tags */}
+          {stars > 0 && (
+            <View className="mb-4">
+              <Text className="text-sm font-semibold text-gray-700 mb-2">
+                {stars >= 4 ? 'What did you love?' : 'What went wrong?'}
+              </Text>
+              <View className="flex-row flex-wrap">
+                {availableTags.map((tag) => {
+                  const isSelected = selectedTags.includes(tag);
+                  return (
+                    <TouchableOpacity
+                      key={tag}
+                      onPress={() => toggleTag(tag)}
+                      className="rounded-full px-4 py-2 mr-2 mb-2"
+                      style={{
+                        borderWidth: 1.5,
+                        borderColor: isSelected ? '#FE8733' : '#E5E7EB',
+                        backgroundColor: isSelected ? '#FFF1E7' : 'white',
+                      }}
+                    >
+                      <Text
+                        className="text-sm"
+                        style={{
+                          color: isSelected ? '#FE8733' : '#6B7280',
+                          fontWeight: isSelected ? '600' : '400',
+                        }}
+                      >
+                        {tag}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
           )}
 
           {/* Comment Input */}

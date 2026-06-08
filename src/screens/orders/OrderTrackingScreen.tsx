@@ -120,6 +120,26 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
   const [isRating, setIsRating] = useState(false);
 
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  // Ensures the review popup auto-opens at most once per screen session.
+  const autoPromptShownRef = useRef(false);
+
+  // Auto-open the rating modal once when a delivered order hasn't been rated yet.
+  // Persisted via AsyncStorage so it isn't re-shown on every poll/refocus or app relaunch.
+  const maybeAutoPromptReview = async (ord: Order | null, status?: OrderStatus) => {
+    if (!ord || status !== 'DELIVERED') return;
+    if (ord.rating || ord.canRate === false) return;
+    if (autoPromptShownRef.current) return;
+    try {
+      const key = `@review_prompted_${orderId}`;
+      const already = await AsyncStorage.getItem(key);
+      if (already) return;
+      autoPromptShownRef.current = true;
+      await AsyncStorage.setItem(key, '1');
+      setShowRateModal(true);
+    } catch (e) {
+      console.error('[OrderTracking] Auto-prompt review error:', e);
+    }
+  };
 
   // Load saved notes from AsyncStorage on mount
   useEffect(() => {
@@ -181,6 +201,8 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
         const finalOrder = trackingData.order || orderData;
         if (finalOrder) {
           setOrder(finalOrder);
+          // Zomato-style: auto-prompt for a review once the order is delivered.
+          maybeAutoPromptReview(finalOrder, trackingData.status);
         }
       } else {
         console.log('[OrderTracking] Failed to load tracking - No valid data found');
@@ -319,11 +341,11 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   // Handle confirm rating - called from modal
-  const handleConfirmRating = async (stars: number, comment?: string) => {
+  const handleConfirmRating = async (stars: number, comment?: string, tags?: string[]) => {
     try {
-      console.log('[OrderTracking] Rating order:', orderId, 'Stars:', stars);
+      console.log('[OrderTracking] Rating order:', orderId, 'Stars:', stars, 'Tags:', tags);
       setIsRating(true);
-      const response = await apiService.rateOrder(orderId, stars, comment);
+      const response = await apiService.rateOrder(orderId, stars, comment, tags);
       console.log('[OrderTracking] Rating response:', JSON.stringify(response, null, 2));
 
       if (response.success) {
@@ -333,7 +355,7 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
         if (order) {
           setOrder({
             ...order,
-            rating: { stars, comment, ratedAt: new Date().toISOString() },
+            rating: { stars, comment, tags, ratedAt: new Date().toISOString() },
             canRate: false,
           });
         }
@@ -349,6 +371,11 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
     } finally {
       setIsRating(false);
     }
+  };
+
+  // Order details are now reached from the tracking screen (tapping an order opens tracking first).
+  const handleViewDetails = () => {
+    navigation.navigate('OrderDetail', { orderId });
   };
 
   const handleViewReceipt = () => {
@@ -1000,6 +1027,19 @@ const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
             </View>
           </View>
         )}
+
+        {/* View Order Details Button */}
+        <View style={{ paddingHorizontal: isSmallDevice ? SPACING.lg : SPACING.xl, marginBottom: SPACING.md }}>
+          <TouchableOpacity
+            onPress={handleViewDetails}
+            className="rounded-full flex-row items-center justify-center"
+            style={{ backgroundColor: 'rgba(255, 245, 242, 1)', minHeight: TOUCH_TARGETS.comfortable }}
+          >
+            <Text className="font-bold" style={{ color: 'rgba(255, 136, 0, 1)', fontSize: FONT_SIZES.base }}>
+              View Order Details
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         {/* View Receipt Button */}
         <View style={{ paddingHorizontal: isSmallDevice ? SPACING.lg : SPACING.xl, marginBottom: SPACING.md }}>

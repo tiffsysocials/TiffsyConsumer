@@ -53,6 +53,7 @@ export type MainTabParamList = {
   OnDemand: undefined;  // On-Demand screen (Coming Soon)
   AutoOrderSettings: undefined;  // Auto-order dashboard (lists all address configs)
   AutoOrderConfig: { addressId?: string };  // Create (no addressId) or edit (with addressId) auto-order config
+  AutoOrderWallets: { focusAddressId?: string; suggestedAmount?: number } | undefined;  // Per-config prepaid wallet list + top-up
 ScheduledMealPricing: { deliveryAddressId: string; mealWindow: 'LUNCH' | 'DINNER'; scheduledDate: string; voucherCount?: number };  // Meal pricing preview
   MyScheduledMeals: undefined;  // List of user's scheduled meals
   MealCalendar: { scheduledDate?: string } | undefined;  // Unified meal calendar view; optional pre-selected YYYY-MM-DD

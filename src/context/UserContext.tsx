@@ -13,8 +13,7 @@ import {
 } from '../services/auth.token.service';
 import { authEvents } from '../services/auth.events';
 import { markTourPending } from '../components/CustomerTour/storage';
-
-const API_BASE_URL = 'https://d31od4t2t5epcb.cloudfront.net';
+import { BASE_URL as API_BASE_URL } from '../config/env';
 
 // ============================================
 // OFFLINE MODE FLAG - Set to false to enable backend

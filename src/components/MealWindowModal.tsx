@@ -91,45 +91,13 @@ const MealWindowModal: React.FC<MealWindowModalProps> = ({
               color: '#6B7280',
               textAlign: 'center',
               lineHeight: 22,
-              marginBottom: 8,
+              marginBottom: 24,
             }}
           >
             {isAllClosed
               ? 'Schedule a meal for tomorrow’s lunch or dinner.'
               : 'The current meal ordering window has ended.'}
           </Text>
-
-          {/* Next Window Info */}
-          <View
-            style={{
-              backgroundColor: 'rgba(254, 135, 51, 0.08)',
-              borderRadius: 12,
-              padding: 16,
-              width: '100%',
-              marginBottom: 24,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 14,
-                color: '#6B7280',
-                textAlign: 'center',
-                marginBottom: 4,
-              }}
-            >
-              Next ordering window opens at
-            </Text>
-            <Text
-              style={{
-                fontSize: 20,
-                fontWeight: 'bold',
-                color: '#FE8733',
-                textAlign: 'center',
-              }}
-            >
-              {nextMealWindowTime} for {getMealName()}
-            </Text>
-          </View>
 
           {/* Schedule for Tomorrow Button */}
           {onSchedule && (

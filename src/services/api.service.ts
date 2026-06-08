@@ -9,9 +9,10 @@ import {
 } from './auth.token.service';
 import { authEvents } from './auth.events';
 
-// Backend base URL - update this with your actual backend URL
-const BASE_URL = 'https://d31od4t2t5epcb.cloudfront.net';
-// const BASE_URL = 'http://192.168.1.4:5005';
+// Backend base URL — single source of truth in src/config/env.ts (handles
+// __DEV__ / FORCE_TEST_URL switching between test and prod).
+import { BASE_URL } from '../config/env';
+// const BASE_URL = 'http://192.168.1.4:5005';  // LAN dev backend
 // const BASE_URL = 'http://192.168.29.69:5005';
 
 // Type definitions for API responses
@@ -318,6 +319,9 @@ export interface ServiceableKitchenV2 {
     pincode: string;
   } | null;
   fees: MatchedZonePricing;
+  /** Phase 8 — kitchen → customer Haversine distance in km (0.1 precision).
+   *  Absent when either side lacks coordinates. */
+  distanceKm?: number;
 }
 
 export interface ServiceableKitchensV2Response {
@@ -523,6 +527,8 @@ export interface CalculatePricingRequest {
   menuType: 'MEAL_MENU' | 'ON_DEMAND_MENU';
   mealWindow?: 'LUNCH' | 'DINNER';
   deliveryAddressId: string;
+  /** Phase 6: authoritative DeliveryZone id resolved by HomeScreen via v2 match. */
+  deliveryZoneId?: string;
   items: OrderItem[];
   voucherCount: number;
   couponCode?: string | null;
@@ -600,11 +606,35 @@ export interface VoucherEligibility {
   };
 }
 
+/**
+ * Phase 8 — resolved distance-pricing breakdown that the backend returns
+ * alongside the pricing block. Lets the cart explain why the delivery fee
+ * is what it is ("₹10 base + 4 km × ₹2 = ₹18") and which source applied.
+ */
+export interface CalculatePricingDistanceBlock {
+  /** Haversine distance kitchen → customer, rounded to 0.1 km. Null when either side lacks coords. */
+  distanceKm: number | null;
+  /** Final deliveryFee from the formula (or flat baseFee when distance pricing is off). */
+  computedDeliveryFee: number;
+  /** Which configuration level decided the fee. */
+  appliedSourceLabel: 'zone' | 'global' | 'flat';
+  /** The resolved source's full config — used to render the breakdown. */
+  source: {
+    enabled: boolean;
+    baseFee: number;
+    baseFeeEnabled: boolean;
+    baseFreeUptoKm: number;
+    perKmAfterFree: number;
+  };
+}
+
 export interface CalculatePricingResponse {
   success: boolean;
   message: string;
   data: {
     breakdown: PricingBreakdown;
+    /** Phase 8 — present whenever the backend resolved a delivery-pricing source. */
+    distancePricing?: CalculatePricingDistanceBlock;
     voucherEligibility: VoucherEligibility;
   };
 }
@@ -650,6 +680,7 @@ export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
 export interface OrderRating {
   stars: number;
   comment?: string;
+  tags?: string[];
   ratedAt: string;
 }
 
@@ -735,10 +766,15 @@ export interface Order {
   scheduledFor?: string;
   distanceMetadata?: {
     distanceFromKitchenKm?: number;
+    distanceFromKitchenMeters?: number;
     acceptanceZone?: 'AUTO_ACCEPT' | 'MANUAL_ACCEPT';
     kitchenAcceptanceDeadline?: string;
     kitchenResponseAt?: string;
     autoRejectedAt?: string;
+    /** Phase 8 — formula-priced delivery fee snapshotted at placement. */
+    computedDeliveryFee?: number;
+    /** Phase 8 — which configuration level priced this order. */
+    appliedSourceLabel?: 'zone' | 'global' | 'flat';
   };
   createdAt: string;
   updatedAt: string;
@@ -833,6 +869,13 @@ export interface OrderTrackingResponse {
 
 export type SubscriptionBadge = 'BEST_VALUE' | 'POPULAR' | 'FAMILY';
 
+// Admin-entered coverage rules surfaced to the consumer (meal types, add-on value).
+export interface PlanCoverageRules {
+  includesAddons?: boolean;
+  addonValuePerVoucher?: number;
+  mealTypes?: ('LUNCH' | 'DINNER' | 'BOTH')[];
+}
+
 export interface SubscriptionPlan {
   _id: string;
   name: string;
@@ -842,10 +885,13 @@ export interface SubscriptionPlan {
   totalVouchers: number;
   price: number;
   originalPrice: number;
-  badge?: SubscriptionBadge;
+  // Free-text marketing label set in the admin panel (e.g. "POPULAR", "BEST SELLER").
+  badge?: string;
   features: string[];
   displayOrder: number;
   applicableZoneIds?: string[];
+  voucherValidityDays?: number;
+  coverageRules?: PlanCoverageRules;
 }
 
 export interface PlanSnapshot {
@@ -1115,6 +1161,7 @@ export interface AutoOrderAddressConfig {
     quantity: number;
     isAvailable?: boolean;
   }>;
+  thaliQuantity: number;
   isPaused: boolean;
   pausedUntil: string | null;
   skippedSlots: SkippedSlot[];
@@ -1152,6 +1199,7 @@ export interface UpdateAutoOrderConfigRequest {
   kitchenId?: string | null;
   weeklySchedule?: WeeklySchedule;
   addons?: Array<{ addonId: string; quantity: number }>;
+  thaliQuantity?: number;
 }
 
 export interface UpdateAutoOrderConfigResponse {
@@ -1197,6 +1245,9 @@ export interface SkipMealRequest {
   date: string; // ISO date string - cannot be in the past
   mealWindow: MealWindowType;
   reason?: string; // Max 200 characters
+  // Omit for a full skip (all thalis). A number N reduces that date's thali
+  // count by N (partial skip).
+  skipQuantity?: number;
 }
 
 export interface SkipMealResponse {
@@ -1207,6 +1258,7 @@ export interface SkipMealResponse {
       date: string;
       mealWindow: MealWindowType;
       reason: string | null;
+      skippedQuantity?: number | null;
     };
     totalSkippedSlots: number;
   };
@@ -1235,6 +1287,59 @@ export interface UnskipMealResponse {
 export interface DeleteAutoOrderConfigResponse {
   success: boolean;
   message: string;
+}
+
+// ─── Per-config auto-order prepaid wallet ────────────────────────────────
+
+export interface AutoOrderWalletTransaction {
+  type: 'DEPOSIT' | 'DEDUCTION' | 'REFUND_CREDIT';
+  amount: number;
+  orderId?: string;
+  paymentTransactionId?: string;
+  balanceBefore: number;
+  balanceAfter: number;
+  timestamp: string;
+  note?: string;
+}
+
+export interface AutoOrderWalletRow {
+  addressId: string;
+  addressLabel: string;
+  addressLine1: string;
+  pincode: string;
+  enabled: boolean;
+  balance: number;
+  totalDeposited: number;
+  totalDeducted: number;
+  transactions: AutoOrderWalletTransaction[];
+  /** vouchersRemaining × per-order charge resolved for this address. */
+  suggestedTopup: number;
+}
+
+export interface AutoOrderWalletsResponse {
+  success: boolean;
+  message: string;
+  data: { wallets: AutoOrderWalletRow[] };
+}
+
+export interface SuggestedAutoOrderTopupResponse {
+  success: boolean;
+  message: string;
+  data: { suggestedAmount: number };
+}
+
+export interface TopupAutoOrderWalletResponse {
+  success: boolean;
+  message: string;
+  data: {
+    razorpayOrderId: string;
+    amount: number;
+    amountRupees: number;
+    key: string;
+    expiresAt: string;
+    suggestedTopup: number;
+    currentBalance: number;
+  };
 }
 
 // GET /api/scheduling/auto-order/schedule?addressId=X
@@ -1302,6 +1407,8 @@ export interface ScheduledMealSlot {
 
 export interface ScheduledMealPricingData {
   kitchen: { id: string; name: string; logo?: string };
+  /** Phase 8 — present on responses from a Phase-8+ backend. */
+  distancePricing?: CalculatePricingDistanceBlock;
   items: Array<{
     menuItemId: string;
     name: string;
@@ -1436,7 +1543,9 @@ export interface CancelScheduledMealData {
   orderNumber: string;
   refundInitiated: boolean;
   vouchersRestored?: number;
-  warning: string | null;
+  warning?: string | null;
+  // Present on a partial cancel (quantity reduced rather than full cancel).
+  newQuantity?: number;
 }
 
 // Bulk scheduling types
@@ -1844,6 +1953,31 @@ class ApiService {
     return this.api.get(`/api/address/${addressId}/serviceable-kitchens-v2`, { params });
   }
 
+  /**
+   * GET /api/delivery-zones/by-coords?latitude=&longitude=&mealWindow=
+   *
+   * Public (no auth). Used by the GPS-bootstrap consumer flow where the user
+   * has granted location but has no addressId yet. Same per-zone fees shape
+   * as the v2 address endpoint.
+   */
+  async getKitchensByCoordsV2(
+    latitude: number,
+    longitude: number,
+    mealWindow?: 'LUNCH' | 'DINNER',
+  ): Promise<{
+    success: boolean;
+    message?: string;
+    data: {
+      count: number;
+      kitchens: ServiceableKitchenV2[];
+      debug?: Record<string, unknown>;
+    };
+  }> {
+    const params: Record<string, string | number> = { latitude, longitude };
+    if (mealWindow) params.mealWindow = mealWindow;
+    return this.api.get('/api/delivery-zones/by-coords', { params });
+  }
+
   // ============================================
   // ZONE & KITCHEN ENDPOINTS
   // ============================================
@@ -2015,6 +2149,7 @@ class ApiService {
     orderId: string,
     stars: number,
     comment?: string,
+    tags?: string[],
   ): Promise<{
     success: boolean;
     message: string;
@@ -2022,7 +2157,7 @@ class ApiService {
       order: Order;
     };
   }> {
-    return this.api.post(`/api/orders/${orderId}/rate`, { stars, comment });
+    return this.api.post(`/api/orders/${orderId}/rate`, { stars, comment, tags });
   }
 
   // ============================================
@@ -2338,8 +2473,14 @@ class ApiService {
     return this.api.post(`/api/payment/order/${orderId}/cancel`, { reason });
   }
 
-  // Initiate payment for subscription purchase
-  async initiateSubscriptionPayment(planId: string): Promise<{
+  // Initiate payment for subscription purchase. Optionally include the
+  // auto-order nudge: { addressId, amount } — when present, the Razorpay
+  // order total is plan.price + amount, and on verify the wallet is funded
+  // and a default-schedule auto-order config is created for that address.
+  async initiateSubscriptionPayment(
+    planId: string,
+    autoOrderNudge?: { addressId: string; amount: number },
+  ): Promise<{
     success: boolean;
     message: string;
     data: {
@@ -2350,6 +2491,7 @@ class ApiService {
       planId: string;
       planName: string;
       expiresAt: string;
+      autoOrderNudge?: { addressId: string; amount: number } | null;
       prefill: {
         name: string;
         contact: string;
@@ -2357,7 +2499,10 @@ class ApiService {
       };
     };
   }> {
-    return this.api.post('/api/payment/subscription/initiate', { planId });
+    return this.api.post('/api/payment/subscription/initiate', {
+      planId,
+      ...(autoOrderNudge ? { autoOrderNudge } : {}),
+    });
   }
 
   // Verify payment after Razorpay checkout
@@ -2580,6 +2725,8 @@ class ApiService {
     deliveryNotes?: string;
     leaveAtDoor?: boolean;
     doNotContact?: boolean;
+    /** Phase 6: authoritative DeliveryZone id from CartContext (matchedZoneId). */
+    deliveryZoneId?: string;
   }): Promise<{
     success: boolean;
     message: string;
@@ -2610,13 +2757,15 @@ class ApiService {
     return this.api.get('/api/scheduling/meals', { params });
   }
 
-  // Cancel a scheduled meal
-  async cancelScheduledMeal(id: string, reason?: string): Promise<{
+  // Cancel a scheduled meal. When cancelQuantity is provided and below the
+  // order's thali count, the backend reduces the quantity (partial cancel)
+  // instead of cancelling the whole order.
+  async cancelScheduledMeal(id: string, reason?: string, cancelQuantity?: number): Promise<{
     success: boolean;
     message: string;
     data: CancelScheduledMealData;
   }> {
-    return this.api.patch(`/api/scheduling/meals/${id}/cancel`, { reason });
+    return this.api.patch(`/api/scheduling/meals/${id}/cancel`, { reason, cancelQuantity });
   }
 
   // Bulk scheduling - pricing preview
@@ -2769,6 +2918,49 @@ class ApiService {
     data: { message: string; code: string };
   }> {
     return this.api.get('/api/referrals/share-content');
+  }
+
+  // ─── Per-config auto-order prepaid wallet ───────────────────────────────
+
+  /**
+   * GET /api/subscriptions/auto-order/wallets
+   * Returns per-config wallet rows for every autoOrderConfigs[i] on the
+   * active subscription. Each row shows balance, history, and a suggested
+   * top-up amount calculated for the matching address.
+   */
+  async getAutoOrderWallets(): Promise<AutoOrderWalletsResponse> {
+    return this.api.get('/api/subscriptions/auto-order/wallets');
+  }
+
+  /**
+   * GET /api/subscriptions/auto-order/wallet/suggested-topup
+   * Used by the purchase-time nudge (with planId, before any subscription
+   * exists) and by the first-Enable gating flow (with active subscription).
+   */
+  async getSuggestedAutoOrderTopup(params: {
+    addressId: string;
+    planId?: string;
+  }): Promise<SuggestedAutoOrderTopupResponse> {
+    return this.api.get(
+      '/api/subscriptions/auto-order/wallet/suggested-topup',
+      { params },
+    );
+  }
+
+  /**
+   * POST /api/subscriptions/auto-order/config/:addressId/wallet/topup
+   * Creates a Razorpay order for funding a specific address's auto-order
+   * wallet. Customer pays via the Razorpay sheet; on verification the wallet
+   * is credited automatically (verifyPayment → updatePurchaseEntity).
+   */
+  async topupAutoOrderWallet(
+    addressId: string,
+    amount: number,
+  ): Promise<TopupAutoOrderWalletResponse> {
+    return this.api.post(
+      `/api/subscriptions/auto-order/config/${addressId}/wallet/topup`,
+      { amount },
+    );
   }
 }
 

@@ -28,6 +28,52 @@ import ConfirmationModal from '../../components/ConfirmationModal';
 
 type Props = StackScreenProps<MainTabParamList, 'MealPlans'>;
 
+// Strip a trailing price accidentally typed into the plan name in the admin panel,
+// e.g. "Weekly Starter 700", "Weekly Starter ₹700", "Weekly Starter - Rs.700/-".
+const cleanPlanName = (name: string): string => {
+  if (!name) return name;
+  const cleaned = name
+    .replace(/[\s\-–—:|.,]*(?:₹|rs\.?)?\s*\d[\d,]*(?:\.\d+)?\s*\/?-?\s*$/i, '')
+    .trim();
+  return cleaned.length > 0 ? cleaned : name;
+};
+
+// Human-readable label for the admin-configured meal coverage (LUNCH / DINNER / BOTH).
+const getMealTypesLabel = (mealTypes?: string[]): string | null => {
+  if (!mealTypes || mealTypes.length === 0) return null;
+  if (mealTypes.includes('BOTH') || (mealTypes.includes('LUNCH') && mealTypes.includes('DINNER'))) {
+    return 'Lunch & Dinner';
+  }
+  return mealTypes
+    .map((m) => m.charAt(0).toUpperCase() + m.slice(1).toLowerCase())
+    .join(' & ');
+};
+
+// Small pill used to surface plan metadata (validity, coverage, add-ons).
+const MetaChip: React.FC<{ label: string }> = ({ label }) => (
+  <View
+    style={{
+      backgroundColor: '#FFF4EC',
+      borderRadius: 999,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      marginRight: 8,
+      marginBottom: 8,
+    }}
+  >
+    <Text
+      style={{
+        fontFamily: 'Inter',
+        fontWeight: '500',
+        fontSize: 11,
+        color: '#FE8733',
+      }}
+    >
+      {label}
+    </Text>
+  </View>
+);
+
 const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
   const { user, isGuest, exitGuestMode } = useUser();
   const [showGuestLoginPrompt, setShowGuestLoginPrompt] = useState(false);
@@ -455,6 +501,18 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
               );
               const hasActivePlan = activeSubscriptionsForPlan.length > 0;
 
+              const discountPct =
+                plan.originalPrice && plan.originalPrice > plan.price
+                  ? Math.round(((plan.originalPrice - plan.price) / plan.originalPrice) * 100)
+                  : 0;
+              const mealLabel = getMealTypesLabel(plan.coverageRules?.mealTypes);
+              const hasExtraContent =
+                !!plan.description ||
+                (plan.features && plan.features.length > 0) ||
+                !!plan.voucherValidityDays ||
+                !!mealLabel ||
+                !!plan.coverageRules?.includesAddons;
+
               return (
                 <TouchableOpacity
                   key={plan._id}
@@ -468,164 +526,319 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                   activeOpacity={0.8}
                   style={{
                     width: '100%',
-                    minHeight: 130,
                     borderRadius: 28,
                     borderWidth: 1,
                     borderColor: '#FE8733',
                     marginBottom: 16,
                     overflow: 'hidden',
-                    position: 'relative',
+                    backgroundColor: '#FFFFFF',
                   }}
                 >
-                  {/* Background Image */}
-                  <Image
-                    source={require('../../assets/images/myaccount/voucherbackgound.png')}
-                    style={{ position: 'absolute', width: '100%', height: '100%' }}
-                    resizeMode="cover"
-                  />
+                  {/* Voucher block (top) */}
+                  <View style={{ minHeight: 130, position: 'relative' }}>
+                    {/* Background Image */}
+                    <Image
+                      source={require('../../assets/images/myaccount/voucherbackgound.png')}
+                      style={{ position: 'absolute', width: '100%', height: '100%' }}
+                      resizeMode="cover"
+                    />
 
-                  {/* Content */}
-                  <View style={{ flex: 1, padding: 16 }}>
-                    {/* Voucher Icon + Plan Name */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                      <Image
-                        source={require('../../assets/icons/newvoucher2.png')}
-                        style={{ width: 22, height: 22, marginRight: 8 }}
-                        resizeMode="contain"
-                      />
-                      <Text
-                        style={{
-                          fontFamily: 'DMSans-SemiBold',
-                          fontWeight: '600',
-                          fontSize: 14,
-                          color: '#000000',
-                        }}
-                      >
-                        {plan.name}
-                      </Text>
-                    </View>
-
-                    {/* Save Badge - positioned top right */}
-                    {savings > 0 && (
-                      <View
-                        style={{
-                          position: 'absolute',
-                          top: 14,
-                          right: 14,
-                          backgroundColor: 'rgba(233, 255, 238, 1)',
-                          borderRadius: 16,
-                          paddingHorizontal: 10,
-                          paddingVertical: 3,
-                        }}
-                      >
+                    {/* Content */}
+                    <View style={{ flex: 1, padding: 16 }}>
+                      {/* Voucher Icon + Plan Name + admin badge */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, paddingRight: 70 }}>
+                        <Image
+                          source={require('../../assets/icons/newvoucher2.png')}
+                          style={{ width: 22, height: 22, marginRight: 8 }}
+                          resizeMode="contain"
+                        />
                         <Text
                           style={{
                             fontFamily: 'DMSans-SemiBold',
                             fontWeight: '600',
-                            fontSize: 11,
-                            color: 'rgba(0, 139, 30, 1)',
-                          }}
-                        >
-                          Save ₹{savings}
-                        </Text>
-                      </View>
-                    )}
-
-                    {/* Price Row */}
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <View>
-                        {/* Price */}
-                        <Text
-                          style={{
-                            fontFamily: 'DMSans-SemiBold',
-                            fontWeight: '600',
-                            fontSize: 24,
-                            lineHeight: 28,
+                            fontSize: 14,
                             color: '#000000',
                           }}
                         >
-                          ₹{plan.price.toFixed(2)}
+                          {cleanPlanName(plan.name)}
                         </Text>
-
-                        {/* Vouchers and Meals */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
-                          <Text
+                        {!!plan.badge && (
+                          <View
                             style={{
-                              fontFamily: 'Inter',
-                              fontWeight: '400',
-                              fontSize: 12,
-                              color: '#000000',
+                              marginLeft: 8,
+                              backgroundColor: '#FE8733',
+                              borderRadius: 12,
+                              paddingHorizontal: 9,
+                              paddingVertical: 3,
                             }}
                           >
-                            {plan.totalVouchers} Vouchers
-                          </Text>
-                          <Text
-                            style={{
-                              fontFamily: 'Inter',
-                              fontWeight: '400',
-                              fontSize: 12,
-                              color: '#000000',
-                              marginHorizontal: 6,
-                            }}
-                          >
-                            •
-                          </Text>
-                          <Text
-                            style={{
-                              fontFamily: 'Inter',
-                              fontWeight: '400',
-                              fontSize: 12,
-                              color: '#000000',
-                            }}
-                          >
-                            {plan.vouchersPerDay} Meals/Day
-                          </Text>
-                        </View>
+                            <Text
+                              style={{
+                                fontFamily: 'DMSans-SemiBold',
+                                fontWeight: '700',
+                                fontSize: 10,
+                                letterSpacing: 0.4,
+                                color: '#FFFFFF',
+                              }}
+                            >
+                              {plan.badge.toUpperCase()}
+                            </Text>
+                          </View>
+                        )}
                       </View>
 
-                      {/* Days */}
-                      <View style={{ alignItems: 'flex-end' }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                      {/* Save Badge - positioned top right */}
+                      {savings > 0 && (
+                        <View
+                          style={{
+                            position: 'absolute',
+                            top: 14,
+                            right: 14,
+                            backgroundColor: 'rgba(233, 255, 238, 1)',
+                            borderRadius: 16,
+                            paddingHorizontal: 10,
+                            paddingVertical: 3,
+                          }}
+                        >
                           <Text
                             style={{
                               fontFamily: 'DMSans-SemiBold',
                               fontWeight: '600',
-                              fontSize: 30,
-                              lineHeight: 34,
-                              color: '#000000',
+                              fontSize: 11,
+                              color: 'rgba(0, 139, 30, 1)',
                             }}
                           >
-                            {plan.durationDays}
-                          </Text>
-                          <Text
-                            style={{
-                              fontFamily: 'DMSans-Medium',
-                              fontWeight: '500',
-                              fontSize: 15,
-                              lineHeight: 22,
-                              color: '#000000',
-                              marginLeft: 3,
-                            }}
-                          >
-                            Days
+                            Save ₹{savings}
                           </Text>
                         </View>
+                      )}
 
-                        {/* Price per voucher */}
+                      {/* Price Row */}
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <View>
+                          {/* Price + compare-at (MRP) */}
+                          <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+                            <Text
+                              style={{
+                                fontFamily: 'DMSans-SemiBold',
+                                fontWeight: '600',
+                                fontSize: 24,
+                                lineHeight: 28,
+                                color: '#000000',
+                              }}
+                            >
+                              ₹{plan.price.toFixed(2)}
+                            </Text>
+                            {plan.originalPrice > plan.price && (
+                              <Text
+                                style={{
+                                  fontFamily: 'Inter',
+                                  fontWeight: '400',
+                                  fontSize: 13,
+                                  color: '#9CA3AF',
+                                  textDecorationLine: 'line-through',
+                                  marginLeft: 8,
+                                  marginBottom: 3,
+                                }}
+                              >
+                                ₹{plan.originalPrice.toFixed(0)}
+                              </Text>
+                            )}
+                            {discountPct > 0 && (
+                              <Text
+                                style={{
+                                  fontFamily: 'DMSans-SemiBold',
+                                  fontWeight: '600',
+                                  fontSize: 12,
+                                  color: 'rgba(0, 139, 30, 1)',
+                                  marginLeft: 6,
+                                  marginBottom: 3,
+                                }}
+                              >
+                                {discountPct}% OFF
+                              </Text>
+                            )}
+                          </View>
+
+                          {/* Vouchers and Meals */}
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+                            <Text
+                              style={{
+                                fontFamily: 'Inter',
+                                fontWeight: '400',
+                                fontSize: 12,
+                                color: '#000000',
+                              }}
+                            >
+                              {plan.totalVouchers} Vouchers
+                            </Text>
+                            <Text
+                              style={{
+                                fontFamily: 'Inter',
+                                fontWeight: '400',
+                                fontSize: 12,
+                                color: '#000000',
+                                marginHorizontal: 6,
+                              }}
+                            >
+                              •
+                            </Text>
+                            <Text
+                              style={{
+                                fontFamily: 'Inter',
+                                fontWeight: '400',
+                                fontSize: 12,
+                                color: '#000000',
+                              }}
+                            >
+                              1 Voucher / Meal
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Days */}
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                            <Text
+                              style={{
+                                fontFamily: 'DMSans-SemiBold',
+                                fontWeight: '600',
+                                fontSize: 30,
+                                lineHeight: 34,
+                                color: '#000000',
+                              }}
+                            >
+                              {plan.durationDays}
+                            </Text>
+                            <Text
+                              style={{
+                                fontFamily: 'DMSans-Medium',
+                                fontWeight: '500',
+                                fontSize: 15,
+                                lineHeight: 22,
+                                color: '#000000',
+                                marginLeft: 3,
+                              }}
+                            >
+                              Days
+                            </Text>
+                          </View>
+
+                          {/* Price per voucher */}
+                          <Text
+                            style={{
+                              fontFamily: 'Inter',
+                              fontWeight: '400',
+                              fontSize: 12,
+                              color: '#000000',
+                              marginTop: 3,
+                            }}
+                          >
+                            ₹{pricePerVoucher}/Voucher
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Details block (bottom) — admin-entered content */}
+                  {hasExtraContent && (
+                    <View
+                      style={{
+                        paddingHorizontal: 16,
+                        paddingVertical: 14,
+                        borderTopWidth: 1,
+                        borderTopColor: '#FCE7D8',
+                        backgroundColor: '#FFFFFF',
+                      }}
+                    >
+                      {/* Description */}
+                      {!!plan.description && (
                         <Text
                           style={{
                             fontFamily: 'Inter',
                             fontWeight: '400',
-                            fontSize: 12,
-                            color: '#000000',
-                            marginTop: 3,
+                            fontSize: 13,
+                            lineHeight: 19,
+                            color: '#4B5563',
+                            marginBottom: plan.features && plan.features.length > 0 ? 12 : 0,
                           }}
                         >
-                          ₹{pricePerVoucher}/Voucher
+                          {plan.description}
                         </Text>
-                      </View>
+                      )}
+
+                      {/* Features */}
+                      {plan.features && plan.features.length > 0 && (
+                        <View>
+                          {plan.features.map((feature, fIdx) => (
+                            <View
+                              key={fIdx}
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'flex-start',
+                                marginBottom: fIdx === plan.features.length - 1 ? 0 : 8,
+                              }}
+                            >
+                              <View
+                                style={{
+                                  width: 16,
+                                  height: 16,
+                                  borderRadius: 8,
+                                  backgroundColor: '#FE8733',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  marginRight: 8,
+                                  marginTop: 1,
+                                }}
+                              >
+                                <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '700', lineHeight: 12 }}>
+                                  ✓
+                                </Text>
+                              </View>
+                              <Text
+                                style={{
+                                  flex: 1,
+                                  fontFamily: 'Inter',
+                                  fontWeight: '400',
+                                  fontSize: 13,
+                                  lineHeight: 18,
+                                  color: '#374151',
+                                }}
+                              >
+                                {feature}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                      {/* Meta chips: validity, meal coverage, add-ons */}
+                      {(!!plan.voucherValidityDays || !!mealLabel || !!plan.coverageRules?.includesAddons) && (
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            flexWrap: 'wrap',
+                            marginTop: plan.description || (plan.features && plan.features.length > 0) ? 12 : 0,
+                          }}
+                        >
+                          {!!plan.voucherValidityDays && (
+                            <MetaChip label={`Valid ${plan.voucherValidityDays} days`} />
+                          )}
+                          {!!mealLabel && <MetaChip label={mealLabel} />}
+                          {!!plan.coverageRules?.includesAddons && (
+                            <MetaChip
+                              label={
+                                plan.coverageRules.addonValuePerVoucher
+                                  ? `Add-ons ₹${plan.coverageRules.addonValuePerVoucher}/meal`
+                                  : 'Add-ons included'
+                              }
+                            />
+                          )}
+                        </View>
+                      )}
                     </View>
-                  </View>
+                  )}
                 </TouchableOpacity>
               );
             })}

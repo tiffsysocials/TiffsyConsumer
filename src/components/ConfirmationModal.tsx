@@ -17,6 +17,9 @@ export interface ConfirmationModalProps {
   confirmStyle?: 'primary' | 'danger';
   onConfirm: () => void;
   onCancel: () => void;
+  // Optional custom content rendered between the message and the buttons
+  // (e.g. a quantity stepper).
+  children?: React.ReactNode;
 }
 
 const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
@@ -28,6 +31,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   confirmStyle = 'primary',
   onConfirm,
   onCancel,
+  children,
 }) => {
   return (
     <Modal
@@ -45,6 +49,9 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
 
             {/* Message */}
             <Text style={styles.message}>{message}</Text>
+
+            {/* Optional custom content (e.g. quantity stepper) */}
+            {children}
 
             {/* Buttons */}
             <View style={styles.buttonContainer}>

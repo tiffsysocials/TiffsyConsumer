@@ -3,8 +3,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { BannerModel } from '../types/banner';
-
-const BASE_URL = 'https://d31od4t2t5epcb.cloudfront.net';
+import { BASE_URL } from '../config/env';
 const CACHE_KEY = 'home_banners';
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 

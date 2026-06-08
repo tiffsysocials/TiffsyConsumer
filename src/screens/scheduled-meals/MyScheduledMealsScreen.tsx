@@ -72,6 +72,10 @@ const MyScheduledMealsScreen: React.FC<Props> = ({ navigation }) => {
   const [cancelMealId, setCancelMealId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [isCancelling, setIsCancelling] = useState(false);
+  // Total thalis on the meal being cancelled, and how many to cancel
+  // (defaults to all = full cancel; a lower value = partial cancel).
+  const [cancelMealQty, setCancelMealQty] = useState(1);
+  const [cancelQty, setCancelQty] = useState(1);
 
   const fetchMeals = useCallback(async (pageNum: number, isRefresh = false) => {
     try {
@@ -117,8 +121,12 @@ const MyScheduledMealsScreen: React.FC<Props> = ({ navigation }) => {
     fetchMeals(page + 1);
   }, [isLoadingMore, page, totalPages, fetchMeals]);
 
-  const handleCancelPress = useCallback((mealId: string) => {
-    setCancelMealId(mealId);
+  const handleCancelPress = useCallback((meal: ScheduledMealListItem) => {
+    const mainItem = meal.items?.find(i => i.isMainCourse) || meal.items?.[0];
+    const qty = mainItem?.quantity || 1;
+    setCancelMealId(meal._id);
+    setCancelMealQty(qty);
+    setCancelQty(qty); // default: cancel all
     setCancelReason('');
     setShowCancelModal(true);
   }, []);
@@ -126,26 +134,32 @@ const MyScheduledMealsScreen: React.FC<Props> = ({ navigation }) => {
   const handleConfirmCancel = useCallback(async () => {
     if (!cancelMealId) return;
 
+    // Partial when cancelling fewer thalis than the meal has.
+    const isPartial = cancelQty < cancelMealQty;
+
     setIsCancelling(true);
     try {
       const response = await apiService.cancelScheduledMeal(
         cancelMealId,
-        cancelReason.trim() || undefined
+        cancelReason.trim() || undefined,
+        isPartial ? cancelQty : undefined
       );
       if (response.success) {
         setShowCancelModal(false);
         setCancelMealId(null);
         setCancelReason('');
 
-        let message = 'Your scheduled meal has been cancelled.';
+        let message = isPartial
+          ? `Reduced by ${cancelQty} thali${cancelQty > 1 ? 's' : ''}. ${response.data.newQuantity} remaining.`
+          : 'Your scheduled meal has been cancelled.';
         if (response.data.refundInitiated) {
-          message = 'Your scheduled meal has been cancelled and a refund has been initiated.';
+          message += ' A refund has been initiated.';
         }
         if (response.data.vouchersRestored && response.data.vouchersRestored > 0) {
           message += ` ${response.data.vouchersRestored} voucher${response.data.vouchersRestored > 1 ? 's' : ''} restored.`;
         }
 
-        showAlert('Cancelled', message, undefined, 'success');
+        showAlert(isPartial ? 'Updated' : 'Cancelled', message, undefined, 'success');
 
         // Refresh the list
         setIsLoading(true);
@@ -158,7 +172,7 @@ const MyScheduledMealsScreen: React.FC<Props> = ({ navigation }) => {
     } finally {
       setIsCancelling(false);
     }
-  }, [cancelMealId, cancelReason, showAlert, fetchMeals]);
+  }, [cancelMealId, cancelQty, cancelMealQty, cancelReason, showAlert, fetchMeals]);
 
   const renderStatusBadge = (status: string) => {
     const colors = STATUS_COLORS[status] || STATUS_COLORS.DELIVERED;
@@ -182,7 +196,9 @@ const MyScheduledMealsScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const renderMealCard = ({ item }: { item: ScheduledMealListItem }) => {
-    const thaliName = item.items?.[0]?.name || 'Thali Meal';
+    const mainItem = item.items?.find(i => i.isMainCourse) || item.items?.[0];
+    const thaliName = mainItem?.name || 'Thali Meal';
+    const thaliQty = mainItem?.quantity || 1;
     const isCancellable = CANCELLABLE_STATUSES.includes(item.status);
 
     return (
@@ -204,7 +220,7 @@ const MyScheduledMealsScreen: React.FC<Props> = ({ navigation }) => {
           {/* Row 1: Thali Name + Badges */}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: SPACING.sm }}>
             <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'bold', color: '#1F2937', flex: 1, marginRight: SPACING.sm }} numberOfLines={1}>
-              {thaliName}
+              {thaliName}{thaliQty > 1 ? `  ×${thaliQty}` : ''}
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               {item.orderSource === 'AUTO_ORDER' && (
@@ -264,7 +280,7 @@ const MyScheduledMealsScreen: React.FC<Props> = ({ navigation }) => {
           {/* Cancel Button */}
           {isCancellable && (
             <TouchableOpacity
-              onPress={() => handleCancelPress(item._id)}
+              onPress={() => handleCancelPress(item)}
               style={{
                 marginTop: SPACING.md,
                 borderWidth: 1,
@@ -375,14 +391,49 @@ const MyScheduledMealsScreen: React.FC<Props> = ({ navigation }) => {
       {/* Cancel Confirmation Modal */}
       <ConfirmationModal
         visible={showCancelModal}
-        title="Cancel Scheduled Meal?"
-        message="Are you sure you want to cancel this meal? If you've already paid, a refund will be initiated."
-        confirmText={isCancelling ? 'Cancelling...' : 'Cancel Meal'}
+        title={cancelMealQty > 1 ? 'Cancel Thalis?' : 'Cancel Scheduled Meal?'}
+        message={
+          cancelMealQty > 1
+            ? 'Choose how many thalis to cancel. Any paid amount and used vouchers for the cancelled thalis will be refunded/restored.'
+            : "Are you sure you want to cancel this meal? If you've already paid, a refund will be initiated."
+        }
+        confirmText={
+          isCancelling
+            ? 'Cancelling...'
+            : cancelQty < cancelMealQty
+              ? `Cancel ${cancelQty} Thali${cancelQty > 1 ? 's' : ''}`
+              : 'Cancel Meal'
+        }
         cancelText="Keep It"
         onConfirm={handleConfirmCancel}
         onCancel={() => { setShowCancelModal(false); setCancelMealId(null); setCancelReason(''); }}
         confirmStyle="danger"
-      />
+      >
+        {cancelMealQty > 1 && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.lg }}>
+            <Text style={{ fontSize: FONT_SIZES.sm, color: '#4B5563', fontWeight: '500' }}>Thalis to cancel</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity
+                onPress={() => setCancelQty(q => Math.max(1, q - 1))}
+                disabled={cancelQty <= 1}
+                style={{ width: 34, height: 34, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center', opacity: cancelQty <= 1 ? 0.4 : 1 }}
+              >
+                <MaterialCommunityIcons name="minus" size={18} color="#EF4444" />
+              </TouchableOpacity>
+              <Text style={{ marginHorizontal: SPACING.md, fontSize: FONT_SIZES.base, fontWeight: '700', color: '#1F2937', minWidth: 36, textAlign: 'center' }}>
+                {cancelQty} / {cancelMealQty}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setCancelQty(q => Math.min(cancelMealQty, q + 1))}
+                disabled={cancelQty >= cancelMealQty}
+                style={{ width: 34, height: 34, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center', opacity: cancelQty >= cancelMealQty ? 0.4 : 1 }}
+              >
+                <MaterialCommunityIcons name="plus" size={18} color="#EF4444" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </ConfirmationModal>
     </View>
   );
 };
