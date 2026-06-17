@@ -18,6 +18,8 @@ import { NotificationProvider, useNotifications } from './src/context/Notificati
 import { AlertProvider } from './src/context/AlertContext';
 import { BannerProvider } from './src/context/BannerContext';
 import NotificationPopup from './src/components/NotificationPopup';
+import ForceUpdateModal from './src/components/ForceUpdateModal';
+import { checkForUpdate, UpdateCheckResult } from './src/services/appUpdate.service';
 import notificationService from './src/services/notification.service';
 import notificationChannelService from './src/services/notificationChannel.service';
 import apiService from './src/services/api.service';
@@ -36,6 +38,25 @@ const AppContent = () => {
   const navigationRef = useRef<any>(null);
   const appState = useRef(AppState.currentState);
   const isRefreshingLocationRef = useRef(false);
+
+  // Force/soft update gate. Runs independent of auth so even logged-out users
+  // on an unsupported version are gated. Soft ('available') prompts can be
+  // dismissed for the session; hard ('required') ones cannot.
+  const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null);
+  const [softDismissed, setSoftDismissed] = useState(false);
+
+  const runUpdateCheck = async () => {
+    try {
+      const result = await checkForUpdate();
+      setUpdateInfo(result);
+      if (result.status === 'required') {
+        // A hard gate overrides any prior session dismissal.
+        setSoftDismissed(false);
+      }
+    } catch (err: any) {
+      console.log('[App] update check failed (non-blocking):', err?.message);
+    }
+  };
 
   // Handle notification deep linking
   const handleNotification = (remoteMessage: FirebaseMessagingTypes.RemoteMessage) => {
@@ -235,6 +256,31 @@ const AppContent = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  // Force/soft update check: on launch and whenever the app returns to the
+  // foreground (so a backgrounded old app gets gated on resume). Runs
+  // regardless of auth state.
+  useEffect(() => {
+    runUpdateCheck();
+
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        runUpdateCheck();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  const showUpdateModal =
+    !!updateInfo &&
+    (updateInfo.status === 'required' ||
+      (updateInfo.status === 'available' && !softDismissed));
+
   return (
     <>
       <AppNavigator ref={navigationRef} />
@@ -244,6 +290,15 @@ const AppContent = () => {
         onDismiss={dismissPopup}
         onView={handlePopupView}
       />
+      {showUpdateModal && updateInfo && (
+        <ForceUpdateModal
+          visible={showUpdateModal}
+          mode={updateInfo.status === 'required' ? 'required' : 'available'}
+          message={updateInfo.message}
+          storeUrl={updateInfo.storeUrl}
+          onDismiss={() => setSoftDismissed(true)}
+        />
+      )}
     </>
   );
 };
