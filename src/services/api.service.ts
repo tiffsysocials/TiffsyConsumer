@@ -2962,6 +2962,28 @@ class ApiService {
       { amount },
     );
   }
+
+  // ============================================
+  // APP CONFIG / FORCE-UPDATE GATE
+  // ============================================
+
+  // Public app config used to decide whether a force/soft update is required.
+  // Goes through the shared axios instance so it targets the same backend as
+  // every other call (no separate BASE_URL wiring needed).
+  async getAppConfig(platform: 'android' | 'ios'): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      platform: 'android' | 'ios';
+      forceUpdate: boolean;
+      message: string;
+      minVersion: string;
+      latestVersion: string;
+      storeUrl: string;
+    };
+  }> {
+    return this.api.get('/api/app/config', { params: { platform } });
+  }
 }
 
 export default new ApiService();
