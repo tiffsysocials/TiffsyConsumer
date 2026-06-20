@@ -913,10 +913,88 @@ export interface GetActivePlansResponse {
   };
 }
 
+/**
+ * Phase 11 — Auto-order setup form payload posted to the new
+ * VoucherPurchaseScreen. Captured at purchase, snapshotted at
+ * payment verify into Subscription.autoOrderSetup.
+ */
+export type DayName =
+  | 'sunday' | 'monday' | 'tuesday' | 'wednesday'
+  | 'thursday' | 'friday' | 'saturday';
+
+export interface AutoOrderAddonRef {
+  addonId: string;
+  quantity: number;
+}
+
+export interface AutoOrderWeeklySchedule {
+  [day: string]: { lunch: boolean; dinner: boolean };
+}
+
+export interface AutoOrderSetupForm {
+  addressId: string;
+  contactName: string;
+  contactPhone: string;
+  thalisPerMeal: number;
+  mealWindows: Array<'LUNCH' | 'DINNER'>;
+  weeklySchedule: AutoOrderWeeklySchedule;
+  addons: {
+    mode: 'EVERYDAY_SAME' | 'PER_DAY_DIFFERENT';
+    everydaySame: AutoOrderAddonRef[];
+    perDayDifferent?: { [day: string]: AutoOrderAddonRef[] };
+  };
+}
+
+export interface PerMealFeesBreakdown {
+  deliveryFee: number;
+  platformFee: number;
+  serviceFee: number;
+  packagingFee: number;
+  handlingFee: number;
+  taxAmount: number;
+  addonsCost: number;
+  total: number;
+}
+
+export interface AutoOrderPurchaseQuoteRequest extends AutoOrderSetupForm {
+  planId: string;
+}
+
+export interface AutoOrderPurchaseQuoteResponse {
+  success: boolean;
+  message: string;
+  data: {
+    plan: { id: string; name: string; price: number; totalVouchers: number; voucherValidityDays: number };
+    address: { id: string; city: string; locality: string; pincode: string; coords: { latitude: number; longitude: number } };
+    kitchen: { id: string; name: string };
+    totalDeliveries: number;
+    perWindowDeliveries: { lunch: number; dinner: number };
+    perMealFees: { lunch: PerMealFeesBreakdown | null; dinner: PerMealFeesBreakdown | null };
+    totalFeesPrepaid: number;
+    grandTotal: number;
+    snapshot: {
+      sourceKitchenId: string | null;
+      sourceDeliveryZoneId: string | null;
+      appliedSourceLabel: 'zone' | 'global' | 'flat' | null;
+      distanceFromKitchenKm: number | null;
+    };
+    computedAt: string;
+    form: AutoOrderSetupForm;
+  };
+}
+
 export interface PurchaseSubscriptionRequest {
   planId: string;
+  // Razorpay verification triplet (production)
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpaySignature?: string;
+  // Dev mode fallback
   paymentId?: string;
   paymentMethod?: 'UPI' | 'CARD' | 'NETBANKING' | 'WALLET' | 'OTHER';
+  // Phase 11 — optional auto-order setup branch
+  autoOrderSetup?: AutoOrderSetupForm;
+  expectedGrandTotal?: number;
 }
 
 export interface PurchaseSubscriptionResponse {
@@ -926,6 +1004,15 @@ export interface PurchaseSubscriptionResponse {
     subscription: Subscription;
     vouchersIssued: number;
     voucherExpiryDate: string;
+    autoOrderSetupApplied?: {
+      addressId?: string;
+      totalFeesPrepaid?: number;
+      totalDeliveries?: number;
+      walletCredited?: boolean;
+      walletBalanceAfter?: number;
+      error?: string;
+      code?: string;
+    } | null;
   };
 }
 
@@ -1980,6 +2067,14 @@ class ApiService {
     return this.api.post('/api/subscriptions/purchase', data);
   }
 
+  // Phase 11 — live quote for the new VoucherPurchaseScreen.
+  // Stateless, debounce on the client; no DB writes.
+  async getAutoOrderPurchaseQuote(
+    data: AutoOrderPurchaseQuoteRequest,
+  ): Promise<AutoOrderPurchaseQuoteResponse> {
+    return this.api.post('/api/subscriptions/purchase/quote', data);
+  }
+
   // Get user's subscriptions
   async getMySubscriptions(
     params?: GetMySubscriptionsParams,
@@ -2276,8 +2371,15 @@ class ApiService {
     return this.api.post(`/api/payment/order/${orderId}/cancel`, { reason });
   }
 
-  // Initiate payment for subscription purchase
-  async initiateSubscriptionPayment(planId: string): Promise<{
+  // Initiate payment for subscription purchase.
+  // Phase 11 — optional `autoOrderSetup` bundles the customer's auto-order
+  // preferences. The backend re-quotes and the Razorpay amount becomes
+  // `plan.price + totalFeesPrepaid`. After verify, autoOrderSetup is written
+  // onto the Subscription and globalWallet is credited.
+  async initiateSubscriptionPayment(
+    planId: string,
+    autoOrderSetup?: AutoOrderSetupForm,
+  ): Promise<{
     success: boolean;
     message: string;
     data: {
@@ -2288,6 +2390,11 @@ class ApiService {
       planId: string;
       planName: string;
       expiresAt: string;
+      autoOrderSetupQuote?: {
+        totalFeesPrepaid: number;
+        totalDeliveries: number;
+        grandTotal: number;
+      } | null;
       prefill: {
         name: string;
         contact: string;
@@ -2295,7 +2402,10 @@ class ApiService {
       };
     };
   }> {
-    return this.api.post('/api/payment/subscription/initiate', { planId });
+    return this.api.post('/api/payment/subscription/initiate', {
+      planId,
+      ...(autoOrderSetup ? { autoOrderSetup } : {}),
+    });
   }
 
   // Verify payment after Razorpay checkout

@@ -79,14 +79,13 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
     console.log('[MealPlansScreen] onRefresh - Refresh complete');
   }, [fetchPlans, fetchSubscriptions]);
 
-  // Handle subscribe button press
+  // Handle subscribe button press.
+  // Phase 11 — replaces the old popup-driven purchase flow. We now navigate
+  // to the full-page VoucherPurchaseScreen which handles plan summary +
+  // optional auto-order setup + Razorpay in one flow.
   const handleSubscribe = (plan: SubscriptionPlan) => {
-    console.log('[MealPlansScreen] handleSubscribe - Plan selected:', plan.name);
-    setSelectedPlan(plan);
-    // Reset stuck processing state from a previous hung attempt so the
-    // Confirm button isn't stuck spinning when the user re-opens the modal.
-    setIsProcessing(false);
-    setShowPurchaseModal(true);
+    console.log('[MealPlansScreen] handleSubscribe - navigating to VoucherPurchase:', plan.name);
+    navigation.navigate('VoucherPurchase', { planId: plan._id });
   };
 
   // Confirm purchase with Razorpay payment

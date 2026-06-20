@@ -48,6 +48,9 @@ export type MainTabParamList = {
   OrderDetail: { orderId: string };  // Requires orderId for order details
   OrderTracking: { orderId: string };  // Requires orderId to track
   MealPlans: undefined;
+  // Phase 11 — full-page voucher pack + auto-order setup screen. Replaces
+  // the popup-driven purchase flow.
+  VoucherPurchase: { planId: string };
   BulkOrders: undefined;
   Vouchers: undefined;  // View all vouchers with status filters
   OnDemand: undefined;  // On-Demand screen (Coming Soon)
