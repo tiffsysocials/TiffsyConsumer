@@ -1,18 +1,13 @@
 /**
  * Phase 11 — Voucher pack + auto-order setup full-page purchase screen.
  *
- * Replaces the old VoucherPaymentModal popup at order time. The customer
- * picks a plan on MealPlansScreen → this screen opens → they optionally
- * configure auto-order → one Razorpay charge covers the pack + all
- * upcoming meal fees.
+ * Replaces the old VoucherPaymentModal popup. The customer picks a plan on
+ * MealPlansScreen → this screen opens → optionally configures auto-order →
+ * one Razorpay charge covers the pack + all upcoming meal fees.
  *
- * Live quote: every form change debounces a POST /subscriptions/purchase/quote
- * call so the summary reflects current per-meal fees + total.
- *
- * Submit: initiateSubscriptionPayment(planId, autoOrderSetup?) — the
- * backend re-quotes server-side, sets Razorpay amount, stashes the form
- * in PaymentTransaction.metadata. After Razorpay verify, the backend
- * writes Subscription.autoOrderSetup + credits globalWallet.
+ * UI style mirrors AutoOrderConfigScreen — orange gradient header, gray-50
+ * scroll body, sectioned cards with orange-tab titles, reused
+ * WeeklyScheduleGrid + WeeklyScheduleQuickSets for the schedule.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -25,11 +20,13 @@ import {
   Modal,
   Pressable,
   Alert,
-  Platform,
-  StatusBar,
   TextInput,
+  StatusBar,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+import Svg, { Polyline } from 'react-native-svg';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../types/navigation';
@@ -39,39 +36,36 @@ import paymentService from '../../services/payment.service';
 import apiService, {
   AutoOrderSetupForm,
   AutoOrderPurchaseQuoteResponse,
-  DayName,
+  WeeklySchedule,
 } from '../../services/api.service';
-import { Colors } from '../../constants/colors';
+import { SPACING, TOUCH_TARGETS } from '../../constants/spacing';
+import { FONT_SIZES } from '../../constants/typography';
+import WeeklyScheduleGrid from '../../components/WeeklyScheduleGrid';
+import WeeklyScheduleQuickSets from '../../components/WeeklyScheduleQuickSets';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'VoucherPurchase'>;
 type Rt = RouteProp<RootStackParamList, 'VoucherPurchase'>;
 
-const PRIMARY = Colors.primary;
+const PRIMARY = '#FE8733';
 const PRIMARY_TINT = '#FFF7ED';
-const BORDER = Colors.border;
-const MUTED = Colors.text.secondary;
-const SLATE = Colors.text.primary;
-const SURFACE = Colors.surface;
+const PRIMARY_BORDER = '#FED7AA';
+const BG = '#F9FAFB';
+const BORDER = '#E5E7EB';
+const MUTED = '#6B7280';
+const TEXT = '#111827';
 
-const DAYS: { key: DayName; label: string }[] = [
-  { key: 'monday', label: 'Mon' },
-  { key: 'tuesday', label: 'Tue' },
-  { key: 'wednesday', label: 'Wed' },
-  { key: 'thursday', label: 'Thu' },
-  { key: 'friday', label: 'Fri' },
-  { key: 'saturday', label: 'Sat' },
-  { key: 'sunday', label: 'Sun' },
-];
-
-function defaultWeekly(lunch = true, dinner = true) {
-  const w: Record<string, { lunch: boolean; dinner: boolean }> = {};
-  for (const d of DAYS) w[d.key] = { lunch, dinner };
+function defaultWeekly(): WeeklySchedule {
+  const w: WeeklySchedule = {};
+  (['sunday','monday','tuesday','wednesday','thursday','friday','saturday'] as const).forEach(d => {
+    w[d] = { lunch: true, dinner: true };
+  });
   return w;
 }
 
 export default function VoucherPurchaseScreen() {
   const nav = useNavigation<Nav>();
   const route = useRoute<Rt>();
+  const insets = useSafeAreaInsets();
   const { planId } = route.params;
 
   const { addresses, getMainAddress } = useAddress();
@@ -88,7 +82,7 @@ export default function VoucherPurchaseScreen() {
   const [contactPhone, setContactPhone] = useState<string>(defaultAddr?.contactPhone ?? '');
   const [thalisPerMeal, setThalisPerMeal] = useState<number>(1);
   const [mealWindows, setMealWindows] = useState<Array<'LUNCH' | 'DINNER'>>(['LUNCH', 'DINNER']);
-  const [weeklySchedule, setWeeklySchedule] = useState(defaultWeekly());
+  const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule>(defaultWeekly());
 
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quote, setQuote] = useState<AutoOrderPurchaseQuoteResponse['data'] | null>(null);
@@ -152,21 +146,16 @@ export default function VoucherPurchaseScreen() {
 
   const toggleMealWindow = (w: 'LUNCH' | 'DINNER') => {
     setMealWindows(prev =>
-      prev.includes(w) ? prev.filter(x => x !== w) : [...prev, w].sort() as any,
+      prev.includes(w) ? prev.filter(x => x !== w) : ([...prev, w].sort() as any),
     );
   };
 
-  const toggleDay = (day: DayName, slot: 'lunch' | 'dinner') => {
-    setWeeklySchedule(prev => ({
-      ...prev,
-      [day]: { ...prev[day], [slot]: !prev[day][slot] },
-    }));
-  };
+  const selectedAddress = addresses.find(a => a.id === addressId);
 
   const handlePay = async () => {
     if (!plan) return;
     if (autoOrderYes === true && (!quote || quoteError)) {
-      Alert.alert('Wait for quote', 'Please wait for the price quote to load before paying.');
+      Alert.alert('Please wait', 'Wait for the price quote to load before paying.');
       return;
     }
     setSubmitting(true);
@@ -176,9 +165,7 @@ export default function VoucherPurchaseScreen() {
         autoOrderYes === true ? form : undefined,
       );
       if (!result.success) {
-        if (result.error === 'Payment cancelled') {
-          return;
-        }
+        if (result.error === 'Payment cancelled') return;
         Alert.alert('Payment failed', result.error || 'Try again');
         return;
       }
@@ -198,109 +185,155 @@ export default function VoucherPurchaseScreen() {
 
   if (!plan) {
     return (
-      <View style={[styles.center, { flex: 1 }]}>
-        <Text>Plan not found</Text>
-      </View>
+      <SafeAreaView style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
+        <Text style={{ color: MUTED }}>Plan not found</Text>
+      </SafeAreaView>
     );
   }
 
-  const grandTotal =
-    autoOrderYes === true && quote ? quote.grandTotal : plan.price;
+  const grandTotal = autoOrderYes === true && quote ? quote.grandTotal : plan.price;
+  const canPay =
+    autoOrderYes !== null &&
+    (autoOrderYes === false || (!!quote && !quoteLoading && !quoteError)) &&
+    !submitting;
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#fff' }}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => nav.goBack()} style={styles.iconBtn}>
-          <Icon name="arrow-back" size={24} color={SLATE} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Buy Voucher Pack</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 140 }}>
-        {/* Plan card */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Voucher Pack</Text>
-          <View style={styles.planCard}>
-            <Text style={styles.planName}>{plan.name}</Text>
-            <Text style={styles.planMeta}>
-              {plan.totalVouchers} vouchers · valid {plan.voucherValidityDays} days
-            </Text>
-            <Text style={styles.planPrice}>₹{plan.price}</Text>
+      {/* Header */}
+      <LinearGradient
+        colors={['#FD9E2F', '#FF6636']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.gradientHeader}
+      >
+        <SafeAreaView edges={['top']}>
+          <View style={styles.headerRow}>
+            <TouchableOpacity onPress={() => nav.goBack()} style={styles.backBtn}>
+              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+                <Polyline points="15,18 9,12 15,6" stroke={PRIMARY} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </TouchableOpacity>
+            <Text style={styles.headerTitle} numberOfLines={1}>Buy Voucher Pack</Text>
+            <View style={{ width: TOUCH_TARGETS.minimum }} />
           </View>
-        </View>
+        </SafeAreaView>
+      </LinearGradient>
+
+      <ScrollView
+        style={{ flex: 1, backgroundColor: BG }}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 140 + insets.bottom, paddingTop: SPACING.lg }}
+      >
+        {/* Plan card */}
+        <Section title="Voucher Pack">
+          <View style={styles.planCard}>
+            <View style={styles.iconCircle}>
+              <MaterialCommunityIcons name="ticket-percent" size={24} color={PRIMARY} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.cardTitle} numberOfLines={1}>{plan.name}</Text>
+              <Text style={styles.cardMeta}>
+                {plan.totalVouchers} vouchers · valid {plan.voucherValidityDays} days
+              </Text>
+            </View>
+            <Text style={styles.planPrice}>{`₹${plan.price}`}</Text>
+          </View>
+        </Section>
 
         {/* Auto-order opt-in */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Set up auto-ordering?</Text>
-          <Text style={styles.sectionHint}>
-            Auto-order delivers your vouchers automatically. Pay the meal fees once now — no
-            top-ups, no surprises.
-          </Text>
-          <View style={{ flexDirection: 'row', marginTop: 12 }}>
-            <RadioCard
-              label="No, I'll order manually"
-              icon="cancel"
-              active={autoOrderYes === false}
-              onPress={() => setAutoOrderYes(false)}
-            />
-            <RadioCard
-              label="Yes, auto-deliver"
-              icon="auto-mode"
-              active={autoOrderYes === true}
-              onPress={() => setAutoOrderYes(true)}
-            />
-          </View>
-        </View>
+        <Section
+          title="Auto-Order Setup"
+          hint="Auto-order delivers your vouchers automatically. Pay once for the meal fees up-front — no surprise top-ups later."
+        >
+          <ChoiceCard
+            icon="auto-mode"
+            iconColor={autoOrderYes === true ? PRIMARY : MUTED}
+            iconBg={autoOrderYes === true ? PRIMARY_TINT : '#F3F4F6'}
+            title="Yes, auto-deliver"
+            subtitle="Set delivery schedule, prepay meal fees, sit back."
+            active={autoOrderYes === true}
+            onPress={() => setAutoOrderYes(true)}
+          />
+          <View style={{ height: 12 }} />
+          <ChoiceCard
+            icon="cart-outline"
+            iconColor={autoOrderYes === false ? PRIMARY : MUTED}
+            iconBg={autoOrderYes === false ? PRIMARY_TINT : '#F3F4F6'}
+            title="No, I'll order manually"
+            subtitle="Just give me the vouchers."
+            active={autoOrderYes === false}
+            onPress={() => setAutoOrderYes(false)}
+          />
+        </Section>
 
         {autoOrderYes === true && (
           <>
             {/* Address */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Delivery address</Text>
+            <Section title="Delivery Address">
               <TouchableOpacity
-                style={styles.addressBtn}
                 onPress={() => setShowAddressPicker(true)}
+                activeOpacity={0.7}
+                style={[
+                  styles.card,
+                  !selectedAddress && {
+                    backgroundColor: PRIMARY_TINT,
+                    borderStyle: 'dashed',
+                    borderColor: PRIMARY_BORDER,
+                    borderWidth: 2,
+                  },
+                ]}
               >
-                {addressId ? (
-                  <>
-                    <Icon name="place" size={20} color={PRIMARY} />
-                    <View style={{ flex: 1, marginLeft: 10 }}>
-                      <Text style={styles.addressLabel}>
-                        {addresses.find(a => a.id === addressId)?.label || 'Address'}
+                <View style={styles.iconCircle}>
+                  <MaterialCommunityIcons
+                    name={selectedAddress ? 'map-marker' : 'map-marker-plus-outline'}
+                    size={24}
+                    color={PRIMARY}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  {selectedAddress ? (
+                    <>
+                      <Text style={styles.cardTitle} numberOfLines={1}>
+                        {selectedAddress.label}
                       </Text>
-                      <Text style={styles.addressDetail} numberOfLines={1}>
-                        {addresses.find(a => a.id === addressId)?.addressLine1},{' '}
-                        {addresses.find(a => a.id === addressId)?.locality}
+                      <Text style={styles.cardMeta} numberOfLines={1}>
+                        {selectedAddress.addressLine1}, {selectedAddress.locality}
                       </Text>
-                    </View>
-                  </>
-                ) : (
-                  <Text style={{ color: MUTED }}>Pick an address</Text>
-                )}
-                <Icon name="chevron-right" size={20} color={MUTED} />
+                    </>
+                  ) : (
+                    <Text style={{ fontSize: FONT_SIZES.base, fontWeight: '600', color: PRIMARY }}>
+                      Select Delivery Address
+                    </Text>
+                  )}
+                </View>
+                <Text style={styles.chev}>›</Text>
               </TouchableOpacity>
-            </View>
+            </Section>
 
             {/* Contact */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Delivery contact</Text>
-              <View style={styles.input}>
-                <Icon name="person" size={18} color={MUTED} />
+            <Section title="Delivery Contact">
+              <View style={styles.card}>
+                <View style={styles.iconCircle}>
+                  <MaterialCommunityIcons name="account" size={22} color={PRIMARY} />
+                </View>
                 <TextInput
-                  style={styles.inputText}
-                  placeholder="Name"
+                  style={styles.input}
+                  placeholder="Contact name"
                   placeholderTextColor={MUTED}
                   value={contactName}
                   onChangeText={setContactName}
                   autoCapitalize="words"
                 />
               </View>
-              <View style={[styles.input, { marginTop: 8 }]}>
-                <Icon name="phone" size={18} color={MUTED} />
+              <View style={{ height: 12 }} />
+              <View style={styles.card}>
+                <View style={styles.iconCircle}>
+                  <MaterialCommunityIcons name="phone" size={22} color={PRIMARY} />
+                </View>
                 <TextInput
-                  style={styles.inputText}
+                  style={styles.input}
                   placeholder="10-digit phone"
                   placeholderTextColor={MUTED}
                   value={contactPhone}
@@ -309,164 +342,149 @@ export default function VoucherPurchaseScreen() {
                   maxLength={10}
                 />
               </View>
-              <Text style={[styles.sectionHint, { marginTop: 6 }]}>
-                Used only for this auto-order's delivery contact.
-              </Text>
-            </View>
-
-            {/* Meal windows */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Meal windows</Text>
-              <View style={{ flexDirection: 'row', marginTop: 8 }}>
-                {(['LUNCH', 'DINNER'] as const).map(w => (
-                  <Pill
-                    key={w}
-                    label={w}
-                    active={mealWindows.includes(w)}
-                    onPress={() => toggleMealWindow(w)}
-                  />
-                ))}
-              </View>
-            </View>
+            </Section>
 
             {/* Thalis per meal */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Thalis per meal</Text>
-              <View style={styles.stepper}>
-                <TouchableOpacity
-                  style={styles.stepBtn}
-                  onPress={() => setThalisPerMeal(Math.max(1, thalisPerMeal - 1))}
-                >
-                  <Icon name="remove" size={20} color={SLATE} />
-                </TouchableOpacity>
-                <Text style={styles.stepValue}>{thalisPerMeal}</Text>
-                <TouchableOpacity
-                  style={styles.stepBtn}
-                  onPress={() => setThalisPerMeal(Math.min(10, thalisPerMeal + 1))}
-                >
-                  <Icon name="add" size={20} color={SLATE} />
-                </TouchableOpacity>
-              </View>
-              <Text style={[styles.sectionHint, { marginTop: 6 }]}>
-                Each scheduled meal uses {thalisPerMeal} voucher{thalisPerMeal === 1 ? '' : 's'}.
-              </Text>
-            </View>
-
-            {/* Weekly schedule */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Weekly schedule</Text>
-              {DAYS.map(d => (
-                <View key={d.key} style={styles.dayRow}>
-                  <Text style={styles.dayLabel}>{d.label}</Text>
-                  <View style={{ flexDirection: 'row' }}>
-                    {mealWindows.includes('LUNCH') && (
-                      <Pill
-                        small
-                        label="Lunch"
-                        active={weeklySchedule[d.key]?.lunch}
-                        onPress={() => toggleDay(d.key, 'lunch')}
-                      />
-                    )}
-                    {mealWindows.includes('DINNER') && (
-                      <Pill
-                        small
-                        label="Dinner"
-                        active={weeklySchedule[d.key]?.dinner}
-                        onPress={() => toggleDay(d.key, 'dinner')}
-                      />
-                    )}
-                  </View>
+            <Section
+              title="Thalis Per Meal"
+              hint={`Each scheduled meal uses ${thalisPerMeal} voucher${thalisPerMeal === 1 ? '' : 's'}.`}
+            >
+              <View style={[styles.card, { justifyContent: 'space-between' }]}>
+                <View style={styles.iconCircle}>
+                  <MaterialCommunityIcons name="food" size={22} color={PRIMARY} />
                 </View>
-              ))}
-            </View>
+                <View style={styles.stepper}>
+                  <TouchableOpacity
+                    style={styles.stepBtn}
+                    onPress={() => setThalisPerMeal(Math.max(1, thalisPerMeal - 1))}
+                  >
+                    <MaterialCommunityIcons name="minus" size={20} color={TEXT} />
+                  </TouchableOpacity>
+                  <Text style={styles.stepValue}>{thalisPerMeal}</Text>
+                  <TouchableOpacity
+                    style={styles.stepBtn}
+                    onPress={() => setThalisPerMeal(Math.min(10, thalisPerMeal + 1))}
+                  >
+                    <MaterialCommunityIcons name="plus" size={20} color={TEXT} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Section>
+
+            {/* Meal Windows */}
+            <Section title="Meal Windows" hint="Pick which meals you want auto-delivered.">
+              <View style={{ flexDirection: 'row' }}>
+                {(['LUNCH', 'DINNER'] as const).map(w => (
+                  <TouchableOpacity
+                    key={w}
+                    onPress={() => toggleMealWindow(w)}
+                    activeOpacity={0.7}
+                    style={[
+                      styles.mealPill,
+                      mealWindows.includes(w) && {
+                        backgroundColor: PRIMARY,
+                        borderColor: PRIMARY,
+                      },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name={w === 'LUNCH' ? 'white-balance-sunny' : 'moon-waning-crescent'}
+                      size={18}
+                      color={mealWindows.includes(w) ? '#fff' : (w === 'LUNCH' ? PRIMARY : '#8B5CF6')}
+                    />
+                    <Text
+                      style={[
+                        styles.mealPillText,
+                        mealWindows.includes(w) && { color: '#fff', fontWeight: '700' },
+                      ]}
+                    >
+                      {w === 'LUNCH' ? 'Lunch' : 'Dinner'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </Section>
+
+            {/* Weekly Schedule — reuse the same components as AutoOrderConfigScreen */}
+            <Section title="Weekly Schedule" hint="Customize which days and meals to auto-order.">
+              <WeeklyScheduleQuickSets onSelectPattern={setWeeklySchedule} />
+              <View style={{ height: 8 }} />
+              <WeeklyScheduleGrid schedule={weeklySchedule} onChange={setWeeklySchedule} />
+            </Section>
 
             {/* Live summary */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Order summary</Text>
-              {quoteLoading && (
-                <View style={[styles.summaryRow, { justifyContent: 'center', paddingVertical: 12 }]}>
-                  <ActivityIndicator size="small" color={PRIMARY} />
-                  <Text style={{ color: MUTED, marginLeft: 8 }}>Calculating…</Text>
-                </View>
-              )}
-              {quoteError && (
-                <View style={styles.errorBox}>
-                  <Icon name="error-outline" size={18} color="#DC2626" />
-                  <Text style={styles.errorText}>{quoteError}</Text>
-                </View>
-              )}
-              {quote && !quoteLoading && !quoteError && (
-                <View>
-                  <SummaryLine label="Voucher pack" value={`₹${quote.plan.price}`} />
-                  <SummaryLine
-                    label="Total deliveries"
-                    value={`${quote.totalDeliveries}`}
-                    sub={`L: ${quote.perWindowDeliveries.lunch} · D: ${quote.perWindowDeliveries.dinner}`}
-                  />
-                  {quote.perMealFees.lunch && (
+            <Section title="Order Summary">
+              <View style={[styles.card, { flexDirection: 'column', alignItems: 'stretch', padding: 16 }]}>
+                {quoteLoading && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12 }}>
+                    <ActivityIndicator size="small" color={PRIMARY} />
+                    <Text style={{ color: MUTED, marginLeft: 8 }}>Calculating…</Text>
+                  </View>
+                )}
+                {quoteError && (
+                  <View style={styles.errorBox}>
+                    <MaterialCommunityIcons name="alert-circle-outline" size={18} color="#DC2626" />
+                    <Text style={styles.errorText}>{quoteError}</Text>
+                  </View>
+                )}
+                {quote && !quoteLoading && !quoteError && (
+                  <View>
+                    <SummaryLine label="Voucher pack" value={`₹${quote.plan.price}`} />
                     <SummaryLine
-                      label="Per-meal fees (Lunch)"
-                      value={`₹${quote.perMealFees.lunch.total}`}
+                      label="Total deliveries"
+                      value={`${quote.totalDeliveries}`}
+                      sub={`Lunch: ${quote.perWindowDeliveries.lunch} · Dinner: ${quote.perWindowDeliveries.dinner}`}
                     />
-                  )}
-                  {quote.perMealFees.dinner && (
-                    <SummaryLine
-                      label="Per-meal fees (Dinner)"
-                      value={`₹${quote.perMealFees.dinner.total}`}
-                    />
-                  )}
-                  <SummaryLine
-                    label="Wallet credit"
-                    value={`₹${quote.totalFeesPrepaid}`}
-                    bold
-                  />
-                  <View style={styles.divider} />
-                  <SummaryLine
-                    label="Pay now"
-                    value={`₹${quote.grandTotal}`}
-                    big
-                  />
-                </View>
-              )}
-            </View>
+                    {quote.perMealFees.lunch && (
+                      <SummaryLine
+                        label="Per-meal fees (Lunch)"
+                        value={`₹${quote.perMealFees.lunch.total}`}
+                      />
+                    )}
+                    {quote.perMealFees.dinner && (
+                      <SummaryLine
+                        label="Per-meal fees (Dinner)"
+                        value={`₹${quote.perMealFees.dinner.total}`}
+                      />
+                    )}
+                    <SummaryLine label="Wallet credit" value={`₹${quote.totalFeesPrepaid}`} bold />
+                    <View style={styles.divider} />
+                    <SummaryLine label="Pay now" value={`₹${quote.grandTotal}`} big />
+                  </View>
+                )}
+              </View>
+            </Section>
           </>
         )}
 
         {autoOrderYes === false && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Order summary</Text>
-            <SummaryLine label="Voucher pack" value={`₹${plan.price}`} />
-            <View style={styles.divider} />
-            <SummaryLine label="Pay now" value={`₹${plan.price}`} big />
-          </View>
+          <Section title="Order Summary">
+            <View style={[styles.card, { flexDirection: 'column', alignItems: 'stretch', padding: 16 }]}>
+              <SummaryLine label="Voucher pack" value={`₹${plan.price}`} />
+              <View style={styles.divider} />
+              <SummaryLine label="Pay now" value={`₹${plan.price}`} big />
+            </View>
+          </Section>
         )}
       </ScrollView>
 
       {/* Sticky bottom CTA */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: 14 + insets.bottom }]}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.footerLabel}>Total</Text>
-          <Text style={styles.footerAmount}>₹{grandTotal}</Text>
+          <Text style={styles.footerLabel}>Total payable</Text>
+          <Text style={styles.footerAmount}>{`₹${grandTotal}`}</Text>
         </View>
         <TouchableOpacity
-          style={[
-            styles.payBtn,
-            (autoOrderYes === null ||
-              (autoOrderYes === true && (!quote || quoteLoading || !!quoteError)) ||
-              submitting) && { opacity: 0.5 },
-          ]}
-          disabled={
-            autoOrderYes === null ||
-            (autoOrderYes === true && (!quote || quoteLoading || !!quoteError)) ||
-            submitting
-          }
+          style={[styles.payBtn, !canPay && { backgroundColor: '#D1D5DB' }]}
+          disabled={!canPay}
           onPress={handlePay}
+          activeOpacity={0.85}
         >
           {submitting ? (
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.payBtnText}>
-              {autoOrderYes === true ? 'Pay & set up auto-order' : 'Pay for vouchers'}
+              {autoOrderYes === true ? 'Pay & Set Up Auto-Order' : 'Pay for Vouchers'}
             </Text>
           )}
         </TouchableOpacity>
@@ -476,91 +494,139 @@ export default function VoucherPurchaseScreen() {
       <Modal
         visible={showAddressPicker}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setShowAddressPicker(false)}
       >
-        <Pressable style={styles.sheetBackdrop} onPress={() => setShowAddressPicker(false)} />
-        <View style={styles.sheet}>
-          <Text style={styles.sectionTitle}>Choose address</Text>
-          <ScrollView style={{ maxHeight: 380, marginTop: 8 }}>
-            {addresses.map(a => (
-              <TouchableOpacity
-                key={a.id}
-                style={[
-                  styles.addressRow,
-                  addressId === a.id && { borderColor: PRIMARY, backgroundColor: PRIMARY_TINT },
-                ]}
-                onPress={() => {
-                  setAddressId(a.id);
-                  if (!contactName) setContactName(a.contactName || '');
-                  if (!contactPhone) setContactPhone(a.contactPhone || '');
-                  setShowAddressPicker(false);
-                }}
-              >
-                <Icon name="place" size={20} color={PRIMARY} />
-                <View style={{ flex: 1, marginLeft: 10 }}>
-                  <Text style={styles.addressLabel}>{a.label}</Text>
-                  <Text style={styles.addressDetail} numberOfLines={2}>
-                    {a.addressLine1}, {a.locality}, {a.pincode}
+        <Pressable style={styles.modalBackdrop} onPress={() => setShowAddressPicker(false)}>
+          <Pressable style={styles.sheetContainer} onPress={e => e.stopPropagation()}>
+            <View style={styles.sheetContent}>
+              <Text style={styles.sheetTitle}>Select Address</Text>
+              {addresses.length === 0 ? (
+                <View style={{ alignItems: 'center', padding: 20 }}>
+                  <Text style={{ fontSize: FONT_SIZES.base, color: MUTED, textAlign: 'center' }}>
+                    No addresses yet. Add one first.
                   </Text>
                 </View>
-                {addressId === a.id && <Icon name="check-circle" size={20} color={PRIMARY} />}
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+              ) : (
+                <ScrollView style={{ maxHeight: 360 }}>
+                  {addresses.map(a => (
+                    <TouchableOpacity
+                      key={a.id}
+                      onPress={() => {
+                        setAddressId(a.id);
+                        if (!contactName) setContactName(a.contactName || '');
+                        if (!contactPhone) setContactPhone(a.contactPhone || '');
+                        setShowAddressPicker(false);
+                      }}
+                      activeOpacity={0.7}
+                      style={[
+                        styles.addressRow,
+                        addressId === a.id && {
+                          borderColor: PRIMARY,
+                          backgroundColor: PRIMARY_TINT,
+                        },
+                      ]}
+                    >
+                      <View style={styles.iconCircle}>
+                        <MaterialCommunityIcons name="map-marker" size={22} color={PRIMARY} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.cardTitle} numberOfLines={1}>{a.label}</Text>
+                        <Text style={styles.cardMeta} numberOfLines={2}>
+                          {a.addressLine1}, {a.locality}, {a.pincode}
+                        </Text>
+                      </View>
+                      {addressId === a.id && (
+                        <MaterialCommunityIcons name="check-circle" size={22} color={PRIMARY} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+            </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </View>
   );
 }
 
-function RadioCard({
-  label,
-  icon,
-  active,
-  onPress,
+// ────────── Section + atom components ──────────
+
+function Section({
+  title,
+  hint,
+  children,
 }: {
-  label: string;
-  icon: string;
-  active: boolean;
-  onPress: () => void;
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
 }) {
   return (
-    <TouchableOpacity
-      style={[styles.radioCard, active && styles.radioCardActive]}
-      onPress={onPress}
-    >
-      <Icon name={icon} size={22} color={active ? PRIMARY : MUTED} />
-      <Text style={[styles.radioLabel, active && { color: PRIMARY, fontWeight: '600' }]}>
-        {label}
-      </Text>
-    </TouchableOpacity>
+    <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+        <View style={{ width: 6, height: 22, backgroundColor: PRIMARY, borderRadius: 999, marginRight: 10 }} />
+        <Text style={{ fontSize: FONT_SIZES.xl, fontWeight: 'bold', color: TEXT, flex: 1 }} numberOfLines={1}>
+          {title}
+        </Text>
+      </View>
+      {hint && (
+        <Text style={{ fontSize: FONT_SIZES.sm, color: MUTED, marginBottom: 10, paddingLeft: 2 }}>
+          {hint}
+        </Text>
+      )}
+      {children}
+    </View>
   );
 }
 
-function Pill({
-  label,
+function ChoiceCard({
+  icon,
+  iconColor,
+  iconBg,
+  title,
+  subtitle,
   active,
   onPress,
-  small,
 }: {
-  label: string;
+  icon: string;
+  iconColor: string;
+  iconBg: string;
+  title: string;
+  subtitle: string;
   active: boolean;
   onPress: () => void;
-  small?: boolean;
 }) {
   return (
     <TouchableOpacity
       onPress={onPress}
+      activeOpacity={0.7}
       style={[
-        styles.pill,
-        small && styles.pillSmall,
-        active && styles.pillActive,
+        styles.card,
+        active && { borderColor: PRIMARY, borderWidth: 2, backgroundColor: PRIMARY_TINT },
       ]}
     >
-      <Text style={[styles.pillText, active && { color: '#fff', fontWeight: '600' }]}>
-        {label}
-      </Text>
+      <View style={[styles.iconCircle, { backgroundColor: iconBg }]}>
+        <MaterialCommunityIcons name={icon} size={24} color={iconColor} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.cardTitle}>{title}</Text>
+        <Text style={styles.cardMeta}>{subtitle}</Text>
+      </View>
+      <View
+        style={{
+          width: 22,
+          height: 22,
+          borderRadius: 11,
+          borderWidth: 2,
+          borderColor: active ? PRIMARY : '#D1D5DB',
+          backgroundColor: active ? PRIMARY : 'transparent',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {active && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#fff' }} />}
+      </View>
     </TouchableOpacity>
   );
 }
@@ -580,23 +646,22 @@ function SummaryLine({
 }) {
   return (
     <View style={styles.summaryRow}>
-      <View>
+      <View style={{ flex: 1, paddingRight: 8 }}>
         <Text
           style={[
-            styles.summaryLabel,
-            bold && { fontWeight: '600', color: SLATE },
-            big && { fontSize: 16, fontWeight: '700', color: SLATE },
+            { fontSize: FONT_SIZES.base, color: TEXT },
+            bold && { fontWeight: '600' },
+            big && { fontSize: FONT_SIZES.lg, fontWeight: '700' },
           ]}
         >
           {label}
         </Text>
-        {!!sub && <Text style={styles.summarySub}>{sub}</Text>}
+        {!!sub && <Text style={{ fontSize: FONT_SIZES.xs, color: MUTED, marginTop: 2 }}>{sub}</Text>}
       </View>
       <Text
         style={[
-          styles.summaryValue,
-          bold && { fontWeight: '600' },
-          big && { fontSize: 18, fontWeight: '700', color: PRIMARY },
+          { fontSize: FONT_SIZES.base, color: TEXT, fontWeight: '600' },
+          big && { fontSize: FONT_SIZES.xl, color: PRIMARY, fontWeight: '700' },
         ]}
       >
         {value}
@@ -606,117 +671,176 @@ function SummaryLine({
 }
 
 const styles = StyleSheet.create({
-  center: { alignItems: 'center', justifyContent: 'center' },
-  header: {
+  container: { flex: 1, backgroundColor: '#fff' },
+  gradientHeader: {
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    paddingBottom: 16,
+    overflow: 'hidden',
+  },
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: Platform.OS === 'ios' ? 12 : 14,
-    paddingTop: Platform.OS === 'ios' ? 56 : 14,
-    borderBottomWidth: 1,
-    borderBottomColor: BORDER,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 16,
   },
-  iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { flex: 1, fontSize: 16, fontWeight: '600', color: SLATE, textAlign: 'center' },
-  section: { padding: 16, borderBottomWidth: 8, borderBottomColor: '#F9FAFB' },
-  sectionTitle: { fontSize: 15, fontWeight: '600', color: SLATE },
-  sectionHint: { fontSize: 12, color: MUTED, marginTop: 4 },
-  planCard: {
-    marginTop: 10,
-    padding: 14,
+  backBtn: {
+    width: TOUCH_TARGETS.minimum,
+    height: TOUCH_TARGETS.minimum,
+    borderRadius: TOUCH_TARGETS.minimum / 2,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    color: '#fff',
+    fontSize: FONT_SIZES.h4,
+    fontWeight: 'bold',
+    flex: 1,
+    textAlign: 'center',
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
-    borderColor: PRIMARY,
+    borderColor: BORDER,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconCircle: {
+    width: 44,
+    height: 44,
     borderRadius: 12,
     backgroundColor: PRIMARY_TINT,
-  },
-  planName: { fontSize: 16, fontWeight: '700', color: SLATE },
-  planMeta: { fontSize: 13, color: MUTED, marginTop: 2 },
-  planPrice: { fontSize: 20, fontWeight: '700', color: PRIMARY, marginTop: 6 },
-  radioCard: {
-    flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  planCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
     borderColor: BORDER,
-    borderRadius: 10,
-    marginRight: 8,
-  },
-  radioCardActive: { borderColor: PRIMARY, backgroundColor: PRIMARY_TINT },
-  radioLabel: { marginLeft: 8, fontSize: 13, color: SLATE, flex: 1 },
-  addressBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: BORDER,
-    borderRadius: 10,
   },
-  addressLabel: { fontSize: 14, fontWeight: '600', color: SLATE },
-  addressDetail: { fontSize: 12, color: MUTED, marginTop: 2 },
+  cardTitle: { fontSize: FONT_SIZES.lg, fontWeight: 'bold', color: TEXT },
+  cardMeta: { fontSize: FONT_SIZES.sm, color: MUTED, marginTop: 2 },
+  planPrice: { fontSize: FONT_SIZES.xl, fontWeight: 'bold', color: PRIMARY },
+  chev: { fontSize: 22, color: '#9CA3AF' },
   input: {
+    flex: 1,
+    fontSize: FONT_SIZES.base,
+    color: TEXT,
+    paddingVertical: 4,
+  },
+  stepper: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  stepBtn: {
+    width: 38, height: 38, borderRadius: 10,
+    borderWidth: 1, borderColor: BORDER,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  stepValue: {
+    fontSize: FONT_SIZES.xl,
+    fontWeight: 'bold',
+    color: TEXT,
+    marginHorizontal: 18,
+    minWidth: 24,
+    textAlign: 'center',
+  },
+  mealPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
     borderWidth: 1,
     borderColor: BORDER,
-    borderRadius: 10,
-    marginTop: 8,
+    backgroundColor: '#fff',
+    marginRight: 10,
   },
-  inputText: { marginLeft: 8, fontSize: 14, color: SLATE, flex: 1 },
-  stepper: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
-  stepBtn: {
-    width: 38, height: 38, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: BORDER, borderRadius: 8,
+  mealPillText: {
+    marginLeft: 6,
+    fontSize: FONT_SIZES.base,
+    color: TEXT,
+    fontWeight: '600',
   },
-  stepValue: { fontSize: 18, fontWeight: '700', color: SLATE, marginHorizontal: 18 },
-  pill: {
-    paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: BORDER,
-    borderRadius: 999, marginRight: 8,
-  },
-  pillSmall: { paddingHorizontal: 10, paddingVertical: 4 },
-  pillActive: { backgroundColor: PRIMARY, borderColor: PRIMARY },
-  pillText: { fontSize: 13, color: SLATE },
-  dayRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     paddingVertical: 8,
   },
-  dayLabel: { fontSize: 14, color: SLATE, fontWeight: '500', width: 50 },
-  summaryRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end',
-    paddingVertical: 6,
-  },
-  summaryLabel: { fontSize: 14, color: SLATE },
-  summarySub: { fontSize: 11, color: MUTED, marginTop: 2 },
-  summaryValue: { fontSize: 14, color: SLATE },
   divider: { height: 1, backgroundColor: BORDER, marginVertical: 8 },
   errorBox: {
-    flexDirection: 'row', alignItems: 'center', padding: 10,
-    backgroundColor: '#FEF2F2', borderRadius: 8, marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 10,
   },
-  errorText: { color: '#DC2626', fontSize: 12, marginLeft: 6, flex: 1 },
+  errorText: { color: '#DC2626', fontSize: FONT_SIZES.sm, marginLeft: 6, flex: 1 },
   footer: {
-    position: 'absolute', left: 0, right: 0, bottom: 0,
-    flexDirection: 'row', alignItems: 'center', padding: 14,
-    borderTopWidth: 1, borderTopColor: BORDER, backgroundColor: '#fff',
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: BORDER,
+    backgroundColor: '#fff',
   },
-  footerLabel: { fontSize: 12, color: MUTED },
-  footerAmount: { fontSize: 20, fontWeight: '700', color: SLATE },
+  footerLabel: { fontSize: FONT_SIZES.xs, color: MUTED },
+  footerAmount: { fontSize: FONT_SIZES.xl, fontWeight: 'bold', color: TEXT },
   payBtn: {
-    backgroundColor: PRIMARY, paddingHorizontal: 20, paddingVertical: 14,
-    borderRadius: 10, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: PRIMARY,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 180,
   },
-  payBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet: {
-    backgroundColor: '#fff', padding: 16,
-    borderTopLeftRadius: 16, borderTopRightRadius: 16,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 16,
+  payBtnText: { color: '#fff', fontSize: FONT_SIZES.base, fontWeight: 'bold' },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetContainer: {
+    width: '88%',
+    maxWidth: 480,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  sheetContent: { padding: 20 },
+  sheetTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: 'bold',
+    color: TEXT,
+    marginBottom: 16,
   },
   addressRow: {
-    flexDirection: 'row', alignItems: 'center', padding: 12,
-    borderWidth: 1, borderColor: BORDER, borderRadius: 10, marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderRadius: 14,
+    marginBottom: 10,
   },
 });
