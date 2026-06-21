@@ -19,7 +19,6 @@ import {
   ActivityIndicator,
   Modal,
   Pressable,
-  Alert,
   TextInput,
   StatusBar,
 } from 'react-native';
@@ -33,6 +32,7 @@ import { RootStackParamList } from '../../types/navigation';
 import { useAddress } from '../../context/AddressContext';
 import DeliveryFeeInfoModal from '../../components/DeliveryFeeInfoModal';
 import { useSubscription } from '../../context/SubscriptionContext';
+import { useAlert } from '../../context/AlertContext';
 import paymentService from '../../services/payment.service';
 import apiService, {
   AutoOrderSetupForm,
@@ -78,6 +78,7 @@ export default function VoucherPurchaseScreen() {
 
   const { addresses, getMainAddress } = useAddress();
   const { plans } = useSubscription();
+  const { showAlert } = useAlert();
   const plan = useMemo(() => plans.find(p => p._id === planId), [plans, planId]);
 
   // Step 1: opt-in
@@ -168,7 +169,12 @@ export default function VoucherPurchaseScreen() {
   const handlePay = async () => {
     if (!plan) return;
     if (autoOrderYes === true && (!quote || quoteError)) {
-      Alert.alert('Please wait', 'Wait for the price quote to load before paying.');
+      showAlert(
+        'Please wait',
+        'Wait for the price quote to load before paying.',
+        undefined,
+        'warning',
+      );
       return;
     }
     setSubmitting(true);
@@ -179,29 +185,31 @@ export default function VoucherPurchaseScreen() {
       );
       if (!result.success) {
         if (result.error === 'Payment cancelled') return;
-        Alert.alert('Payment failed', result.error || 'Try again');
+        showAlert('Payment failed', result.error || 'Try again', undefined, 'error');
         return;
       }
       // Phase 11 — vouchers were issued but the auto-order setup half
       // failed and was auto-refunded. Customer keeps the pack; only the
       // prepaid fees came back.
       if (result.refunded) {
-        Alert.alert(
+        showAlert(
           'Pack purchased — auto-order not set up',
           `Your ${plan.totalVouchers} vouchers have been added to your account.\n\nWe couldn't set up auto-order this time, so ₹${formatINR(result.refundAmount ?? 0)} of the auto-order fees has been refunded (will reach your account in 5–7 working days).\n\nYou can set up auto-order any time from Account → Auto-Order Settings.`,
-          [{ text: 'OK', onPress: () => nav.navigate('Account') }],
+          [{ text: 'OK', style: 'default', onPress: () => nav.navigate('Account') }],
+          'warning',
         );
         return;
       }
-      Alert.alert(
+      showAlert(
         'Pack purchased',
         autoOrderYes === true
           ? `Auto-order set up successfully. ₹${formatINR(quote?.totalFeesPrepaid ?? 0)} credited to your wallet for ${quote?.totalDeliveries ?? 0} upcoming deliveries.`
           : `${plan.totalVouchers} vouchers added to your account.`,
-        [{ text: 'OK', onPress: () => nav.navigate('Account') }],
+        [{ text: 'OK', style: 'default', onPress: () => nav.navigate('Account') }],
+        'success',
       );
     } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Purchase failed');
+      showAlert('Something went wrong', e?.message || 'Purchase failed', undefined, 'error');
     } finally {
       setSubmitting(false);
     }

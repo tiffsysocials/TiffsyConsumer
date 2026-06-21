@@ -27,7 +27,6 @@ import {
   ActivityIndicator,
   Modal,
   Pressable,
-  Alert,
   TextInput,
   StatusBar,
 } from 'react-native';
@@ -41,6 +40,7 @@ import { RootStackParamList } from '../../types/navigation';
 import { useAddress } from '../../context/AddressContext';
 import DeliveryFeeInfoModal from '../../components/DeliveryFeeInfoModal';
 import { useSubscription } from '../../context/SubscriptionContext';
+import { useAlert } from '../../context/AlertContext';
 import paymentService from '../../services/payment.service';
 import apiService, {
   AutoOrderSetupForm,
@@ -87,6 +87,7 @@ export default function AutoOrderSetupScreen() {
 
   const { addresses, getMainAddress } = useAddress();
   const { subscriptions, fetchSubscriptions, usableVouchers, fetchVouchers } = useSubscription();
+  const { showAlert } = useAlert();
 
   // Pick the subscription: explicit param wins; else newest ACTIVE.
   const subscription = useMemo(() => {
@@ -189,7 +190,12 @@ export default function AutoOrderSetupScreen() {
 
   const handlePay = async () => {
     if (!subscription || !quote || quoteError) {
-      Alert.alert('Please wait', 'Wait for the price quote to load before paying.');
+      showAlert(
+        'Please wait',
+        'Wait for the price quote to load before paying.',
+        undefined,
+        'warning',
+      );
       return;
     }
     setSubmitting(true);
@@ -200,23 +206,25 @@ export default function AutoOrderSetupScreen() {
         // Phase 11 — verify path issued an auto-refund. Tell the customer
         // their money is on the way back instead of a generic "failed".
         if (result.refunded) {
-          Alert.alert(
+          showAlert(
             'Payment refunded',
             `Something went wrong setting up your auto-order. ₹${formatINR(result.refundAmount ?? 0)} has been refunded — it will reach your account in 5–7 working days.\n\nNo charge has been kept. Please try again in a few minutes.`,
-            [{ text: 'OK', onPress: () => nav.goBack() }],
+            [{ text: 'OK', style: 'default', onPress: () => nav.goBack() }],
+            'warning',
           );
           return;
         }
-        Alert.alert('Payment failed', result.error || 'Try again');
+        showAlert('Payment failed', result.error || 'Try again', undefined, 'error');
         return;
       }
-      Alert.alert(
+      showAlert(
         'Auto-order set up',
         `₹${formatINR(quote.totalFeesPrepaid)} credited to your wallet for ${quote.totalDeliveries} upcoming deliveries.`,
-        [{ text: 'OK', onPress: () => nav.navigate('AutoOrderSettings') }],
+        [{ text: 'OK', style: 'default', onPress: () => nav.navigate('AutoOrderSettings') }],
+        'success',
       );
     } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed');
+      showAlert('Something went wrong', e?.message || 'Failed', undefined, 'error');
     } finally {
       setSubmitting(false);
     }

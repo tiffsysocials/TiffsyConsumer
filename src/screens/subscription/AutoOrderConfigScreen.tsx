@@ -10,7 +10,6 @@ import {
   Pressable,
   StyleSheet,
   StatusBar,
-  Alert,
 } from 'react-native';
 import Svg, { Polyline } from 'react-native-svg';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
