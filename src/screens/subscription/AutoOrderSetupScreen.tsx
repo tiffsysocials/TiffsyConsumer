@@ -421,13 +421,35 @@ export default function AutoOrderSetupScreen() {
                   value={`${quote.totalDeliveries}`}
                   sub={`Lunch: ${quote.perWindowDeliveries.lunch} · Dinner: ${quote.perWindowDeliveries.dinner}`}
                 />
-                {quote.perMealFees.lunch && (
-                  <SummaryLine label="Per-meal fees (Lunch)" value={`₹${formatINR(quote.perMealFees.lunch.total)}`} />
+                <View style={styles.divider} />
+
+                {/* Per-meal fee breakdown by window */}
+                {quote.perMealFees.lunch && quote.perWindowDeliveries.lunch > 0 && (
+                  <FeeBreakdownGroup
+                    title="Lunch"
+                    icon="white-balance-sunny"
+                    iconColor={PRIMARY}
+                    deliveries={quote.perWindowDeliveries.lunch}
+                    perMealFee={quote.perMealFees.lunch.total}
+                    breakdown={quote.perMealFees.lunch}
+                  />
                 )}
-                {quote.perMealFees.dinner && (
-                  <SummaryLine label="Per-meal fees (Dinner)" value={`₹${formatINR(quote.perMealFees.dinner.total)}`} />
+                {quote.perMealFees.dinner && quote.perWindowDeliveries.dinner > 0 && (
+                  <FeeBreakdownGroup
+                    title="Dinner"
+                    icon="moon-waning-crescent"
+                    iconColor="#8B5CF6"
+                    deliveries={quote.perWindowDeliveries.dinner}
+                    perMealFee={quote.perMealFees.dinner.total}
+                    breakdown={quote.perMealFees.dinner}
+                  />
                 )}
+
+                <View style={styles.divider} />
                 <SummaryLine label="Wallet credit" value={`₹${formatINR(quote.totalFeesPrepaid)}`} bold />
+                <Text style={{ fontSize: FONT_SIZES.xs, color: MUTED, marginTop: 2 }}>
+                  Used by the system to pay delivery & charges for each auto-order.
+                </Text>
                 <View style={styles.divider} />
                 <SummaryLine label="Pay now" value={`₹${formatINR(quote.grandTotal)}`} big />
               </View>
@@ -530,6 +552,72 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
         </Text>
       )}
       {children}
+    </View>
+  );
+}
+
+/**
+ * Per-window fee breakdown card. Shows every fee line the customer is
+ * paying so they can see exactly where each rupee goes. Lines with a
+ * zero amount are hidden to avoid clutter.
+ */
+function FeeBreakdownGroup({
+  title,
+  icon,
+  iconColor,
+  deliveries,
+  perMealFee,
+  breakdown,
+}: {
+  title: string;
+  icon: string;
+  iconColor: string;
+  deliveries: number;
+  perMealFee: number;
+  breakdown: {
+    deliveryFee?: number;
+    platformFee?: number;
+    serviceFee?: number;
+    packagingFee?: number;
+    handlingFee?: number;
+    taxAmount?: number;
+    addonsCost?: number;
+  };
+}) {
+  const subtotal = Math.round(perMealFee * deliveries * 100) / 100;
+  const lines: Array<{ label: string; value: number }> = [
+    { label: 'Delivery fee', value: breakdown.deliveryFee || 0 },
+    { label: 'Platform fee', value: breakdown.platformFee || 0 },
+    { label: 'Service fee', value: breakdown.serviceFee || 0 },
+    { label: 'Packaging', value: breakdown.packagingFee || 0 },
+    { label: 'Handling', value: breakdown.handlingFee || 0 },
+    { label: 'Add-ons', value: breakdown.addonsCost || 0 },
+    { label: 'Tax (GST)', value: breakdown.taxAmount || 0 },
+  ].filter((l) => l.value > 0);
+
+  return (
+    <View style={feeStyles.group}>
+      <View style={feeStyles.header}>
+        <View style={feeStyles.headerLeft}>
+          <View style={[feeStyles.iconBubble, { backgroundColor: `${iconColor}15` }]}>
+            <MaterialCommunityIcons name={icon} size={16} color={iconColor} />
+          </View>
+          <Text style={feeStyles.title}>{title}</Text>
+          <Text style={feeStyles.deliveryCount}>{` · ${deliveries} ${deliveries === 1 ? 'delivery' : 'deliveries'}`}</Text>
+        </View>
+        <Text style={feeStyles.subtotal}>{`₹${formatINR(subtotal)}`}</Text>
+      </View>
+      <Text style={feeStyles.formula}>
+        {`Per meal: ₹${formatINR(perMealFee)} × ${deliveries}`}
+      </Text>
+      <View style={feeStyles.lines}>
+        {lines.map((l, idx) => (
+          <View key={idx} style={feeStyles.lineRow}>
+            <Text style={feeStyles.lineLabel}>{l.label}</Text>
+            <Text style={feeStyles.lineValue}>{`₹${formatINR(l.value)}`}</Text>
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
@@ -647,5 +735,74 @@ const styles = StyleSheet.create({
   addressRow: {
     flexDirection: 'row', alignItems: 'center', padding: 12,
     borderWidth: 1, borderColor: BORDER, borderRadius: 14, marginBottom: 10,
+  },
+});
+
+const feeStyles = StyleSheet.create({
+  group: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    paddingRight: 8,
+  },
+  iconBubble: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  title: {
+    fontSize: FONT_SIZES.base,
+    fontWeight: '700',
+    color: TEXT,
+  },
+  deliveryCount: {
+    fontSize: FONT_SIZES.sm,
+    color: MUTED,
+  },
+  subtotal: {
+    fontSize: FONT_SIZES.base,
+    fontWeight: '700',
+    color: TEXT,
+  },
+  formula: {
+    fontSize: FONT_SIZES.xs,
+    color: MUTED,
+    marginTop: 4,
+    marginLeft: 34,
+  },
+  lines: {
+    marginTop: 8,
+    marginLeft: 34,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  lineRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 3,
+  },
+  lineLabel: {
+    fontSize: FONT_SIZES.sm,
+    color: MUTED,
+  },
+  lineValue: {
+    fontSize: FONT_SIZES.sm,
+    color: TEXT,
+    fontWeight: '500',
   },
 });
