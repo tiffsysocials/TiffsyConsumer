@@ -23,6 +23,8 @@ import paymentService from '../../services/payment.service';
 import dataPreloader from '../../services/dataPreloader.service';
 import CancelOrderModal from '../../components/CancelOrderModal';
 import RateOrderModal from '../../components/RateOrderModal';
+import DeliveryFeeInfoModal from '../../components/DeliveryFeeInfoModal';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useResponsive } from '../../hooks/useResponsive';
 import { SPACING, TOUCH_TARGETS } from '../../constants/spacing';
 import { FONT_SIZES, LINE_HEIGHTS } from '../../constants/typography';
@@ -129,10 +131,17 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Phase 11 — sibling response fields that drive the new payment / wallet
+  // / voucher detail cards. Loose typed since the backend response is
+  // loose typed (Record<string, unknown>).
+  const [vouchersUsed, setVouchersUsed] = useState<any[]>([]);
+  const [walletTransaction, setWalletTransaction] = useState<any>(null);
+  const [paymentTransaction, setPaymentTransaction] = useState<any>(null);
 
   // Modal states
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showRateModal, setShowRateModal] = useState(false);
+  const [showDeliveryFeeInfo, setShowDeliveryFeeInfo] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isRating, setIsRating] = useState(false);
   const [copiedOrderId, setCopiedOrderId] = useState(false);
@@ -148,6 +157,10 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       if (orderData?._id) {
         console.log('[OrderDetailScreen] Order fetched:', orderData.orderNumber);
         setOrder(orderData);
+        // Phase 11 sibling blocks
+        setVouchersUsed(((response?.data as any)?.vouchersUsed as any[]) || []);
+        setWalletTransaction((response?.data as any)?.walletTransaction || null);
+        setPaymentTransaction((response?.data as any)?.paymentTransaction || null);
       } else {
         console.log('[OrderDetailScreen] Failed to fetch order:', response?.message);
         setError(response?.message || 'Failed to load order details');
@@ -540,8 +553,17 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
 
           {order.charges.deliveryFee > 0 && (
-            <View className="flex-row justify-between mb-2">
-              <Text className="text-sm text-gray-600">Delivery Fee</Text>
+            <View className="flex-row justify-between items-center mb-2">
+              <View className="flex-row items-center">
+                <Text className="text-sm text-gray-600">Delivery Fee</Text>
+                <TouchableOpacity
+                  onPress={() => setShowDeliveryFeeInfo(true)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{ marginLeft: 4 }}
+                >
+                  <MaterialCommunityIcons name="information-outline" size={14} color="#9CA3AF" />
+                </TouchableOpacity>
+              </View>
               <Text className="text-sm text-gray-900">₹{order.charges.deliveryFee.toFixed(2)}</Text>
             </View>
           )}
@@ -649,6 +671,189 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             </Text>
           </View>
         </View>
+
+        {/* Phase 11 — Payment Method card. Always shown when amountPaid>0
+            OR when payment method is voucher-only (so the customer knows
+            how each meal got covered). */}
+        {(order.amountPaid > 0 || order.paymentMethod === 'VOUCHER_ONLY') && (
+          <View className="bg-white mb-2" style={{ padding: isSmallDevice ? SPACING.lg : SPACING.xl }}>
+            <Text className="font-bold text-gray-900 mb-3" style={{ fontSize: FONT_SIZES.lg }}>
+              Payment
+            </Text>
+            <View className="flex-row items-center" style={{ marginBottom: 4 }}>
+              <View
+                style={{
+                  width: 38, height: 38, borderRadius: 10, marginRight: 12,
+                  alignItems: 'center', justifyContent: 'center',
+                  backgroundColor:
+                    order.paymentMethod === 'PREPAID_WALLET' ? '#FFF7ED'
+                    : order.paymentMethod === 'VOUCHER_ONLY' ? '#ECFDF5'
+                    : '#EFF6FF',
+                }}
+              >
+                <Text style={{ fontSize: 18 }}>
+                  {order.paymentMethod === 'PREPAID_WALLET' ? '👛'
+                  : order.paymentMethod === 'VOUCHER_ONLY' ? '🎟️'
+                  : '💳'}
+                </Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text className="font-semibold text-gray-900" style={{ fontSize: FONT_SIZES.base }}>
+                  {order.paymentMethod === 'PREPAID_WALLET' ? 'Auto-order Wallet'
+                  : order.paymentMethod === 'VOUCHER_ONLY' ? 'Covered by Vouchers'
+                  : order.paymentMethod || 'Razorpay'}
+                </Text>
+                <Text className="text-gray-600" style={{ fontSize: FONT_SIZES.sm, marginTop: 2 }}>
+                  {order.paymentMethod === 'PREPAID_WALLET'
+                    ? `Charged to your prepaid auto-order wallet`
+                    : order.paymentMethod === 'VOUCHER_ONLY'
+                      ? 'No extra payment needed for this meal'
+                      : paymentTransaction?.razorpayPaymentId
+                        ? `Ref: ${paymentTransaction.razorpayPaymentId}`
+                        : 'Paid online'}
+                </Text>
+              </View>
+              {order.amountPaid > 0 && (
+                <Text className="font-bold" style={{ color: '#111827', fontSize: FONT_SIZES.base }}>
+                  ₹{order.amountPaid.toFixed(2)}
+                </Text>
+              )}
+            </View>
+
+            {/* Wallet ledger row (PREPAID_WALLET only) */}
+            {walletTransaction && (
+              <View
+                style={{
+                  backgroundColor: '#FFF7ED',
+                  borderRadius: 12,
+                  padding: 12,
+                  marginTop: 12,
+                  borderWidth: 1,
+                  borderColor: '#FED7AA',
+                }}
+              >
+                <Text style={{ fontSize: FONT_SIZES.xs, color: '#9A3412', fontWeight: '600', marginBottom: 8 }}>
+                  WALLET TRANSACTION
+                </Text>
+                <View className="flex-row justify-between" style={{ marginBottom: 4 }}>
+                  <Text style={{ fontSize: FONT_SIZES.sm, color: '#6B7280' }}>Balance before</Text>
+                  <Text style={{ fontSize: FONT_SIZES.sm, color: '#111827', fontWeight: '500' }}>
+                    ₹{Number(walletTransaction.balanceBefore || 0).toFixed(2)}
+                  </Text>
+                </View>
+                <View className="flex-row justify-between" style={{ marginBottom: 4 }}>
+                  <Text style={{ fontSize: FONT_SIZES.sm, color: '#DC2626' }}>This order</Text>
+                  <Text style={{ fontSize: FONT_SIZES.sm, color: '#DC2626', fontWeight: '600' }}>
+                    -₹{Number(walletTransaction.amount || 0).toFixed(2)}
+                  </Text>
+                </View>
+                <View className="flex-row justify-between pt-2" style={{ borderTopWidth: 1, borderTopColor: '#FED7AA' }}>
+                  <Text style={{ fontSize: FONT_SIZES.sm, color: '#111827', fontWeight: '600' }}>Balance after</Text>
+                  <Text style={{ fontSize: FONT_SIZES.sm, color: '#111827', fontWeight: '700' }}>
+                    ₹{Number(walletTransaction.balanceAfter || 0).toFixed(2)}
+                  </Text>
+                </View>
+                {typeof walletTransaction.currentWalletBalance === 'number' &&
+                  walletTransaction.currentWalletBalance !== walletTransaction.balanceAfter && (
+                    <Text style={{ fontSize: 11, color: '#9A3412', marginTop: 6, fontStyle: 'italic' }}>
+                      Current wallet balance: ₹{Number(walletTransaction.currentWalletBalance).toFixed(2)}
+                    </Text>
+                  )}
+              </View>
+            )}
+
+            {/* Refund row — only if any refund was issued for this payment */}
+            {paymentTransaction?.totalRefundedRupees > 0 && (
+              <View
+                style={{
+                  backgroundColor: '#FEF3C7',
+                  borderRadius: 12,
+                  padding: 12,
+                  marginTop: 12,
+                  borderWidth: 1,
+                  borderColor: '#FCD34D',
+                }}
+              >
+                <Text style={{ fontSize: FONT_SIZES.xs, color: '#92400E', fontWeight: '600', marginBottom: 4 }}>
+                  REFUND ISSUED
+                </Text>
+                <Text style={{ fontSize: FONT_SIZES.sm, color: '#92400E' }}>
+                  ₹{Number(paymentTransaction.totalRefundedRupees).toFixed(2)} refunded to your original payment method. Allow 5–7 working days.
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Phase 11 — Vouchers Used card. Lists each voucher code with
+            redemption state so the customer can see exactly which vouchers
+            were consumed by this order. */}
+        {vouchersUsed.length > 0 && (
+          <View className="bg-white mb-2" style={{ padding: isSmallDevice ? SPACING.lg : SPACING.xl }}>
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="font-bold text-gray-900" style={{ fontSize: FONT_SIZES.lg }}>
+                Vouchers Used
+              </Text>
+              <View
+                style={{
+                  backgroundColor: '#ECFDF5',
+                  paddingHorizontal: 10, paddingVertical: 4,
+                  borderRadius: 999,
+                }}
+              >
+                <Text style={{ fontSize: FONT_SIZES.xs, color: '#059669', fontWeight: '700' }}>
+                  {vouchersUsed.length} used
+                </Text>
+              </View>
+            </View>
+            {vouchersUsed.map((v: any, idx: number) => (
+              <View
+                key={v._id || idx}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingVertical: 10,
+                  borderTopWidth: idx === 0 ? 0 : 1,
+                  borderTopColor: '#F3F4F6',
+                }}
+              >
+                <View
+                  style={{
+                    width: 34, height: 34, borderRadius: 10,
+                    backgroundColor: '#ECFDF5',
+                    alignItems: 'center', justifyContent: 'center',
+                    marginRight: 12,
+                  }}
+                >
+                  <Text style={{ fontSize: 16 }}>🎟️</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: 'monospace', fontSize: FONT_SIZES.sm, color: '#111827', fontWeight: '600' }}>
+                    {v.voucherCode}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
+                    {v.status === 'REDEEMED' && v.redeemedAt
+                      ? `Redeemed · ${new Date(v.redeemedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+                      : v.status || 'Status unknown'}
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6,
+                    backgroundColor: v.status === 'REDEEMED' ? '#ECFDF5' : '#F3F4F6',
+                  }}
+                >
+                  <Text style={{
+                    fontSize: 10, fontWeight: '700',
+                    color: v.status === 'REDEEMED' ? '#059669' : '#6B7280',
+                  }}>
+                    {v.status === 'REDEEMED' ? 'REDEEMED' : (v.status || '—')}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Delivery Address */}
         <View className="bg-white mb-2" style={{ padding: isSmallDevice ? SPACING.lg : SPACING.xl }}>
@@ -771,6 +976,29 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         onSubmit={handleRateOrder}
         orderNumber={order.orderNumber}
         isLoading={isRating}
+      />
+
+      <DeliveryFeeInfoModal
+        visible={showDeliveryFeeInfo}
+        onClose={() => setShowDeliveryFeeInfo(false)}
+        deliveryFee={order.charges.deliveryFee}
+        formula={(() => {
+          // The order payload only stores the resolved distance, not the
+          // baseFee/perKm config used at quote time. We can still surface the
+          // distance reading so the user knows "why this number".
+          const km = order.distanceMetadata?.distanceFromKitchenKm;
+          const meters = order.distanceMetadata?.distanceFromKitchenMeters;
+          if (typeof km === 'number' && km >= 1) {
+            return `${Number.isInteger(km) ? km : km.toFixed(1)} km from kitchen`;
+          }
+          if (typeof meters === 'number' && meters > 0) {
+            return `${meters} m from kitchen`;
+          }
+          if (typeof km === 'number') {
+            return `${km.toFixed(1)} km from kitchen`;
+          }
+          return null;
+        })()}
       />
     </SafeAreaView>
   );
