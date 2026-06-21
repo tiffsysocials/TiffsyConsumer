@@ -414,8 +414,8 @@ export default function VoucherPurchaseScreen() {
                   <SummaryLine label="Voucher pack" value={`₹${formatINR(quote.plan?.price)}`} />
                   <SummaryLine
                     label="Total deliveries"
-                    value={`${quote.totalDeliveries}`}
-                    sub={`Lunch: ${quote.perWindowDeliveries.lunch} · Dinner: ${quote.perWindowDeliveries.dinner}`}
+                    value={`${quote.totalDeliveries ?? 0}`}
+                    sub={`Lunch: ${quote.perWindowDeliveries?.lunch ?? 0} · Dinner: ${quote.perWindowDeliveries?.dinner ?? 0}`}
                   />
                   <View style={styles.divider} />
 
