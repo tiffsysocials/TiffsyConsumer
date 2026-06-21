@@ -1019,7 +1019,16 @@ export interface AutoOrderPurchaseQuoteResponse {
       voucherExpiryDate: string;
     } | null;
     address: { id: string; city: string; locality: string; pincode: string; coords: { latitude: number; longitude: number } };
-    kitchen: { id: string; name: string };
+    kitchen: {
+      id: string;
+      name: string;
+      // Recurring weekly off-days (lowercase day names, e.g. ['sunday']).
+      // Quote math already excludes these — surfaced for the UI so the
+      // schedule grid can grey/disable matching rows.
+      closedDays: string[];
+      // One-off date closures as 'YYYY-MM-DD' IST strings.
+      closedDates: string[];
+    };
     totalDeliveries: number;
     perWindowDeliveries: { lunch: number; dinner: number };
     perMealFees: { lunch: PerMealFeesBreakdown | null; dinner: PerMealFeesBreakdown | null };

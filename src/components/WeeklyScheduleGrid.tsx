@@ -9,6 +9,10 @@ interface WeeklyScheduleGridProps {
   schedule: WeeklySchedule;
   onChange: (schedule: WeeklySchedule) => void;
   disabled?: boolean;
+  // Phase 11 — recurring kitchen-closed days (e.g. ['sunday']). Those rows
+  // render greyed-out and don't accept taps so the customer doesn't pick a
+  // day the cron will skip anyway. Lower-case day names matching DayOfWeek.
+  closedDays?: string[];
 }
 
 const DAYS_OF_WEEK: Array<{ key: DayOfWeek; label: string; shortLabel: string }> = [
@@ -25,9 +29,14 @@ const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
   schedule,
   onChange,
   disabled = false,
+  closedDays = [],
 }) => {
+  const closedSet = new Set(closedDays.map((d) => d.toLowerCase()));
+  const isDayClosed = (day: DayOfWeek) => closedSet.has(day);
+
   const toggleMeal = (day: DayOfWeek, meal: 'lunch' | 'dinner') => {
     if (disabled) return;
+    if (isDayClosed(day)) return; // recurring kitchen closure — no-op
 
     // Check if schedule is null/undefined BEFORE spreading
     if (!schedule) {
@@ -101,28 +110,32 @@ const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
       {DAYS_OF_WEEK.map(({ key, label, shortLabel }) => {
         const lunchEnabled = isMealEnabled(key, 'lunch');
         const dinnerEnabled = isMealEnabled(key, 'dinner');
+        const dayClosed = isDayClosed(key);
+        const rowDisabled = disabled || dayClosed;
 
         return (
-          <View key={key} style={styles.dayRow}>
-            {/* Day Name */}
+          <View key={key} style={[styles.dayRow, dayClosed && { opacity: 0.45 }]}>
+            {/* Day Name (plus closed badge when applicable) */}
             <View style={styles.dayCell}>
               <Text style={styles.dayText}>{label}</Text>
-              <Text style={styles.dayShortText}>{shortLabel}</Text>
+              <Text style={styles.dayShortText}>
+                {dayClosed ? 'Closed' : shortLabel}
+              </Text>
             </View>
 
             {/* Lunch Toggle */}
             <View style={styles.mealCell}>
               <TouchableOpacity
                 onPress={() => toggleMeal(key, 'lunch')}
-                disabled={disabled}
+                disabled={rowDisabled}
                 activeOpacity={0.7}
                 style={[
                   styles.checkboxButton,
-                  lunchEnabled && styles.checkboxButtonActive,
-                  disabled && styles.checkboxButtonDisabled,
+                  lunchEnabled && !dayClosed && styles.checkboxButtonActive,
+                  rowDisabled && styles.checkboxButtonDisabled,
                 ]}
               >
-                {lunchEnabled && (
+                {lunchEnabled && !dayClosed && (
                   <MaterialCommunityIcons name="check" size={16} color="white" />
                 )}
               </TouchableOpacity>
@@ -132,15 +145,15 @@ const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
             <View style={styles.mealCell}>
               <TouchableOpacity
                 onPress={() => toggleMeal(key, 'dinner')}
-                disabled={disabled}
+                disabled={rowDisabled}
                 activeOpacity={0.7}
                 style={[
                   styles.checkboxButton,
-                  dinnerEnabled && styles.checkboxButtonActive,
-                  disabled && styles.checkboxButtonDisabled,
+                  dinnerEnabled && !dayClosed && styles.checkboxButtonActive,
+                  rowDisabled && styles.checkboxButtonDisabled,
                 ]}
               >
-                {dinnerEnabled && (
+                {dinnerEnabled && !dayClosed && (
                   <MaterialCommunityIcons name="check" size={16} color="white" />
                 )}
               </TouchableOpacity>
@@ -148,6 +161,15 @@ const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
           </View>
         );
       })}
+
+      {closedSet.size > 0 && (
+        <View style={[styles.warningContainer, { backgroundColor: '#FEF3C7', marginTop: SPACING.md }]}>
+          <MaterialCommunityIcons name="calendar-remove" size={16} color="#92400E" />
+          <Text style={[styles.warningText, { color: '#92400E' }]}>
+            {`Kitchen is closed on ${[...closedSet].map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(', ')} — those days are skipped automatically.`}
+          </Text>
+        </View>
+      )}
 
       {/* Warning if no meals scheduled */}
       {getTotalMeals() === 0 && (

@@ -380,7 +380,11 @@ export default function AutoOrderSetupScreen() {
         <Section title="Weekly Schedule" hint="Customize which days and meals to auto-order.">
           <WeeklyScheduleQuickSets onSelectPattern={setWeeklySchedule} />
           <View style={{ height: 8 }} />
-          <WeeklyScheduleGrid schedule={weeklySchedule} onChange={setWeeklySchedule} />
+          <WeeklyScheduleGrid
+            schedule={weeklySchedule}
+            onChange={setWeeklySchedule}
+            closedDays={quote?.kitchen?.closedDays || []}
+          />
         </Section>
 
         {/* Order Summary — collapsible (mirrors the cart's "To Pay" pattern). */}
