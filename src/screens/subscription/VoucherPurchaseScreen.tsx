@@ -31,6 +31,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../types/navigation';
 import { useAddress } from '../../context/AddressContext';
+import DeliveryFeeInfoModal from '../../components/DeliveryFeeInfoModal';
 import { useSubscription } from '../../context/SubscriptionContext';
 import paymentService from '../../services/payment.service';
 import apiService, {
@@ -88,8 +89,17 @@ export default function VoucherPurchaseScreen() {
   const [contactName, setContactName] = useState<string>(defaultAddr?.contactName ?? '');
   const [contactPhone, setContactPhone] = useState<string>(defaultAddr?.contactPhone ?? '');
   const [thalisPerMeal, setThalisPerMeal] = useState<number>(1);
-  const [mealWindows, setMealWindows] = useState<Array<'LUNCH' | 'DINNER'>>(['LUNCH', 'DINNER']);
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule>(defaultWeekly());
+
+  // Derived from the weekly schedule — the standalone Meal Windows picker
+  // is redundant since the schedule grid below already has lunch/dinner
+  // toggles per day.
+  const mealWindows = useMemo<Array<'LUNCH' | 'DINNER'>>(() => {
+    const result: Array<'LUNCH' | 'DINNER'> = [];
+    if (weeklySchedule && Object.values(weeklySchedule).some((d: any) => d?.lunch)) result.push('LUNCH');
+    if (weeklySchedule && Object.values(weeklySchedule).some((d: any) => d?.dinner)) result.push('DINNER');
+    return result;
+  }, [weeklySchedule]);
 
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quote, setQuote] = useState<AutoOrderPurchaseQuoteResponse['data'] | null>(null);
@@ -152,12 +162,6 @@ export default function VoucherPurchaseScreen() {
     }, 400);
     return () => clearTimeout(t);
   }, [autoOrderYes, formIsComplete, planId, form]);
-
-  const toggleMealWindow = (w: 'LUNCH' | 'DINNER') => {
-    setMealWindows(prev =>
-      prev.includes(w) ? prev.filter(x => x !== w) : ([...prev, w].sort() as any),
-    );
-  };
 
   const selectedAddress = addresses.find(a => a.id === addressId);
 
@@ -380,41 +384,8 @@ export default function VoucherPurchaseScreen() {
               </View>
             </Section>
 
-            {/* Meal Windows */}
-            <Section title="Meal Windows" hint="Pick which meals you want auto-delivered.">
-              <View style={{ flexDirection: 'row' }}>
-                {(['LUNCH', 'DINNER'] as const).map(w => (
-                  <TouchableOpacity
-                    key={w}
-                    onPress={() => toggleMealWindow(w)}
-                    activeOpacity={0.7}
-                    style={[
-                      styles.mealPill,
-                      mealWindows.includes(w) && {
-                        backgroundColor: PRIMARY,
-                        borderColor: PRIMARY,
-                      },
-                    ]}
-                  >
-                    <MaterialCommunityIcons
-                      name={w === 'LUNCH' ? 'white-balance-sunny' : 'moon-waning-crescent'}
-                      size={18}
-                      color={mealWindows.includes(w) ? '#fff' : (w === 'LUNCH' ? PRIMARY : '#8B5CF6')}
-                    />
-                    <Text
-                      style={[
-                        styles.mealPillText,
-                        mealWindows.includes(w) && { color: '#fff', fontWeight: '700' },
-                      ]}
-                    >
-                      {w === 'LUNCH' ? 'Lunch' : 'Dinner'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </Section>
-
-            {/* Weekly Schedule — reuse the same components as AutoOrderConfigScreen */}
+            {/* Weekly Schedule — also picks which meal windows are active
+                (lunch/dinner toggles per day inside the grid). */}
             <Section title="Weekly Schedule" hint="Customize which days and meals to auto-order.">
               <WeeklyScheduleQuickSets onSelectPattern={setWeeklySchedule} />
               <View style={{ height: 8 }} />
@@ -760,12 +731,10 @@ function FeeBreakdownGroup({
   };
 }) {
   const subtotal = Math.round(perMealFee * deliveries * 100) / 100;
-  const lines: Array<{ label: string; value: number; sub?: string | null }> = [
-    {
-      label: 'Delivery fee',
-      value: breakdown.deliveryFee || 0,
-      sub: deliveryFormulaText(breakdown.deliveryBreakdown),
-    },
+  // Delivery fee gets a tappable ⓘ icon instead of an inline sub-line — see
+  // the JSX below. Other lines stay simple value-only rows.
+  const lines: Array<{ label: string; value: number; isDelivery?: boolean }> = [
+    { label: 'Delivery fee', value: breakdown.deliveryFee || 0, isDelivery: true },
     { label: 'Platform fee', value: breakdown.platformFee || 0 },
     { label: 'Service fee', value: breakdown.serviceFee || 0 },
     { label: 'Packaging', value: breakdown.packagingFee || 0 },
@@ -773,6 +742,8 @@ function FeeBreakdownGroup({
     { label: 'Add-ons', value: breakdown.addonsCost || 0 },
     { label: 'Tax (GST)', value: breakdown.taxAmount || 0 },
   ].filter((l) => l.value > 0);
+  const [showDeliveryInfo, setShowDeliveryInfo] = useState(false);
+  const deliveryFormula = deliveryFormulaText(breakdown.deliveryBreakdown);
 
   return (
     <View style={feeStyles.group}>
@@ -792,14 +763,28 @@ function FeeBreakdownGroup({
       <View style={feeStyles.lines}>
         {lines.map((l, idx) => (
           <View key={idx} style={feeStyles.lineRow}>
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
               <Text style={feeStyles.lineLabel}>{l.label}</Text>
-              {!!l.sub && <Text style={feeStyles.lineSubLabel}>{l.sub}</Text>}
+              {l.isDelivery && (
+                <TouchableOpacity
+                  onPress={() => setShowDeliveryInfo(true)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{ marginLeft: 4 }}
+                >
+                  <MaterialCommunityIcons name="information-outline" size={14} color="#9CA3AF" />
+                </TouchableOpacity>
+              )}
             </View>
             <Text style={feeStyles.lineValue}>{`₹${formatINR(l.value)}`}</Text>
           </View>
         ))}
       </View>
+      <DeliveryFeeInfoModal
+        visible={showDeliveryInfo}
+        onClose={() => setShowDeliveryInfo(false)}
+        formula={deliveryFormula}
+        deliveryFee={breakdown.deliveryFee || 0}
+      />
     </View>
   );
 }

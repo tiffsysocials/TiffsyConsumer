@@ -39,6 +39,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../types/navigation';
 import { useAddress } from '../../context/AddressContext';
+import DeliveryFeeInfoModal from '../../components/DeliveryFeeInfoModal';
 import { useSubscription } from '../../context/SubscriptionContext';
 import paymentService from '../../services/payment.service';
 import apiService, {
@@ -85,7 +86,7 @@ export default function AutoOrderSetupScreen() {
   const { subscriptionId, addressId: prefilledAddressId } = route.params || ({} as any);
 
   const { addresses, getMainAddress } = useAddress();
-  const { subscriptions, fetchSubscriptions } = useSubscription();
+  const { subscriptions, fetchSubscriptions, usableVouchers, fetchVouchers } = useSubscription();
 
   // Pick the subscription: explicit param wins; else newest ACTIVE.
   const subscription = useMemo(() => {
@@ -106,8 +107,17 @@ export default function AutoOrderSetupScreen() {
   const [contactName, setContactName] = useState<string>(defaultAddr?.contactName ?? '');
   const [contactPhone, setContactPhone] = useState<string>(defaultAddr?.contactPhone ?? '');
   const [thalisPerMeal, setThalisPerMeal] = useState<number>(1);
-  const [mealWindows, setMealWindows] = useState<Array<'LUNCH' | 'DINNER'>>(['LUNCH', 'DINNER']);
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule>(defaultWeekly());
+
+  // Derived from the weekly schedule — if any day has lunch=true, LUNCH is
+  // in the meal-windows set, same for dinner. Means the standalone
+  // "Meal Windows" picker is redundant (the schedule grid below does it).
+  const mealWindows = useMemo<Array<'LUNCH' | 'DINNER'>>(() => {
+    const result: Array<'LUNCH' | 'DINNER'> = [];
+    if (weeklySchedule && Object.values(weeklySchedule).some((d: any) => d?.lunch)) result.push('LUNCH');
+    if (weeklySchedule && Object.values(weeklySchedule).some((d: any) => d?.dinner)) result.push('DINNER');
+    return result;
+  }, [weeklySchedule]);
 
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quote, setQuote] = useState<AutoOrderPurchaseQuoteResponse['data'] | null>(null);
@@ -121,7 +131,8 @@ export default function AutoOrderSetupScreen() {
 
   useEffect(() => {
     if (subscriptions.length === 0) fetchSubscriptions();
-  }, [subscriptions.length, fetchSubscriptions]);
+    fetchVouchers();
+  }, [subscriptions.length, fetchSubscriptions, fetchVouchers]);
 
   const form: AutoOrderSetupForm = useMemo(
     () => ({
@@ -173,12 +184,6 @@ export default function AutoOrderSetupScreen() {
     }, 400);
     return () => clearTimeout(t);
   }, [subscription, formIsComplete, form]);
-
-  const toggleMealWindow = (w: 'LUNCH' | 'DINNER') => {
-    setMealWindows(prev =>
-      prev.includes(w) ? prev.filter(x => x !== w) : ([...prev, w].sort() as any),
-    );
-  };
 
   const selectedAddress = addresses.find(a => a.id === addressId);
 
@@ -259,22 +264,23 @@ export default function AutoOrderSetupScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 140 + insets.bottom, paddingTop: SPACING.lg }}
       >
-        {/* Subscription card */}
-        <Section title="Your Subscription">
-          <View style={styles.planCard}>
-            <View style={styles.iconCircle}>
-              <MaterialCommunityIcons name="ticket-percent" size={24} color={PRIMARY} />
+        {/* Voucher pool — the only datapoint that actually matters for the
+            quote math (the backend uses the user's total usable count). */}
+        <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
+          <View style={voucherCardStyles.card}>
+            <View style={voucherCardStyles.iconWrap}>
+              <MaterialCommunityIcons name="ticket-percent" size={28} color={PRIMARY} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.cardTitle} numberOfLines={1}>
-                {subscription.planId?.name || subscription.planSnapshot?.name || 'Voucher Pack'}
+              <Text style={voucherCardStyles.bigNumber}>
+                {usableVouchers}
               </Text>
-              <Text style={styles.cardMeta}>
-                {`${(subscription as any).vouchersRemaining ?? subscription.totalVouchersIssued - subscription.vouchersUsed} vouchers remaining`}
+              <Text style={voucherCardStyles.label}>
+                {usableVouchers === 1 ? 'voucher available' : 'vouchers available'}
               </Text>
             </View>
           </View>
-        </Section>
+        </View>
 
         {/* Address */}
         <Section title="Delivery Address">
@@ -369,33 +375,8 @@ export default function AutoOrderSetupScreen() {
           </View>
         </Section>
 
-        {/* Meal windows */}
-        <Section title="Meal Windows" hint="Pick which meals you want auto-delivered.">
-          <View style={{ flexDirection: 'row' }}>
-            {(['LUNCH', 'DINNER'] as const).map(w => (
-              <TouchableOpacity
-                key={w}
-                onPress={() => toggleMealWindow(w)}
-                activeOpacity={0.7}
-                style={[
-                  styles.mealPill,
-                  mealWindows.includes(w) && { backgroundColor: PRIMARY, borderColor: PRIMARY },
-                ]}
-              >
-                <MaterialCommunityIcons
-                  name={w === 'LUNCH' ? 'white-balance-sunny' : 'moon-waning-crescent'}
-                  size={18}
-                  color={mealWindows.includes(w) ? '#fff' : (w === 'LUNCH' ? PRIMARY : '#8B5CF6')}
-                />
-                <Text style={[styles.mealPillText, mealWindows.includes(w) && { color: '#fff', fontWeight: '700' }]}>
-                  {w === 'LUNCH' ? 'Lunch' : 'Dinner'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Section>
-
-        {/* Weekly Schedule */}
+        {/* Weekly Schedule — also picks which meal windows are active
+            (lunch/dinner toggles per day inside the grid). */}
         <Section title="Weekly Schedule" hint="Customize which days and meals to auto-order.">
           <WeeklyScheduleQuickSets onSelectPattern={setWeeklySchedule} />
           <View style={{ height: 8 }} />
@@ -654,13 +635,10 @@ function FeeBreakdownGroup({
   };
 }) {
   const subtotal = Math.round(perMealFee * deliveries * 100) / 100;
-  // Each line: optional sub-text (e.g. delivery formula) shown below the value.
-  const lines: Array<{ label: string; value: number; sub?: string | null }> = [
-    {
-      label: 'Delivery fee',
-      value: breakdown.deliveryFee || 0,
-      sub: deliveryFormulaText(breakdown.deliveryBreakdown),
-    },
+  // Delivery fee gets a tappable ⓘ icon instead of an inline sub-line — see
+  // the JSX below. Other lines stay simple value-only rows.
+  const lines: Array<{ label: string; value: number; isDelivery?: boolean }> = [
+    { label: 'Delivery fee', value: breakdown.deliveryFee || 0, isDelivery: true },
     { label: 'Platform fee', value: breakdown.platformFee || 0 },
     { label: 'Service fee', value: breakdown.serviceFee || 0 },
     { label: 'Packaging', value: breakdown.packagingFee || 0 },
@@ -668,6 +646,8 @@ function FeeBreakdownGroup({
     { label: 'Add-ons', value: breakdown.addonsCost || 0 },
     { label: 'Tax (GST)', value: breakdown.taxAmount || 0 },
   ].filter((l) => l.value > 0);
+  const [showDeliveryInfo, setShowDeliveryInfo] = useState(false);
+  const deliveryFormula = deliveryFormulaText(breakdown.deliveryBreakdown);
 
   return (
     <View style={feeStyles.group}>
@@ -687,14 +667,28 @@ function FeeBreakdownGroup({
       <View style={feeStyles.lines}>
         {lines.map((l, idx) => (
           <View key={idx} style={feeStyles.lineRow}>
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
               <Text style={feeStyles.lineLabel}>{l.label}</Text>
-              {!!l.sub && <Text style={feeStyles.lineSubLabel}>{l.sub}</Text>}
+              {l.isDelivery && (
+                <TouchableOpacity
+                  onPress={() => setShowDeliveryInfo(true)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{ marginLeft: 4 }}
+                >
+                  <MaterialCommunityIcons name="information-outline" size={14} color="#9CA3AF" />
+                </TouchableOpacity>
+              )}
             </View>
             <Text style={feeStyles.lineValue}>{`₹${formatINR(l.value)}`}</Text>
           </View>
         ))}
       </View>
+      <DeliveryFeeInfoModal
+        visible={showDeliveryInfo}
+        onClose={() => setShowDeliveryInfo(false)}
+        formula={deliveryFormula}
+        deliveryFee={breakdown.deliveryFee || 0}
+      />
     </View>
   );
 }
@@ -812,6 +806,39 @@ const styles = StyleSheet.create({
   addressRow: {
     flexDirection: 'row', alignItems: 'center', padding: 12,
     borderWidth: 1, borderColor: BORDER, borderRadius: 14, marginBottom: 10,
+  },
+});
+
+const voucherCardStyles = StyleSheet.create({
+  card: {
+    backgroundColor: PRIMARY_TINT,
+    borderRadius: 16,
+    padding: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: PRIMARY_BORDER,
+  },
+  iconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  bigNumber: {
+    fontSize: 30,
+    fontWeight: 'bold',
+    color: PRIMARY,
+    lineHeight: 34,
+  },
+  label: {
+    fontSize: FONT_SIZES.sm,
+    color: '#9A3412',
+    fontWeight: '600',
+    marginTop: 2,
   },
 });
 
