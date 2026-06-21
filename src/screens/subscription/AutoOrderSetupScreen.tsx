@@ -197,6 +197,16 @@ export default function AutoOrderSetupScreen() {
       const result = await paymentService.processAutoOrderSetupPayment(subscription._id, form);
       if (!result.success) {
         if (result.error === 'Payment cancelled') return;
+        // Phase 11 — verify path issued an auto-refund. Tell the customer
+        // their money is on the way back instead of a generic "failed".
+        if (result.refunded) {
+          Alert.alert(
+            'Payment refunded',
+            `Something went wrong setting up your auto-order. ₹${formatINR(result.refundAmount ?? 0)} has been refunded — it will reach your account in 5–7 working days.\n\nNo charge has been kept. Please try again in a few minutes.`,
+            [{ text: 'OK', onPress: () => nav.goBack() }],
+          );
+          return;
+        }
         Alert.alert('Payment failed', result.error || 'Try again');
         return;
       }

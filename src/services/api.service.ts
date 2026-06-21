@@ -820,6 +820,15 @@ export interface SubscriptionPlan {
   features: string[];
   displayOrder: number;
   applicableZoneIds?: string[];
+  // GST on the voucher-pack purchase. taxRate is a fraction (0.05 = 5%).
+  // taxAmount/basePrice/totalPayable are computed server-side so the client
+  // can show a tax line + the correct amount to pay without recomputing.
+  taxRate?: number;
+  taxInclusive?: boolean;
+  hsnCode?: string;
+  taxAmount?: number;
+  basePrice?: number;
+  totalPayable?: number;
 }
 
 export interface PlanSnapshot {
@@ -889,6 +898,14 @@ export interface Subscription {
   defaultKitchenId?: string;
   defaultAddressId?: string;
   weeklySchedule?: WeeklySchedule;
+  // Phase 11 — per-subscription global wallet. Credited by pack purchase,
+  // debited by the auto-order cron. The consumer reads only `balance`; the
+  // full transactions list lives on the backend.
+  globalWallet?: {
+    balance: number;
+    totalDeposited: number;
+    totalDeducted: number;
+  };
 }
 
 export type VoucherStatus =
@@ -1009,7 +1026,19 @@ export interface AutoOrderPurchaseQuoteResponse {
   data: {
     // Populated when quoting against a planId (new pack); null when quoting
     // against an existing subscription.
-    plan: { id: string; name: string; price: number; totalVouchers: number; voucherValidityDays: number } | null;
+    plan: {
+      id: string;
+      name: string;
+      price: number;
+      totalVouchers: number;
+      voucherValidityDays: number;
+      // GST on the pack (echoed from the server-side computePlanTax).
+      taxRate?: number;
+      taxInclusive?: boolean;
+      taxAmount?: number;
+      basePrice?: number;
+      totalPayable?: number;
+    } | null;
     // Populated when quoting against a subscriptionId; null when quoting
     // against a planId.
     subscription: {
@@ -2510,10 +2539,17 @@ class ApiService {
     message: string;
     data: {
       success: boolean;
-      status: string;
-      purchaseType: 'ORDER' | 'SUBSCRIPTION';
-      referenceId: string;
-      paymentId: string;
+      status?: string;
+      purchaseType?: 'ORDER' | 'SUBSCRIPTION' | 'AUTO_ORDER_SETUP' | 'AUTO_ORDER_WALLET_TOPUP';
+      referenceId?: string;
+      paymentId?: string;
+      // Phase 11 — when the apply step fails but the auto-refund safety
+      // net kicked in, the backend returns 200 with these fields. The
+      // consumer shows a "payment refunded" popup, not a generic
+      // "payment failed" toast.
+      refunded?: boolean;
+      refundAmount?: number;
+      reason?: string;
     };
   }> {
     return this.api.post('/api/payment/verify', data);

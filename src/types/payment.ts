@@ -192,4 +192,10 @@ export interface SubscriptionPaymentResult {
   paymentId?: string;
   subscriptionId?: string;
   error?: string;
+  // Phase 11 — set when Razorpay captured but our apply step failed and
+  // the auto-refund safety net issued a Razorpay refund. Consumer shows
+  // a dedicated "payment refunded" popup, not a generic error toast.
+  refunded?: boolean;
+  refundAmount?: number;
+  refundReason?: string;
 }

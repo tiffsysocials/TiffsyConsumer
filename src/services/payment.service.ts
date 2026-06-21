@@ -313,6 +313,22 @@ class PaymentService {
         razorpaySignature: paymentResponse.razorpay_signature,
       });
 
+      // Phase 11 — same refund-aware branch as AUTO_ORDER_SETUP. For the
+      // pack-purchase path this fires only when the auto-order setup
+      // sub-step failed (vouchers were still issued); the safety net
+      // refunds just the prepaid-fees portion.
+      if (verifyResponse.success && verifyResponse.data?.refunded) {
+        console.warn('[PaymentService] Subscription pack purchased but autoOrderSetup refunded');
+        return {
+          success: true,
+          paymentId: paymentResponse.razorpay_payment_id,
+          subscriptionId: verifyResponse.data.referenceId,
+          refunded: true,
+          refundAmount: verifyResponse.data.refundAmount,
+          refundReason: verifyResponse.data.reason,
+        };
+      }
+
       if (!verifyResponse.success || !verifyResponse.data.success) {
         throw new Error(verifyResponse.message || 'Payment verification failed');
       }
@@ -408,6 +424,22 @@ class PaymentService {
         razorpayPaymentId: paymentResponse.razorpay_payment_id,
         razorpaySignature: paymentResponse.razorpay_signature,
       });
+
+      // Phase 11 — verify endpoint returns 200 + {refunded:true, refundAmount}
+      // when our apply step failed and the safety net auto-refunded the
+      // customer. Surface that as a distinct outcome so the screen can show
+      // a "payment refunded" popup instead of a "payment failed" toast.
+      if (verifyResponse.success && verifyResponse.data?.refunded) {
+        console.warn('[PaymentService] AUTO_ORDER_SETUP refunded by safety net');
+        return {
+          success: false,
+          paymentId: paymentResponse.razorpay_payment_id,
+          refunded: true,
+          refundAmount: verifyResponse.data.refundAmount,
+          refundReason: verifyResponse.data.reason,
+        };
+      }
+
       if (!verifyResponse.success || !verifyResponse.data.success) {
         throw new Error(verifyResponse.message || 'Payment verification failed');
       }

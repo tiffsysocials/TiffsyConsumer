@@ -182,6 +182,17 @@ export default function VoucherPurchaseScreen() {
         Alert.alert('Payment failed', result.error || 'Try again');
         return;
       }
+      // Phase 11 — vouchers were issued but the auto-order setup half
+      // failed and was auto-refunded. Customer keeps the pack; only the
+      // prepaid fees came back.
+      if (result.refunded) {
+        Alert.alert(
+          'Pack purchased — auto-order not set up',
+          `Your ${plan.totalVouchers} vouchers have been added to your account.\n\nWe couldn't set up auto-order this time, so ₹${formatINR(result.refundAmount ?? 0)} of the auto-order fees has been refunded (will reach your account in 5–7 working days).\n\nYou can set up auto-order any time from Account → Auto-Order Settings.`,
+          [{ text: 'OK', onPress: () => nav.navigate('Account') }],
+        );
+        return;
+      }
       Alert.alert(
         'Pack purchased',
         autoOrderYes === true
@@ -204,7 +215,10 @@ export default function VoucherPurchaseScreen() {
     );
   }
 
-  const grandTotal = autoOrderYes === true && quote ? quote.grandTotal : plan.price;
+  // For inclusive-GST plans totalPayable === price (no change to what's charged);
+  // for exclusive-GST plans it's price + GST. Fall back to price for old plans.
+  const packPayable = plan.totalPayable ?? plan.price;
+  const grandTotal = autoOrderYes === true && quote ? quote.grandTotal : packPayable;
   const canPay =
     autoOrderYes !== null &&
     (autoOrderYes === false || (!!quote && !quoteLoading && !quoteError)) &&
@@ -412,6 +426,12 @@ export default function VoucherPurchaseScreen() {
               {quote && !quoteLoading && !quoteError && (
                 <View>
                   <SummaryLine label="Voucher pack" value={`₹${formatINR(quote.plan?.price)}`} />
+                  {!!quote.plan?.taxAmount && quote.plan.taxAmount > 0 && (
+                    <SummaryLine
+                      label={quote.plan.taxInclusive ? 'GST (incl.)' : 'GST'}
+                      value={`₹${formatINR(quote.plan.taxAmount)}`}
+                    />
+                  )}
                   <SummaryLine
                     label="Total deliveries"
                     value={`${quote.totalDeliveries ?? 0}`}
@@ -457,12 +477,18 @@ export default function VoucherPurchaseScreen() {
           <CollapsibleSummary
             expanded={summaryExpanded}
             onToggle={() => setSummaryExpanded(v => !v)}
-            total={plan.price}
+            total={packPayable}
             loading={false}
           >
             <SummaryLine label="Voucher pack" value={`₹${formatINR(plan.price)}`} />
+            {!!plan.taxAmount && plan.taxAmount > 0 && (
+              <SummaryLine
+                label={plan.taxInclusive ? 'GST (incl.)' : 'GST'}
+                value={`₹${formatINR(plan.taxAmount)}`}
+              />
+            )}
             <View style={styles.divider} />
-            <SummaryLine label="Pay now" value={`₹${formatINR(plan.price)}`} big />
+            <SummaryLine label="Pay now" value={`₹${formatINR(packPayable)}`} big />
           </CollapsibleSummary>
         )}
       </ScrollView>
