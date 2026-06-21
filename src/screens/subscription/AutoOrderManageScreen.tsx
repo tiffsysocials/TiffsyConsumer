@@ -66,30 +66,53 @@ export default function AutoOrderManageScreen() {
   const nav = useNavigation<Nav>();
   const route = useRoute<Rt>();
   const insets = useSafeAreaInsets();
-  const { subscriptionId, addressId: addressIdParam } = route.params || ({} as any);
+  const { subscriptionId, setupId: setupIdParam, addressId: addressIdParam } = route.params || ({} as any);
 
   const { addresses } = useAddress();
   const { subscriptions, fetchSubscriptions, fetchAllAutoOrderConfigs } = useSubscription();
   const { showAlert } = useAlert();
 
-  // Pick the subscription whose autoOrderSetup we're editing.
-  const subscription = useMemo(() => {
-    if (subscriptionId) return subscriptions.find(s => s._id === subscriptionId) || null;
-    // Else find the one whose setup.addressId matches the route param.
-    if (addressIdParam) {
-      return subscriptions.find(s =>
-        (s as any).autoOrderSetup?.addressId?.toString?.() === addressIdParam ||
-        (s as any).autoOrderSetup?.addressId === addressIdParam,
-      ) || null;
-    }
-    // Else: newest ACTIVE with a setup.
-    return subscriptions
-      .filter(s => s.status === 'ACTIVE' && (s as any).autoOrderSetup)
-      .sort((a, b) => new Date(b.startDate as any).getTime() - new Date(a.startDate as any).getTime())[0] || null;
-  }, [subscriptionId, addressIdParam, subscriptions]);
+  // Phase 11.1 — helper: collect all setups across the subscription
+  // (autoOrderSetups[] preferred, singular fallback).
+  const allSetupsOf = (s: any): any[] => {
+    if (Array.isArray(s?.autoOrderSetups) && s.autoOrderSetups.length > 0) return s.autoOrderSetups;
+    if (s?.autoOrderSetup) return [s.autoOrderSetup];
+    return [];
+  };
 
-  // Setup snapshot — initial values
-  const setup = (subscription as any)?.autoOrderSetup;
+  // Find subscription + the specific setup entry. Three resolution paths
+  // in order of preference: explicit setupId, addressId match, newest.
+  const { subscription, setup } = useMemo(() => {
+    // Path 1: explicit setupId — walk all subs looking for a matching entry.
+    if (setupIdParam) {
+      for (const s of subscriptions) {
+        const match = allSetupsOf(s).find(
+          (x) => (x?._id?.toString?.() || x?._id) === setupIdParam,
+        );
+        if (match) return { subscription: s, setup: match };
+      }
+    }
+    // Path 2: addressId match. Prefer the explicitly-passed subscriptionId.
+    if (addressIdParam) {
+      const subsToScan = subscriptionId
+        ? subscriptions.filter(s => s._id === subscriptionId)
+        : subscriptions;
+      for (const s of subsToScan) {
+        const match = allSetupsOf(s).find(
+          (x) => (x?.addressId?.toString?.() || x?.addressId) === addressIdParam,
+        );
+        if (match) return { subscription: s, setup: match };
+      }
+    }
+    // Path 3: newest ACTIVE subscription's first setup.
+    const newest = subscriptions
+      .filter(s => s.status === 'ACTIVE' && allSetupsOf(s).length > 0)
+      .sort((a, b) => new Date(b.startDate as any).getTime() - new Date(a.startDate as any).getTime())[0];
+    if (newest) {
+      return { subscription: newest, setup: allSetupsOf(newest)[0] };
+    }
+    return { subscription: null as any, setup: null as any };
+  }, [subscriptionId, setupIdParam, addressIdParam, subscriptions]);
   const initialEnabled: boolean = setup?.enabled !== false;
   const initialWeekly: WeeklySchedule = useMemo(() => {
     const ws: WeeklySchedule = {};
@@ -107,6 +130,7 @@ export default function AutoOrderManageScreen() {
   const [isEnabled, setIsEnabled] = useState<boolean>(initialEnabled);
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule>(initialWeekly);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (subscriptions.length === 0) fetchSubscriptions();
@@ -148,9 +172,18 @@ export default function AutoOrderManageScreen() {
       );
       return;
     }
+    if (!setup?._id) {
+      showAlert(
+        'Setup unavailable',
+        'This auto-order setup could not be identified. Please refresh and try again.',
+        undefined,
+        'error',
+      );
+      return;
+    }
     setIsSaving(true);
     try {
-      await apiService.updateAutoOrderSetup(subscription._id, {
+      await apiService.updateAutoOrderSetup(subscription._id, setup._id.toString(), {
         enabled: isEnabled,
         weeklySchedule,
         mealWindows: derivedMealWindows,
@@ -172,6 +205,41 @@ export default function AutoOrderManageScreen() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const confirmDelete = () => {
+    if (!subscription || !setup?._id) return;
+    showAlert(
+      'Remove this auto-order?',
+      'This will stop future auto-deliveries for this address. Your wallet balance stays — you can use it for a new setup or top-up.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeleting(true);
+            try {
+              await apiService.deleteAutoOrderSetup(subscription._id, setup._id.toString());
+              try { await fetchAllAutoOrderConfigs(); } catch {}
+              try { await fetchSubscriptions(); } catch {}
+              showAlert(
+                'Auto-order removed',
+                'Future deliveries to this address are cancelled. Wallet balance is preserved.',
+                [{ text: 'OK', style: 'default', onPress: () => nav.goBack() }],
+                'success',
+              );
+            } catch (e: any) {
+              const msg = e?.response?.data?.message || e?.message || 'Failed to remove';
+              showAlert('Could not remove', msg, undefined, 'error');
+            } finally {
+              setIsDeleting(false);
+            }
+          },
+        },
+      ],
+      'warning',
+    );
   };
 
   if (!subscription || !setup) {
@@ -344,6 +412,40 @@ export default function AutoOrderManageScreen() {
             </View>
           </Section>
         )}
+
+        {/* Danger zone — remove this setup entirely. Wallet balance stays. */}
+        <View style={{ marginHorizontal: 16, marginBottom: 24 }}>
+          <TouchableOpacity
+            onPress={confirmDelete}
+            disabled={isDeleting}
+            activeOpacity={0.7}
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 14,
+              padding: 14,
+              borderWidth: 1,
+              borderColor: '#FCA5A5',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: isDeleting ? 0.5 : 1,
+            }}
+          >
+            {isDeleting ? (
+              <ActivityIndicator color="#DC2626" size="small" />
+            ) : (
+              <>
+                <MaterialCommunityIcons name="trash-can-outline" size={20} color="#DC2626" />
+                <Text style={{ marginLeft: 8, fontSize: FONT_SIZES.base, fontWeight: '700', color: '#DC2626' }}>
+                  Remove this auto-order
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+          <Text style={{ fontSize: 11, color: MUTED, textAlign: 'center', marginTop: 8 }}>
+            Wallet balance stays — usable for a new setup later.
+          </Text>
+        </View>
       </ScrollView>
 
       {/* Sticky save bar */}

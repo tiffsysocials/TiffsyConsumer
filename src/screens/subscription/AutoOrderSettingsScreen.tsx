@@ -252,7 +252,13 @@ const AutoOrderSettingsScreen: React.FC<Props> = ({ navigation }) => {
                 return (
                   <TouchableOpacity
                     key={config._id}
-                    onPress={() => navigation.navigate('AutoOrderManage', { addressId: config.addressId })}
+                    onPress={() => navigation.navigate('AutoOrderManage', {
+                      // Phase 11.1 — prefer routing by setupId (stable across
+                      // duplicated addresses); fall back to addressId for
+                      // unmigrated configs without a setupId.
+                      setupId: (config as any).setupId || (config as any)._id,
+                      addressId: config.addressId,
+                    })}
                     activeOpacity={0.7}
                     style={{
                       backgroundColor: 'white',
@@ -400,6 +406,33 @@ const AutoOrderSettingsScreen: React.FC<Props> = ({ navigation }) => {
                 );
               }
             })
+          )}
+
+          {/* Phase 11.1 — "+ Add another address" CTA.
+              Visible whenever the user has at least one address that
+              doesn't already have a setup AND at least one setup exists. */}
+          {autoOrderConfigs.length > 0 && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('AutoOrderSetup')}
+              activeOpacity={0.7}
+              style={{
+                marginTop: 4,
+                backgroundColor: '#FFF7ED',
+                borderRadius: 16,
+                padding: 14,
+                borderWidth: 2,
+                borderColor: '#FED7AA',
+                borderStyle: 'dashed',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <MaterialCommunityIcons name="plus-circle-outline" size={20} color="#FE8733" />
+              <Text style={{ marginLeft: 8, fontSize: FONT_SIZES.base, fontWeight: '700', color: '#FE8733' }}>
+                Add Another Address
+              </Text>
+            </TouchableOpacity>
           )}
         </View>
 

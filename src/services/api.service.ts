@@ -2167,10 +2167,11 @@ class ApiService {
     return this.api.post('/api/subscriptions/purchase/quote', data);
   }
 
-  // Phase 11 — edit the mutable fields of an existing autoOrderSetup.
+  // Phase 11.1 — edit one specific entry in autoOrderSetups[].
   // addressId / thalisPerMeal / per-meal fees are locked at purchase.
   async updateAutoOrderSetup(
     subscriptionId: string,
+    setupId: string,
     updates: {
       enabled?: boolean;
       weeklySchedule?: AutoOrderWeeklySchedule;
@@ -2179,11 +2180,26 @@ class ApiService {
   ): Promise<{
     success: boolean;
     message: string;
-    data: { autoOrderSetup: any };
+    data: { autoOrderSetups: any[] };
   }> {
     return this.api.patch(
-      `/api/subscriptions/${subscriptionId}/auto-order-setup`,
+      `/api/subscriptions/${subscriptionId}/auto-order-setups/${setupId}`,
       updates,
+    );
+  }
+
+  // Phase 11.1 — remove one specific entry from autoOrderSetups[].
+  // Wallet balance is preserved (leftover stays in globalWallet).
+  async deleteAutoOrderSetup(
+    subscriptionId: string,
+    setupId: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data: { autoOrderSetups: any[] };
+  }> {
+    return this.api.delete(
+      `/api/subscriptions/${subscriptionId}/auto-order-setups/${setupId}`,
     );
   }
 
