@@ -115,6 +115,9 @@ export default function AutoOrderSetupScreen() {
 
   const [showAddressPicker, setShowAddressPicker] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Mirrors the cart's "To Pay" pattern — collapsed by default, the customer
+  // taps the row to expand the full per-window breakdown.
+  const [summaryExpanded, setSummaryExpanded] = useState(false);
 
   useEffect(() => {
     if (subscriptions.length === 0) fetchSubscriptions();
@@ -399,63 +402,100 @@ export default function AutoOrderSetupScreen() {
           <WeeklyScheduleGrid schedule={weeklySchedule} onChange={setWeeklySchedule} />
         </Section>
 
-        {/* Summary */}
-        <Section title="Order Summary">
-          <View style={[styles.card, { flexDirection: 'column', alignItems: 'stretch', padding: 16 }]}>
-            {quoteLoading && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12 }}>
-                <ActivityIndicator size="small" color={PRIMARY} />
-                <Text style={{ color: MUTED, marginLeft: 8 }}>Calculating…</Text>
-              </View>
-            )}
-            {quoteError && (
-              <View style={styles.errorBox}>
-                <MaterialCommunityIcons name="alert-circle-outline" size={18} color="#DC2626" />
-                <Text style={styles.errorText}>{quoteError}</Text>
-              </View>
-            )}
-            {quote && !quoteLoading && !quoteError && (
-              <View>
-                <SummaryLine
-                  label="Total deliveries"
-                  value={`${quote.totalDeliveries}`}
-                  sub={`Lunch: ${quote.perWindowDeliveries.lunch} · Dinner: ${quote.perWindowDeliveries.dinner}`}
+        {/* Order Summary — collapsible (mirrors the cart's "To Pay" pattern). */}
+        <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
+          <View style={[styles.card, { flexDirection: 'column', alignItems: 'stretch', padding: 0 }]}>
+            {/* Header — always visible, tap to expand */}
+            <TouchableOpacity
+              onPress={() => setSummaryExpanded(v => !v)}
+              activeOpacity={0.7}
+              style={summaryHeaderStyles.row}
+            >
+              <View style={summaryHeaderStyles.left}>
+                <View style={{ width: 6, height: 22, backgroundColor: PRIMARY, borderRadius: 999, marginRight: 10 }} />
+                <Text style={summaryHeaderStyles.title}>Order Summary</Text>
+                <MaterialCommunityIcons
+                  name="information-outline"
+                  size={16}
+                  color="#9CA3AF"
+                  style={{ marginLeft: 6 }}
                 />
-                <View style={styles.divider} />
-
-                {/* Per-meal fee breakdown by window */}
-                {quote.perMealFees.lunch && quote.perWindowDeliveries.lunch > 0 && (
-                  <FeeBreakdownGroup
-                    title="Lunch"
-                    icon="white-balance-sunny"
-                    iconColor={PRIMARY}
-                    deliveries={quote.perWindowDeliveries.lunch}
-                    perMealFee={quote.perMealFees.lunch.total}
-                    breakdown={quote.perMealFees.lunch}
-                  />
+              </View>
+              <View style={summaryHeaderStyles.right}>
+                {quoteLoading ? (
+                  <ActivityIndicator size="small" color={PRIMARY} />
+                ) : (
+                  <Text style={summaryHeaderStyles.totalText}>
+                    {quote ? `₹${formatINR(quote.grandTotal)}` : `₹${formatINR(grandTotal)}`}
+                  </Text>
                 )}
-                {quote.perMealFees.dinner && quote.perWindowDeliveries.dinner > 0 && (
-                  <FeeBreakdownGroup
-                    title="Dinner"
-                    icon="moon-waning-crescent"
-                    iconColor="#8B5CF6"
-                    deliveries={quote.perWindowDeliveries.dinner}
-                    perMealFee={quote.perMealFees.dinner.total}
-                    breakdown={quote.perMealFees.dinner}
-                  />
-                )}
+                <MaterialCommunityIcons
+                  name={summaryExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={22}
+                  color="#9CA3AF"
+                  style={{ marginLeft: 6 }}
+                />
+              </View>
+            </TouchableOpacity>
 
-                <View style={styles.divider} />
-                <SummaryLine label="Wallet credit" value={`₹${formatINR(quote.totalFeesPrepaid)}`} bold />
-                <Text style={{ fontSize: FONT_SIZES.xs, color: MUTED, marginTop: 2 }}>
-                  Used by the system to pay delivery & charges for each auto-order.
-                </Text>
-                <View style={styles.divider} />
-                <SummaryLine label="Pay now" value={`₹${formatINR(quote.grandTotal)}`} big />
+            {/* Expanded body */}
+            {summaryExpanded && (
+              <View style={summaryHeaderStyles.body}>
+                {quoteLoading && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12 }}>
+                    <ActivityIndicator size="small" color={PRIMARY} />
+                    <Text style={{ color: MUTED, marginLeft: 8 }}>Calculating…</Text>
+                  </View>
+                )}
+                {quoteError && (
+                  <View style={styles.errorBox}>
+                    <MaterialCommunityIcons name="alert-circle-outline" size={18} color="#DC2626" />
+                    <Text style={styles.errorText}>{quoteError}</Text>
+                  </View>
+                )}
+                {quote && !quoteLoading && !quoteError && (
+                  <View>
+                    <SummaryLine
+                      label="Total deliveries"
+                      value={`${quote.totalDeliveries}`}
+                      sub={`Lunch: ${quote.perWindowDeliveries.lunch} · Dinner: ${quote.perWindowDeliveries.dinner}`}
+                    />
+                    <View style={styles.divider} />
+
+                    {quote.perMealFees.lunch && quote.perWindowDeliveries.lunch > 0 && (
+                      <FeeBreakdownGroup
+                        title="Lunch"
+                        icon="white-balance-sunny"
+                        iconColor={PRIMARY}
+                        deliveries={quote.perWindowDeliveries.lunch}
+                        perMealFee={quote.perMealFees.lunch.total}
+                        breakdown={quote.perMealFees.lunch}
+                      />
+                    )}
+                    {quote.perMealFees.dinner && quote.perWindowDeliveries.dinner > 0 && (
+                      <FeeBreakdownGroup
+                        title="Dinner"
+                        icon="moon-waning-crescent"
+                        iconColor="#8B5CF6"
+                        deliveries={quote.perWindowDeliveries.dinner}
+                        perMealFee={quote.perMealFees.dinner.total}
+                        breakdown={quote.perMealFees.dinner}
+                      />
+                    )}
+
+                    <View style={styles.divider} />
+                    <SummaryLine label="Wallet credit" value={`₹${formatINR(quote.totalFeesPrepaid)}`} bold />
+                    <Text style={{ fontSize: FONT_SIZES.xs, color: MUTED, marginTop: 2 }}>
+                      Used by the system to pay delivery & charges for each auto-order.
+                    </Text>
+                    <View style={styles.divider} />
+                    <SummaryLine label="Pay now" value={`₹${formatINR(quote.grandTotal)}`} big />
+                  </View>
+                )}
               </View>
             )}
           </View>
-        </Section>
+        </View>
       </ScrollView>
 
       {/* Sticky bottom CTA */}
@@ -561,6 +601,34 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
  * paying so they can see exactly where each rupee goes. Lines with a
  * zero amount are hidden to avoid clutter.
  */
+/**
+ * Render the distance-pricing formula behind a delivery fee as a small
+ * grey sub-line. Returns null when there's nothing meaningful to say
+ * (no distance, flat fee, etc).
+ */
+function deliveryFormulaText(dp?: import('../../services/api.service').DeliveryFeeBreakdown): string | null {
+  if (!dp) return null;
+  if (!dp.formulaEnabled) {
+    // Phase 8 flat tier — single number.
+    if (dp.source === 'flat') {
+      return dp.distKm != null ? `Flat rate · ${formatINR(dp.distKm)} km away` : 'Flat rate';
+    }
+    return dp.distKm != null ? `${formatINR(dp.distKm)} km away` : null;
+  }
+  // formulaEnabled = distance pricing active.
+  const parts: string[] = [];
+  if (dp.baseFeeEnabled && dp.baseFee > 0) parts.push(`₹${formatINR(dp.baseFee)} base`);
+  if (dp.extraKm > 0 && dp.perKmAfterFree > 0) {
+    parts.push(`${formatINR(dp.extraKm)} km × ₹${formatINR(dp.perKmAfterFree)}`);
+  } else if (dp.distKm != null && dp.baseFreeUptoKm > 0) {
+    parts.push(`within ${formatINR(dp.baseFreeUptoKm)} km free zone`);
+  }
+  if (parts.length === 0 && dp.distKm != null) {
+    return `${formatINR(dp.distKm)} km away`;
+  }
+  return parts.join(' + ');
+}
+
 function FeeBreakdownGroup({
   title,
   icon,
@@ -582,11 +650,17 @@ function FeeBreakdownGroup({
     handlingFee?: number;
     taxAmount?: number;
     addonsCost?: number;
+    deliveryBreakdown?: import('../../services/api.service').DeliveryFeeBreakdown;
   };
 }) {
   const subtotal = Math.round(perMealFee * deliveries * 100) / 100;
-  const lines: Array<{ label: string; value: number }> = [
-    { label: 'Delivery fee', value: breakdown.deliveryFee || 0 },
+  // Each line: optional sub-text (e.g. delivery formula) shown below the value.
+  const lines: Array<{ label: string; value: number; sub?: string | null }> = [
+    {
+      label: 'Delivery fee',
+      value: breakdown.deliveryFee || 0,
+      sub: deliveryFormulaText(breakdown.deliveryBreakdown),
+    },
     { label: 'Platform fee', value: breakdown.platformFee || 0 },
     { label: 'Service fee', value: breakdown.serviceFee || 0 },
     { label: 'Packaging', value: breakdown.packagingFee || 0 },
@@ -613,7 +687,10 @@ function FeeBreakdownGroup({
       <View style={feeStyles.lines}>
         {lines.map((l, idx) => (
           <View key={idx} style={feeStyles.lineRow}>
-            <Text style={feeStyles.lineLabel}>{l.label}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={feeStyles.lineLabel}>{l.label}</Text>
+              {!!l.sub && <Text style={feeStyles.lineSubLabel}>{l.sub}</Text>}
+            </View>
             <Text style={feeStyles.lineValue}>{`₹${formatINR(l.value)}`}</Text>
           </View>
         ))}
@@ -738,6 +815,26 @@ const styles = StyleSheet.create({
   },
 });
 
+const summaryHeaderStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  left: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  right: { flexDirection: 'row', alignItems: 'center' },
+  title: { fontSize: FONT_SIZES.xl, fontWeight: 'bold', color: TEXT },
+  totalText: { fontSize: FONT_SIZES.lg, fontWeight: '700', color: TEXT },
+  body: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: BORDER,
+  },
+});
+
 const feeStyles = StyleSheet.create({
   group: {
     backgroundColor: '#F9FAFB',
@@ -799,6 +896,12 @@ const feeStyles = StyleSheet.create({
   lineLabel: {
     fontSize: FONT_SIZES.sm,
     color: MUTED,
+  },
+  lineSubLabel: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    marginTop: 2,
+    fontStyle: 'italic',
   },
   lineValue: {
     fontSize: FONT_SIZES.sm,

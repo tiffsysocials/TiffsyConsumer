@@ -557,12 +557,26 @@ export interface VoucherEligibility {
   };
 }
 
+export interface DistancePricing {
+  distanceKm: number;
+  computedDeliveryFee: number;
+  appliedSourceLabel?: string;
+  source?: {
+    enabled?: boolean;
+    baseFee?: number;
+    baseFeeEnabled?: boolean;
+    baseFreeUptoKm?: number;
+    perKmAfterFree?: number;
+  };
+}
+
 export interface CalculatePricingResponse {
   success: boolean;
   message: string;
   data: {
     breakdown: PricingBreakdown;
     voucherEligibility: VoucherEligibility;
+    distancePricing?: DistancePricing;
   };
 }
 
@@ -692,6 +706,9 @@ export interface Order {
   scheduledFor?: string;
   distanceMetadata?: {
     distanceFromKitchenKm?: number;
+    distanceFromKitchenMeters?: number;
+    computedDeliveryFee?: number;
+    appliedSourceLabel?: string;
     acceptanceZone?: 'AUTO_ACCEPT' | 'MANUAL_ACCEPT';
     kitchenAcceptanceDeadline?: string;
     kitchenResponseAt?: string;
@@ -948,6 +965,23 @@ export interface AutoOrderSetupForm {
   };
 }
 
+export interface DeliveryFeeBreakdown {
+  // km from kitchen to delivery address (1-decimal precision)
+  distKm: number | null;
+  // which Phase 8 pricing tier applied
+  source: 'zone' | 'global' | 'flat';
+  // distance-pricing master flag — when false, baseFee is a flat charge
+  formulaEnabled: boolean;
+  baseFee: number;
+  baseFeeEnabled: boolean;
+  baseFreeUptoKm: number;
+  perKmAfterFree: number;
+  // km past the free radius (0 when within free)
+  extraKm: number;
+  // per-km charge for those extra km
+  extraFee: number;
+}
+
 export interface PerMealFeesBreakdown {
   deliveryFee: number;
   platformFee: number;
@@ -956,6 +990,9 @@ export interface PerMealFeesBreakdown {
   handlingFee: number;
   taxAmount: number;
   addonsCost: number;
+  // Phase 11 — formula values behind the deliveryFee number; used by the
+  // consumer to render a sub-line under "Delivery fee" explaining the math.
+  deliveryBreakdown?: DeliveryFeeBreakdown;
   total: number;
 }
 
