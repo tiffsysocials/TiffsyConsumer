@@ -10,7 +10,10 @@ import {
 import { authEvents } from './auth.events';
 
 // Backend base URL - update this with your actual backend URL
-const BASE_URL = 'https://d31od4t2t5epcb.cloudfront.net';
+// Phase 11 testing — pointing at Render `test` backend until we cut over.
+// Flip back to the CloudFront prod URL below before the next Play Store build.
+const BASE_URL = 'https://tiffsy-backend-8ecm.onrender.com';
+// const BASE_URL = 'https://d31od4t2t5epcb.cloudfront.net';
 // const BASE_URL = 'http://192.168.1.4:5005';
 // const BASE_URL = 'http://192.168.29.69:5005';
 
@@ -956,21 +959,35 @@ export interface PerMealFeesBreakdown {
   total: number;
 }
 
-export interface AutoOrderPurchaseQuoteRequest extends AutoOrderSetupForm {
-  planId: string;
-}
+// Phase 11 — the quote endpoint accepts EITHER planId (buying a new pack)
+// OR subscriptionId (configuring auto-order on an existing pack). Exactly
+// one must be supplied; the server-side xor() validator rejects both / neither.
+export type AutoOrderPurchaseQuoteRequest =
+  | (AutoOrderSetupForm & { planId: string; subscriptionId?: never })
+  | (AutoOrderSetupForm & { subscriptionId: string; planId?: never });
 
 export interface AutoOrderPurchaseQuoteResponse {
   success: boolean;
   message: string;
   data: {
-    plan: { id: string; name: string; price: number; totalVouchers: number; voucherValidityDays: number };
+    // Populated when quoting against a planId (new pack); null when quoting
+    // against an existing subscription.
+    plan: { id: string; name: string; price: number; totalVouchers: number; voucherValidityDays: number } | null;
+    // Populated when quoting against a subscriptionId; null when quoting
+    // against a planId.
+    subscription: {
+      id: string;
+      planSnapshotName: string | null;
+      vouchersRemaining: number;
+      voucherExpiryDate: string;
+    } | null;
     address: { id: string; city: string; locality: string; pincode: string; coords: { latitude: number; longitude: number } };
     kitchen: { id: string; name: string };
     totalDeliveries: number;
     perWindowDeliveries: { lunch: number; dinner: number };
     perMealFees: { lunch: PerMealFeesBreakdown | null; dinner: PerMealFeesBreakdown | null };
     totalFeesPrepaid: number;
+    // For subscriptionId quotes, grandTotal === totalFeesPrepaid (no pack price).
     grandTotal: number;
     snapshot: {
       sourceKitchenId: string | null;
@@ -2405,6 +2422,35 @@ class ApiService {
     return this.api.post('/api/payment/subscription/initiate', {
       planId,
       ...(autoOrderSetup ? { autoOrderSetup } : {}),
+    });
+  }
+
+  // Phase 11 — initiate payment to set up auto-order on an EXISTING
+  // subscription. Charges per-meal fees only (no pack price). On verify,
+  // Subscription.autoOrderSetup is written + globalWallet credited.
+  async initiateAutoOrderSetupPayment(
+    subscriptionId: string,
+    autoOrderSetup: AutoOrderSetupForm,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      razorpayOrderId: string;
+      amount: number;
+      currency: string;
+      key: string;
+      subscriptionId: string;
+      autoOrderSetupQuote: {
+        totalFeesPrepaid: number;
+        totalDeliveries: number;
+        grandTotal: number;
+      };
+      prefill: { name: string; contact: string; email?: string };
+    };
+  }> {
+    return this.api.post('/api/payment/auto-order-setup/initiate', {
+      subscriptionId,
+      autoOrderSetup,
     });
   }
 

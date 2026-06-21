@@ -51,20 +51,12 @@ const AutoOrderConfigScreen: React.FC<Props> = ({ route, navigation }) => {
   const isEditMode = !!existingConfig;
   const { addresses } = useAddress();
 
-  // Phase 11 — create flow is now bundled into VoucherPurchaseScreen. If the
-  // user arrives without addressId, send them to the MealPlans screen to
-  // buy a pack with auto-order setup. Edit mode (addressId present) still
-  // works for tweaking an existing config.
+  // Phase 11 — create flow lives in the new AutoOrderSetupScreen (same
+  // sectioned UI as VoucherPurchaseScreen). If the user arrives without
+  // addressId, send them there directly.
   useEffect(() => {
     if (!addressId) {
-      Alert.alert(
-        'Buy a pack to set up auto-order',
-        'Auto-ordering is configured when you buy a voucher pack. Pick a plan to continue.',
-        [
-          { text: 'Cancel', style: 'cancel', onPress: () => navigation.goBack() },
-          { text: 'View plans', onPress: () => navigation.replace('MealPlans') },
-        ],
-      );
+      navigation.replace('AutoOrderSetup');
     }
   }, [addressId, navigation]);
 

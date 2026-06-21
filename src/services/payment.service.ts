@@ -367,6 +367,81 @@ class PaymentService {
   }
 
   /**
+   * Phase 11 — Process payment to set up auto-order on an EXISTING subscription.
+   * Charges per-meal fees only. On verify, the backend writes
+   * Subscription.autoOrderSetup + credits globalWallet.
+   * 1. Initiate (server re-quotes, sets Razorpay amount = totalFeesPrepaid).
+   * 2. Razorpay checkout.
+   * 3. /api/payment/verify — backend's AUTO_ORDER_SETUP branch does the write.
+   */
+  async processAutoOrderSetupPayment(
+    subscriptionId: string,
+    autoOrderSetup: import('./api.service').AutoOrderSetupForm,
+  ): Promise<SubscriptionPaymentResult> {
+    try {
+      console.log('[PaymentService] Processing AUTO_ORDER_SETUP for subscription:', subscriptionId);
+
+      const initiateResponse = await apiService.initiateAutoOrderSetupPayment(
+        subscriptionId,
+        autoOrderSetup,
+      );
+      if (!initiateResponse.success) {
+        throw new Error(initiateResponse.message || 'Failed to initiate payment');
+      }
+      const init = initiateResponse.data;
+
+      const checkoutOptions: RazorpayOptions = {
+        key: init.key,
+        amount: init.amount,
+        currency: 'INR',
+        name: MERCHANT_NAME,
+        description: `Auto-order setup · ${init.autoOrderSetupQuote.totalDeliveries} deliveries`,
+        order_id: init.razorpayOrderId,
+        prefill: init.prefill,
+        theme: { color: THEME_COLOR },
+      };
+      const paymentResponse = await this.openCheckout(checkoutOptions);
+
+      console.log('[PaymentService] Verifying AUTO_ORDER_SETUP payment…');
+      const verifyResponse = await apiService.verifyPayment({
+        razorpayOrderId: paymentResponse.razorpay_order_id,
+        razorpayPaymentId: paymentResponse.razorpay_payment_id,
+        razorpaySignature: paymentResponse.razorpay_signature,
+      });
+      if (!verifyResponse.success || !verifyResponse.data.success) {
+        throw new Error(verifyResponse.message || 'Payment verification failed');
+      }
+
+      console.log('[PaymentService] AUTO_ORDER_SETUP completed');
+      return {
+        success: true,
+        paymentId: paymentResponse.razorpay_payment_id,
+        subscriptionId,
+      };
+    } catch (error: any) {
+      console.error('[PaymentService] AUTO_ORDER_SETUP failed:', error);
+      const isRealError = error?.description?.includes('BAD_REQUEST_ERROR')
+        || error?.error?.code === 'BAD_REQUEST_ERROR'
+        || error?.error?.reason === 'payment_error';
+      if ((error.code === 0 || error.code === 2) && !isRealError) {
+        return { success: false, error: 'Payment cancelled' };
+      }
+      let errorMessage = 'Payment failed. Please try again.';
+      if (isRealError) {
+        const reason = error?.error?.reason || error?.error?.description;
+        if (reason && reason !== 'undefined') errorMessage = `Payment failed: ${reason.replace(/_/g, ' ')}`;
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.description && error.description !== 'undefined') {
+        errorMessage = error.description;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
    * Process a direct payment where Razorpay order details are already available.
    * Used for scheduled meal creation where the backend creates the Razorpay order
    * during the scheduling API call (order is only created after payment succeeds).

@@ -51,6 +51,9 @@ export type MainTabParamList = {
   // Phase 11 — full-page voucher pack + auto-order setup screen. Replaces
   // the popup-driven purchase flow.
   VoucherPurchase: { planId: string };
+  // Phase 11 — set up auto-order on an EXISTING subscription. Optional
+  // subscriptionId picks a specific pack; otherwise newest ACTIVE wins.
+  AutoOrderSetup: { subscriptionId?: string; addressId?: string } | undefined;
   BulkOrders: undefined;
   Vouchers: undefined;  // View all vouchers with status filters
   OnDemand: undefined;  // On-Demand screen (Coming Soon)

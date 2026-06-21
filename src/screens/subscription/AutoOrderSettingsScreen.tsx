@@ -346,11 +346,14 @@ const AutoOrderSettingsScreen: React.FC<Props> = ({ navigation }) => {
                   </TouchableOpacity>
                 );
               } else {
-                // Address WITHOUT config — show "Not Set Up" card
+                // Address WITHOUT config — show "Not Set Up" card.
+                // Phase 11 — route into the new AutoOrderSetup flow which
+                // collects the form + prepays per-meal fees in one Razorpay
+                // charge, rather than the legacy per-config form.
                 return (
                   <TouchableOpacity
                     key={addrId}
-                    onPress={() => navigation.navigate('AutoOrderConfig', { addressId: addrId })}
+                    onPress={() => navigation.navigate('AutoOrderSetup', { addressId: addrId })}
                     activeOpacity={0.7}
                     style={{
                       backgroundColor: 'white',
