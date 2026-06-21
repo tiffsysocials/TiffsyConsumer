@@ -252,7 +252,7 @@ const AutoOrderSettingsScreen: React.FC<Props> = ({ navigation }) => {
                 return (
                   <TouchableOpacity
                     key={config._id}
-                    onPress={() => navigation.navigate('AutoOrderConfig', { addressId: config.addressId })}
+                    onPress={() => navigation.navigate('AutoOrderManage', { addressId: config.addressId })}
                     activeOpacity={0.7}
                     style={{
                       backgroundColor: 'white',

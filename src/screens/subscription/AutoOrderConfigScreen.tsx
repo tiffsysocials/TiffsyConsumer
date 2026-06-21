@@ -50,11 +50,15 @@ const AutoOrderConfigScreen: React.FC<Props> = ({ route, navigation }) => {
   const isEditMode = !!existingConfig;
   const { addresses } = useAddress();
 
-  // Phase 11 — create flow lives in the new AutoOrderSetupScreen (same
-  // sectioned UI as VoucherPurchaseScreen). If the user arrives without
-  // addressId, send them there directly.
+  // Phase 11 — entire flow lives in the new sectioned screens now:
+  //   - create  → AutoOrderSetup
+  //   - edit    → AutoOrderManage
+  // Both share the same orange-gradient UI as VoucherPurchaseScreen.
+  // Redirect immediately so we never render the legacy form.
   useEffect(() => {
-    if (!addressId) {
+    if (addressId) {
+      navigation.replace('AutoOrderManage', { addressId });
+    } else {
       navigation.replace('AutoOrderSetup');
     }
   }, [addressId, navigation]);

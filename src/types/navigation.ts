@@ -54,6 +54,8 @@ export type MainTabParamList = {
   // Phase 11 — set up auto-order on an EXISTING subscription. Optional
   // subscriptionId picks a specific pack; otherwise newest ACTIVE wins.
   AutoOrderSetup: { subscriptionId?: string; addressId?: string } | undefined;
+  // Phase 11 — edit an existing autoOrderSetup (pause, schedule).
+  AutoOrderManage: { subscriptionId?: string; addressId?: string } | undefined;
   BulkOrders: undefined;
   Vouchers: undefined;  // View all vouchers with status filters
   OnDemand: undefined;  // On-Demand screen (Coming Soon)

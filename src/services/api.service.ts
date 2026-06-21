@@ -2167,6 +2167,26 @@ class ApiService {
     return this.api.post('/api/subscriptions/purchase/quote', data);
   }
 
+  // Phase 11 — edit the mutable fields of an existing autoOrderSetup.
+  // addressId / thalisPerMeal / per-meal fees are locked at purchase.
+  async updateAutoOrderSetup(
+    subscriptionId: string,
+    updates: {
+      enabled?: boolean;
+      weeklySchedule?: AutoOrderWeeklySchedule;
+      mealWindows?: Array<'LUNCH' | 'DINNER'>;
+    },
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data: { autoOrderSetup: any };
+  }> {
+    return this.api.patch(
+      `/api/subscriptions/${subscriptionId}/auto-order-setup`,
+      updates,
+    );
+  }
+
   // Get user's subscriptions
   async getMySubscriptions(
     params?: GetMySubscriptionsParams,

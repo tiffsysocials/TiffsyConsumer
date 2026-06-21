@@ -17,6 +17,7 @@ import OrderTrackingScreen from '../screens/orders/OrderTrackingScreen';
 import MealPlansScreen from '../screens/account/MealPlansScreen';
 import VoucherPurchaseScreen from '../screens/subscription/VoucherPurchaseScreen';
 import AutoOrderSetupScreen from '../screens/subscription/AutoOrderSetupScreen';
+import AutoOrderManageScreen from '../screens/subscription/AutoOrderManageScreen';
 import BulkOrdersScreen from '../screens/account/BulkOrdersScreen';
 import VouchersScreen from '../screens/account/VouchersScreen';
 import OnDemandScreen from '../screens/ondemand/OnDemandScreen';
@@ -90,6 +91,7 @@ const MainNavigatorContent = () => {
         <Stack.Screen name="MealPlans" component={MealPlansScreen} />
         <Stack.Screen name="VoucherPurchase" component={VoucherPurchaseScreen} />
         <Stack.Screen name="AutoOrderSetup" component={AutoOrderSetupScreen} />
+        <Stack.Screen name="AutoOrderManage" component={AutoOrderManageScreen} />
         <Stack.Screen name="BulkOrders" component={BulkOrdersScreen} />
         <Stack.Screen name="Vouchers" component={VouchersScreen} />
         <Stack.Screen name="Notifications" component={NotificationsScreen} />
