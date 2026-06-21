@@ -41,14 +41,17 @@ import apiService, {
   AutoOrderPurchaseQuoteResponse,
   DayName,
 } from '../../services/api.service';
+import { Colors } from '../../constants/colors';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'VoucherPurchase'>;
 type Rt = RouteProp<RootStackParamList, 'VoucherPurchase'>;
 
-const PRIMARY = '#F56B4C';
-const BORDER = '#E5E7EB';
-const MUTED = '#6B7280';
-const SLATE = '#374151';
+const PRIMARY = Colors.primary;
+const PRIMARY_TINT = '#FFF7ED';
+const BORDER = Colors.border;
+const MUTED = Colors.text.secondary;
+const SLATE = Colors.text.primary;
+const SURFACE = Colors.surface;
 
 const DAYS: { key: DayName; label: string }[] = [
   { key: 'monday', label: 'Mon' },
@@ -485,7 +488,7 @@ export default function VoucherPurchaseScreen() {
                 key={a.id}
                 style={[
                   styles.addressRow,
-                  addressId === a.id && { borderColor: PRIMARY, backgroundColor: '#FFF7F4' },
+                  addressId === a.id && { borderColor: PRIMARY, backgroundColor: PRIMARY_TINT },
                 ]}
                 onPress={() => {
                   setAddressId(a.id);
@@ -624,7 +627,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: PRIMARY,
     borderRadius: 12,
-    backgroundColor: '#FFF7F4',
+    backgroundColor: PRIMARY_TINT,
   },
   planName: { fontSize: 16, fontWeight: '700', color: SLATE },
   planMeta: { fontSize: 13, color: MUTED, marginTop: 2 },
@@ -639,7 +642,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginRight: 8,
   },
-  radioCardActive: { borderColor: PRIMARY, backgroundColor: '#FFF7F4' },
+  radioCardActive: { borderColor: PRIMARY, backgroundColor: PRIMARY_TINT },
   radioLabel: { marginLeft: 8, fontSize: 13, color: SLATE, flex: 1 },
   addressBtn: {
     flexDirection: 'row',
