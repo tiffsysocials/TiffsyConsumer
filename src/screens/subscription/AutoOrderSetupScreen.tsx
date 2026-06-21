@@ -62,6 +62,14 @@ const BORDER = '#E5E7EB';
 const MUTED = '#6B7280';
 const TEXT = '#111827';
 
+// Render rupee amounts as whole rupees when integer, else 2 decimals.
+// Keeps the UI tidy even if the backend slips a float through.
+function formatINR(n: number | null | undefined): string {
+  if (n == null || isNaN(n)) return '0';
+  const rounded = Math.round(n * 100) / 100;
+  return Number.isInteger(rounded) ? `${rounded}` : rounded.toFixed(2);
+}
+
 function defaultWeekly(): WeeklySchedule {
   const w: WeeklySchedule = {};
   (['sunday','monday','tuesday','wednesday','thursday','friday','saturday'] as const).forEach(d => {
@@ -186,7 +194,7 @@ export default function AutoOrderSetupScreen() {
       }
       Alert.alert(
         'Auto-order set up',
-        `₹${quote.totalFeesPrepaid} credited to your wallet for ${quote.totalDeliveries} upcoming deliveries.`,
+        `₹${formatINR(quote.totalFeesPrepaid)} credited to your wallet for ${quote.totalDeliveries} upcoming deliveries.`,
         [{ text: 'OK', onPress: () => nav.navigate('AutoOrderSettings') }],
       );
     } catch (e: any) {
@@ -414,14 +422,14 @@ export default function AutoOrderSetupScreen() {
                   sub={`Lunch: ${quote.perWindowDeliveries.lunch} · Dinner: ${quote.perWindowDeliveries.dinner}`}
                 />
                 {quote.perMealFees.lunch && (
-                  <SummaryLine label="Per-meal fees (Lunch)" value={`₹${quote.perMealFees.lunch.total}`} />
+                  <SummaryLine label="Per-meal fees (Lunch)" value={`₹${formatINR(quote.perMealFees.lunch.total)}`} />
                 )}
                 {quote.perMealFees.dinner && (
-                  <SummaryLine label="Per-meal fees (Dinner)" value={`₹${quote.perMealFees.dinner.total}`} />
+                  <SummaryLine label="Per-meal fees (Dinner)" value={`₹${formatINR(quote.perMealFees.dinner.total)}`} />
                 )}
-                <SummaryLine label="Wallet credit" value={`₹${quote.totalFeesPrepaid}`} bold />
+                <SummaryLine label="Wallet credit" value={`₹${formatINR(quote.totalFeesPrepaid)}`} bold />
                 <View style={styles.divider} />
-                <SummaryLine label="Pay now" value={`₹${quote.grandTotal}`} big />
+                <SummaryLine label="Pay now" value={`₹${formatINR(quote.grandTotal)}`} big />
               </View>
             )}
           </View>
@@ -432,7 +440,7 @@ export default function AutoOrderSetupScreen() {
       <View style={[styles.footer, { paddingBottom: 14 + insets.bottom }]}>
         <View style={{ flex: 1 }}>
           <Text style={styles.footerLabel}>Total payable</Text>
-          <Text style={styles.footerAmount}>{`₹${grandTotal}`}</Text>
+          <Text style={styles.footerAmount}>{`₹${formatINR(grandTotal)}`}</Text>
         </View>
         <TouchableOpacity
           style={[styles.payBtn, !canPay && { backgroundColor: '#D1D5DB' }]}
