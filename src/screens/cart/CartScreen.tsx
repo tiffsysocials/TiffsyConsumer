@@ -9,6 +9,7 @@ import {
   StatusBar,
   ActivityIndicator,
   TextInput,
+  Switch,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Svg, { Path } from 'react-native-svg';
@@ -28,9 +29,13 @@ import apiService, {
   VoucherEligibility,
   Order,
   AddonItem,
+  DistancePricing,
 } from '../../services/api.service';
 import AddonSelector from '../../components/AddonSelector';
 import CouponSheet from '../../components/CouponSheet';
+import AddressPickerSheet from '../../components/AddressPickerSheet';
+import DeliveryFeeInfoModal from '../../components/DeliveryFeeInfoModal';
+import { deliveryFormulaText, distancePricingToBreakdown } from '../../utils/deliveryFormula';
 import DeliveryPreferenceToggles from '../../components/DeliveryPreferenceToggles';
 import dataPreloader from '../../services/dataPreloader.service';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -59,6 +64,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
     removeAddon,
     removeItem,
     replaceCart,
+    syncCartItemPrices,
     kitchenId,
     menuType,
     mealWindow,
@@ -83,7 +89,10 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
   } = useCart();
 
   const { addresses, getMainAddress, currentLocation } = useAddress();
-  const { voucherSummary, usableVouchers, fetchVouchers } = useSubscription();
+  const { voucherSummary, usableVouchers, fetchVouchers, walletBalance } = useSubscription();
+  // Phase 11.1 — opt in to applying globalWallet against the non-voucher
+  // portion. Only meaningful when voucherCount > 0 (voucher-paired rule).
+  const [useWallet, setUseWallet] = useState(false);
   const { processOrderPayment, isProcessing: isPaymentProcessing } = usePayment();
   const { showAlert } = useAlert();
   const insets = useSafeAreaInsets();
@@ -134,10 +143,27 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
   // Screen-scoped dismissal flag — resets on unmount, so each fresh cart visit re-prompts.
   const [userBypassedLocationCheck, setUserBypassedLocationCheck] = useState(false);
 
-  // Local state for selected address (display purposes)
+  // Local state for selected address. Per-order pick — does NOT mutate the
+  // user's global default. We intentionally drop the cart-context
+  // `deliveryAddressId` fallback here: a stale value from a previous cart
+  // visit shouldn't outlive that visit. The focus-effect below snaps to the
+  // current default on every fresh cart visit; an explicit `route.params`
+  // override still wins for deep-link / re-order flows.
   const [localSelectedAddressId, setLocalSelectedAddressId] = useState<string>(
-    route.params?.deliveryAddressId || deliveryAddressId || getMainAddress()?.id || (addresses.length > 0 ? addresses[0].id : '')
+    route.params?.deliveryAddressId || getMainAddress()?.id || (addresses.length > 0 ? addresses[0].id : '')
   );
+
+  // Tracks whether the user has explicitly chosen an address from the
+  // bottom-sheet picker during this cart visit. Resets on blur via the
+  // focus-effect cleanup so the next visit starts fresh on the current
+  // default. Also guards GPS auto-select from overriding a manual pick.
+  const userPickedThisSessionRef = useRef(false);
+
+  // Bottom-sheet visibility for the per-order address picker.
+  const [showAddressSheet, setShowAddressSheet] = useState(false);
+  // Tiny info popup explaining how the Delivery Fee was computed. Triggered
+  // by the ⓘ icon beside the "Delivery Fee" label in the To-Pay breakdown.
+  const [showDeliveryFeeInfo, setShowDeliveryFeeInfo] = useState(false);
 
   // Treat the selected address as "verified against GPS" if it appears in the
   // GPS-matching list. Declared after localSelectedAddressId because it depends
@@ -184,10 +210,11 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
   interface SlotPricing {
     pricing: PricingBreakdown | null;
     voucherInfo: VoucherEligibility | null;
+    distancePricing: DistancePricing | null;
     error: string | null;
   }
-  const [lunchPricing, setLunchPricing] = useState<SlotPricing>({ pricing: null, voucherInfo: null, error: null });
-  const [dinnerPricing, setDinnerPricing] = useState<SlotPricing>({ pricing: null, voucherInfo: null, error: null });
+  const [lunchPricing, setLunchPricing] = useState<SlotPricing>({ pricing: null, voucherInfo: null, distancePricing: null, error: null });
+  const [dinnerPricing, setDinnerPricing] = useState<SlotPricing>({ pricing: null, voucherInfo: null, distancePricing: null, error: null });
   const [isCalculating, setIsCalculating] = useState(false);
 
   // Backward compat helpers
@@ -254,50 +281,50 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
   // Cache menu items for slot toggling
   const [menuItemCache, setMenuItemCache] = useState<{ lunch?: any; dinner?: any }>({});
 
-  // Fetch menu data, cutoff info, and addons when screen comes into focus
+  // Hoisted so it can be invoked both on focus AND when the address
+  // changes mid-screen (a real address swap re-fetches everything, not just
+  // pricing). Kitchen is unchanged when the user picks a different
+  // address, so the menu items themselves stay the same — but cutoffs and
+  // addons are re-pulled to guarantee freshness.
+  const fetchMenuData = useCallback(async () => {
+    if (!kitchenId) {
+      console.log('[CartScreen] No kitchenId, skipping menu fetch');
+      return;
+    }
+    console.log('[CartScreen] Fetching menu data for kitchen:', kitchenId);
+    try {
+      const menuResponse = await apiService.getKitchenMenu(kitchenId, 'MEAL_MENU');
+      if (menuResponse.data) {
+        const { lunch, dinner } = menuResponse.data.mealMenu;
+        setMenuItemCache({ lunch, dinner });
+        if (!isSchedulingMode) {
+          setLunchCutoff(mapCutoffState(lunch));
+          setDinnerCutoff(mapCutoffState(dinner));
+        }
+        const lunchAddonCount = lunch?.addonIds?.length || 0;
+        const dinnerAddonCount = dinner?.addonIds?.length || 0;
+        console.log(`[CartScreen] Addons found - Lunch: ${lunchAddonCount}, Dinner: ${dinnerAddonCount}`);
+        setLunchAddons(lunch?.addonIds?.length ? lunch.addonIds : []);
+        setDinnerAddons(dinner?.addonIds?.length ? dinner.addonIds : []);
+        // Sync thali prices on the items already in the cart with the
+        // freshly-fetched menu price. The backend pricing call uses its own
+        // source of truth, but cart-item rows and the local-fallback
+        // subtotal both read item.price directly — keep them honest.
+        const priceById: Record<string, number> = {};
+        if (lunch?._id) priceById[lunch._id] = lunch.discountedPrice || lunch.price;
+        if (dinner?._id) priceById[dinner._id] = dinner.discountedPrice || dinner.price;
+        syncCartItemPrices(priceById);
+      }
+    } catch (error) {
+      console.error('[CartScreen] Error fetching menu data:', error);
+    }
+  }, [kitchenId, isSchedulingMode, syncCartItemPrices]);
+
+  // Fetch menu data, cutoff info, and addons when screen comes into focus.
   useFocusEffect(
     useCallback(() => {
-      const fetchMenuData = async () => {
-        if (!kitchenId) {
-          console.log('[CartScreen] No kitchenId, skipping menu fetch');
-          return;
-        }
-        console.log('[CartScreen] Fetching menu data for kitchen:', kitchenId);
-        try {
-          const menuResponse = await apiService.getKitchenMenu(kitchenId, 'MEAL_MENU');
-          if (menuResponse.data) {
-            const { lunch, dinner } = menuResponse.data.mealMenu;
-
-            // Cache menu items for slot toggling
-            setMenuItemCache({ lunch, dinner });
-
-            // Update three-state cutoff (skip in scheduling mode — future dates have no cutoff)
-            if (!isSchedulingMode) {
-              setLunchCutoff(mapCutoffState(lunch));
-              setDinnerCutoff(mapCutoffState(dinner));
-            }
-
-            // Update per-slot addons
-            const lunchAddonCount = lunch?.addonIds?.length || 0;
-            const dinnerAddonCount = dinner?.addonIds?.length || 0;
-            console.log(`[CartScreen] Addons found - Lunch: ${lunchAddonCount}, Dinner: ${dinnerAddonCount}`);
-            if (lunch?.addonIds && lunch.addonIds.length > 0) {
-              setLunchAddons(lunch.addonIds);
-            } else {
-              setLunchAddons([]);
-            }
-            if (dinner?.addonIds && dinner.addonIds.length > 0) {
-              setDinnerAddons(dinner.addonIds);
-            } else {
-              setDinnerAddons([]);
-            }
-          }
-        } catch (error) {
-          console.error('[CartScreen] Error fetching menu data:', error);
-        }
-      };
       fetchMenuData();
-    }, [kitchenId])
+    }, [fetchMenuData])
   );
 
   // Keep localSelectedAddressId valid against the live addresses list. The
@@ -330,6 +357,58 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
     setDeliveryAddressId(localSelectedAddressId);
   }, [localSelectedAddressId, addresses]);
 
+  // Full-cart refresh on a real address swap. Pricing already re-runs via
+  // its own effect's dep on localSelectedAddressId; this effect handles the
+  // *other* address-sensitive reads so the cart shows nothing stale after
+  // the user picks a different address:
+  //   - menu data (cutoffs/addons re-fetched even though kitchen is
+  //     unchanged — cheap insurance against admin-edited cutoffs)
+  //   - vouchers (counts are user-scoped but the focus-fetch path treats
+  //     vouchers as address-correlated so we mirror that here)
+  // First render is skipped via the ref so we don't fire a redundant fetch
+  // on top of the focus-effect that already runs on mount.
+  const lastRefreshedAddressRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!localSelectedAddressId) return;
+    if (lastRefreshedAddressRef.current === null) {
+      lastRefreshedAddressRef.current = localSelectedAddressId;
+      return;
+    }
+    if (lastRefreshedAddressRef.current === localSelectedAddressId) return;
+    console.log(
+      '[CartScreen] Address changed from',
+      lastRefreshedAddressRef.current,
+      'to',
+      localSelectedAddressId,
+      '— refreshing cart',
+    );
+    lastRefreshedAddressRef.current = localSelectedAddressId;
+    fetchMenuData();
+    fetchVouchers().catch(err => {
+      console.error('[CartScreen] Error refreshing vouchers after address change:', err);
+    });
+  }, [localSelectedAddressId, fetchMenuData, fetchVouchers]);
+
+  // Snap to the user's current default on every fresh cart visit. This makes
+  // the cart follow default-changes made elsewhere (Home → location pill →
+  // set default → back to cart) and discards any per-order pick from the
+  // previous visit so each new visit starts from a known safe baseline.
+  // Respected exceptions: an explicit route.params override, and a manual
+  // pick the user just made from the sheet during THIS visit.
+  useFocusEffect(
+    useCallback(() => {
+      if (!route.params?.deliveryAddressId && !userPickedThisSessionRef.current) {
+        const main = getMainAddress();
+        if (main && main.id !== localSelectedAddressId) {
+          setLocalSelectedAddressId(main.id);
+        }
+      }
+      return () => {
+        userPickedThisSessionRef.current = false;
+      };
+    }, [addresses, route.params?.deliveryAddressId])
+  );
+
   // Auto-select the saved address that matches the user's current GPS location,
   // so the order is delivered to where the user actually is rather than to the
   // default address. Skipped when (a) the caller pre-selected an address via
@@ -344,6 +423,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
   useEffect(() => {
     if (route.params?.deliveryAddressId) return;
     if (isSchedulingMode) return;
+    if (userPickedThisSessionRef.current) return;
     if (gpsMatchingAddresses.length !== 1) return;
     if (gpsAutoSelectKeyRef.current === gpsMatchSetKey) return;
     const match = gpsMatchingAddresses[0];
@@ -456,15 +536,15 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
     console.log('[CartScreen] calculateAllPricing called, isSchedulingMode:', isSchedulingMode);
 
     if (cartItems.length === 0 || !localSelectedAddressId) {
-      setLunchPricing({ pricing: null, voucherInfo: null, error: null });
-      setDinnerPricing({ pricing: null, voucherInfo: null, error: null });
+      setLunchPricing({ pricing: null, voucherInfo: null, distancePricing: null, error: null });
+      setDinnerPricing({ pricing: null, voucherInfo: null, distancePricing: null, error: null });
       return;
     }
 
     // For today orders, require kitchenId and menuType
     if (!isSchedulingMode && (!kitchenId || !menuType)) {
-      setLunchPricing({ pricing: null, voucherInfo: null, error: null });
-      setDinnerPricing({ pricing: null, voucherInfo: null, error: null });
+      setLunchPricing({ pricing: null, voucherInfo: null, distancePricing: null, error: null });
+      setDinnerPricing({ pricing: null, voucherInfo: null, distancePricing: null, error: null });
       return;
     }
 
@@ -530,7 +610,10 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
             items,
             voucherCount: slotVoucherCounts[slot] || 0,
             couponCode: couponCode || null,
-          });
+            // Phase 11.1 — request wallet preview; voucher-paired
+            // enforced server-side anyway.
+            useWallet: useWallet && (slotVoucherCounts[slot] || 0) > 0,
+          } as any);
 
           return { slot, data: response };
         }
@@ -539,10 +622,10 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
 
     // Clear pricing for deselected slots
     if (!selectedMealWindows.includes('LUNCH')) {
-      setLunchPricing({ pricing: null, voucherInfo: null, error: null });
+      setLunchPricing({ pricing: null, voucherInfo: null, distancePricing: null, error: null });
     }
     if (!selectedMealWindows.includes('DINNER')) {
-      setDinnerPricing({ pricing: null, voucherInfo: null, error: null });
+      setDinnerPricing({ pricing: null, voucherInfo: null, distancePricing: null, error: null });
     }
 
     results.forEach(result => {
@@ -553,6 +636,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
           const slotPricing: SlotPricing = {
             pricing: d.breakdown,
             voucherInfo: d.voucherEligibility || null,
+            distancePricing: d.distancePricing || null,
             error: null,
           };
           if (slot === 'LUNCH') setLunchPricing(slotPricing);
@@ -565,7 +649,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
     });
 
     setIsCalculating(false);
-  }, [cartItems, kitchenId, menuType, selectedMealWindows, localSelectedAddressId, slotVoucherCounts, couponCode, getOrderItemsForSlot, isSchedulingMode, scheduledDate]);
+  }, [cartItems, kitchenId, menuType, selectedMealWindows, localSelectedAddressId, slotVoucherCounts, couponCode, getOrderItemsForSlot, isSchedulingMode, scheduledDate, useWallet]);
 
   // Backward compat: single calculatePricing reference
   const calculatePricing = calculateAllPricing;
@@ -673,6 +757,9 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
             specialInstructions: cookingInstructions.trim() || undefined,
             leaveAtDoor: leaveAtDoor || undefined,
             doNotContact: doNotContact || undefined,
+            // Phase 11.1 — apply globalWallet against the non-voucher portion
+            // (server enforces voucher-paired-only).
+            useWallet: useWallet && slotVouchers > 0,
           };
 
           let response = await apiService.createOrder(orderPayload);
@@ -900,6 +987,20 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const lunchCharges = lunchPricing.pricing?.charges ?? { deliveryFee: 0, serviceFee: 0, packagingFee: 0, handlingFee: 0, platformFee: 0, surgeFee: 0, smallOrderFee: 0, lateNightFee: 0, taxAmount: 0 };
   const dinnerCharges = dinnerPricing.pricing?.charges ?? { deliveryFee: 0, serviceFee: 0, packagingFee: 0, handlingFee: 0, platformFee: 0, surgeFee: 0, smallOrderFee: 0, lateNightFee: 0, taxAmount: 0 };
+  // Pick the slot whose delivery fee actually contributes to the displayed
+  // amount — that's the source for the popup formula. When both slots are
+  // selected we prefer the one with a positive fee so the explanation
+  // matches the visible number.
+  const deliveryFeeTotal = (lunchCharges.deliveryFee || 0) + (dinnerCharges.deliveryFee || 0);
+  const deliveryFeeFormula = deliveryFormulaText(
+    distancePricingToBreakdown(
+      lunchPricing.distancePricing && (lunchCharges.deliveryFee || 0) > 0
+        ? lunchPricing.distancePricing
+        : dinnerPricing.distancePricing && (dinnerCharges.deliveryFee || 0) > 0
+          ? dinnerPricing.distancePricing
+          : null,
+    ),
+  );
   // Sum every fee + the GST line. Order of operations on the bill must be:
   //   subtotal + (delivery + service + packaging + handling + platform + surge + smallOrder + lateNight + tax)
   //   then subtract voucher + coupon discounts.
@@ -1675,7 +1776,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              onPress={() => navigation.navigate('Address')}
+              onPress={() => setShowAddressSheet(true)}
               className="flex-row items-center pb-3 mb-1 border-b border-gray-100"
               activeOpacity={0.7}
             >
@@ -1695,7 +1796,24 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
                       />
                     </View>
                     <View className="flex-1">
-                      <Text className="text-base font-semibold text-gray-900">{selectedAddress.label}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text className="text-base font-semibold text-gray-900">{selectedAddress.label}</Text>
+                        {selectedAddress.isMain && (
+                          <View
+                            style={{
+                              marginLeft: 6,
+                              paddingHorizontal: 6,
+                              paddingVertical: 1,
+                              backgroundColor: '#FEF3C7',
+                              borderRadius: 6,
+                            }}
+                          >
+                            <Text style={{ fontSize: 10, fontWeight: '700', color: '#92400E' }}>
+                              DEFAULT
+                            </Text>
+                          </View>
+                        )}
+                      </View>
                       <Text className="text-xs text-gray-500 mt-0.5" numberOfLines={1}>
                         {selectedAddress.addressLine1}, {selectedAddress.locality}, {selectedAddress.city}
                       </Text>
@@ -1853,6 +1971,53 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
           )}
         </View>
 
+        {/* Phase 11.1 — wallet toggle. Visible only when the customer has a
+            wallet balance AND vouchers selected in at least one slot
+            (voucher-paired-only rule, server enforces). */}
+        {walletBalance > 0 && voucherCount > 0 && (
+          <View
+            className="mb-4"
+            style={{
+              marginHorizontal: SPACING.screenHorizontal,
+              backgroundColor: useWallet ? '#FFF7ED' : '#fff',
+              borderRadius: 14,
+              padding: 14,
+              borderWidth: 1,
+              borderColor: useWallet ? '#FE8733' : '#E5E7EB',
+              flexDirection: 'row',
+              alignItems: 'center',
+            }}
+          >
+            <View
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                backgroundColor: useWallet ? '#FE8733' : '#FFF7ED',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 12,
+              }}
+            >
+              <Text style={{ fontSize: 18 }}>👛</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#111827' }}>
+                Use my auto-order wallet
+              </Text>
+              <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
+                Balance ₹{walletBalance.toFixed(2)} · covers non-voucher charges
+              </Text>
+            </View>
+            <Switch
+              value={useWallet}
+              onValueChange={setUseWallet}
+              trackColor={{ false: '#E5E7EB', true: '#FE873360' }}
+              thumbColor={useWallet ? '#FE8733' : '#f4f3f4'}
+            />
+          </View>
+        )}
+
         {/* Order Summary - Collapsible */}
         <View className="bg-white mb-4" style={{ paddingHorizontal: SPACING.screenHorizontal, paddingVertical: isSmallDevice ? SPACING.lg : SPACING.xl }}>
           {/* Collapsed Header — always visible */}
@@ -1950,7 +2115,20 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
                       <>
                         {deliveryFee > 0 && (
                           <View style={rowStyle}>
-                            <Text style={labelStyle}>Delivery Fee</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                              <Text style={labelStyle}>Delivery Fee</Text>
+                              <TouchableOpacity
+                                onPress={() => setShowDeliveryFeeInfo(true)}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                style={{ marginLeft: 4 }}
+                              >
+                                <MaterialCommunityIcons
+                                  name="information-outline"
+                                  size={14}
+                                  color="#9CA3AF"
+                                />
+                              </TouchableOpacity>
+                            </View>
                             <Text style={valueStyle}>₹{deliveryFee.toFixed(2)}</Text>
                           </View>
                         )}
@@ -2013,6 +2191,26 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
                       <Text style={{ fontSize: 14, color: '#10B981' }}>- ₹{Math.round(voucherDiscount).toFixed(2)}</Text>
                     </View>
                   )}
+
+                  {/* Phase 11.1 — Wallet line. Sums walletApplication.applied
+                      across slots so the customer sees the total wallet
+                      contribution. */}
+                  {useWallet && (() => {
+                    const lunchWallet = (lunchPricing.pricing as any)?.walletApplication?.applied ?? 0;
+                    const dinnerWallet = (dinnerPricing.pricing as any)?.walletApplication?.applied ?? 0;
+                    const totalWallet = lunchWallet + dinnerWallet;
+                    if (totalWallet <= 0) return null;
+                    return (
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <Text style={{ fontSize: 14, color: '#FE8733' }}>
+                          Wallet credit:
+                        </Text>
+                        <Text style={{ fontSize: 14, color: '#FE8733' }}>
+                          - ₹{totalWallet.toFixed(2)}
+                        </Text>
+                      </View>
+                    );
+                  })()}
 
                   {/* Coupon Discount */}
                   {couponCode && couponDiscountType === 'FREE_DELIVERY' && (
@@ -2191,6 +2389,43 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
           hasAddons={hasAddons}
         />
       )}
+
+      <DeliveryFeeInfoModal
+        visible={showDeliveryFeeInfo}
+        onClose={() => setShowDeliveryFeeInfo(false)}
+        formula={deliveryFeeFormula}
+        deliveryFee={deliveryFeeTotal}
+      />
+
+
+      {/* Per-order Address Picker Sheet — does NOT mutate the user's default. */}
+      <AddressPickerSheet
+        visible={showAddressSheet}
+        onClose={() => setShowAddressSheet(false)}
+        addresses={addresses.map(a => ({
+          id: a.id,
+          label: a.label,
+          addressLine1: a.addressLine1,
+          locality: a.locality,
+          city: a.city,
+          isMain: a.isMain,
+        }))}
+        currentSelectedId={localSelectedAddressId}
+        onConfirm={(id) => {
+          userPickedThisSessionRef.current = true;
+          setLocalSelectedAddressId(id);
+          setShowAddressSheet(false);
+        }}
+        onAddNewAddress={() => {
+          setShowAddressSheet(false);
+          navigation.navigate('Address');
+        }}
+        onManageAddresses={() => {
+          setShowAddressSheet(false);
+          navigation.navigate('Address');
+        }}
+      />
+
 
       {/* Order Success Modal */}
       <OrderSuccessModal

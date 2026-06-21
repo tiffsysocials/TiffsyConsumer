@@ -483,6 +483,9 @@ export interface CalculatePricingRequest {
   items: OrderItem[];
   voucherCount: number;
   couponCode?: string | null;
+  // Phase 11.1 — opt in to applying the user's globalWallet against
+  // the non-voucher portion. Server enforces voucher-paired-only.
+  useWallet?: boolean;
 }
 
 export interface PricingItemAddon {
