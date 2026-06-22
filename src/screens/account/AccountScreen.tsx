@@ -469,7 +469,7 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
                       Bump the Image dimensions to compensate. */}
                   <Image
                     source={require('../../assets/icons/voucher4.png')}
-                    style={{ width: 32, height: 32 }}
+                    style={{ width: 38, height: 38 }}
                     resizeMode="contain"
                   />
                 </View>
