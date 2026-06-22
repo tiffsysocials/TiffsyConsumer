@@ -77,7 +77,16 @@ export default function VoucherPurchaseScreen() {
   const { planId } = route.params;
 
   const { addresses, getMainAddress } = useAddress();
-  const { plans } = useSubscription();
+  // Phase 11.1 hotfix — pull the refetch hooks so the success path can
+  // refresh subscriptions + vouchers + auto-order configs before
+  // navigating. Without this, post-purchase screens read stale state.
+  const {
+    plans,
+    subscriptions,
+    fetchSubscriptions,
+    fetchVouchers,
+    fetchAllAutoOrderConfigs,
+  } = useSubscription();
   const { showAlert } = useAlert();
   const plan = useMemo(() => plans.find(p => p._id === planId), [plans, planId]);
 
@@ -110,6 +119,22 @@ export default function VoucherPurchaseScreen() {
   const [submitting, setSubmitting] = useState(false);
   // Collapsed by default — same UX as the cart's "To Pay" row.
   const [summaryExpanded, setSummaryExpanded] = useState(false);
+  // Phase 11.1 hotfix — refetch loading indicator for the post-success
+  // refresh. Keeps the customer on the screen briefly so they don't land
+  // on a stale destination.
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Phase 11.1 hotfix — mirror AutoOrderSetupScreen's mount-fetch pattern.
+  // If subscriptions/vouchers haven't been loaded into context yet, fetch
+  // them now so live counts (wallet balance, voucher pool) are correct
+  // when computing the quote downstream.
+  useEffect(() => {
+    if (subscriptions.length === 0) fetchSubscriptions();
+    fetchVouchers();
+    // Single-shot on mount; refetch hooks themselves are stable callbacks
+    // from the context, so this won't loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const form: AutoOrderSetupForm = useMemo(
     () => ({
@@ -188,9 +213,24 @@ export default function VoucherPurchaseScreen() {
         showAlert('Payment failed', result.error || 'Try again', undefined, 'error');
         return;
       }
+
+      // Phase 11.1 hotfix — refetch SubscriptionContext slices BEFORE
+      // navigating so the destination screen reads live state. Each
+      // fetcher catches its own error so a flaky one doesn't block the
+      // landing. Branch-aware: vouchers + (autoOrderYes ? configs) so
+      // we don't pay for an unused fetch.
+      setRefreshing(true);
+      await Promise.allSettled([
+        fetchSubscriptions(),
+        fetchVouchers(),
+        ...(autoOrderYes === true ? [fetchAllAutoOrderConfigs()] : []),
+      ]);
+      setRefreshing(false);
+
       // Phase 11 — vouchers were issued but the auto-order setup half
       // failed and was auto-refunded. Customer keeps the pack; only the
-      // prepaid fees came back.
+      // prepaid fees came back. Still land on Account (the alert
+      // explains the partial outcome).
       if (result.refunded) {
         showAlert(
           'Pack purchased — auto-order not set up',
@@ -200,12 +240,18 @@ export default function VoucherPurchaseScreen() {
         );
         return;
       }
+
+      // Phase 11.1 hotfix — branch-aware success destination so the
+      // customer immediately sees what they just bought:
+      //   - autoOrderYes  → AutoOrderSettings (new setup + wallet card)
+      //   - pack-only     → Vouchers          (freshly-issued vouchers)
+      const successDestination = autoOrderYes === true ? 'AutoOrderSettings' : 'Vouchers';
       showAlert(
         'Pack purchased',
         autoOrderYes === true
           ? `Auto-order set up successfully. ₹${formatINR(quote?.totalFeesPrepaid ?? 0)} credited to your wallet for ${quote?.totalDeliveries ?? 0} upcoming deliveries.`
           : `${plan.totalVouchers} vouchers added to your account.`,
-        [{ text: 'OK', style: 'default', onPress: () => nav.navigate('Account') }],
+        [{ text: 'OK', style: 'default', onPress: () => nav.navigate(successDestination as never) }],
         'success',
       );
     } catch (e: any) {
@@ -513,7 +559,7 @@ export default function VoucherPurchaseScreen() {
           onPress={handlePay}
           activeOpacity={0.85}
         >
-          {submitting ? (
+          {submitting || refreshing ? (
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.payBtnText}>

@@ -81,6 +81,7 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
     fetchSubscriptions,
     autoOrderConfigs,
     fetchAllAutoOrderConfigs,
+    refreshSummary,
   } = useSubscription();
   useAddress();
 
@@ -103,9 +104,16 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
   useFocusEffect(
     useCallback(() => {
       if (!isGuest) {
+        // Phase 11.1 hotfix — always call refreshSummary (lightweight
+        // one-shot, ~50ms) so usableVouchers + walletBalance reflect the
+        // latest server state immediately on focus. This is what makes a
+        // post-purchase landing show fresh counts. The heavier
+        // fetchSubscriptions + fetchAllAutoOrderConfigs still respect
+        // the 30s cooldown to avoid thrashing on tab-switching.
+        refreshSummary();
         const now = Date.now();
         if (now - lastFetchTime.current < REFETCH_COOLDOWN_MS) {
-          console.log('[AccountScreen] Screen focused, skipping refresh (cooldown active)');
+          console.log('[AccountScreen] Screen focused, skipping heavy refresh (cooldown active)');
           return;
         }
         console.log('[AccountScreen] Screen focused, refreshing subscriptions and auto-order configs');
@@ -113,7 +121,7 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
         fetchSubscriptions();
         fetchAllAutoOrderConfigs();
       }
-    }, [isGuest, fetchSubscriptions, fetchAllAutoOrderConfigs])
+    }, [isGuest, fetchSubscriptions, fetchAllAutoOrderConfigs, refreshSummary])
   );
 
   // Show loading state only on initial load (no data yet)

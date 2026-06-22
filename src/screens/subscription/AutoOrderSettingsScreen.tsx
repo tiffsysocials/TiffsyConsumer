@@ -31,6 +31,13 @@ const AutoOrderSettingsScreen: React.FC<Props> = ({ navigation }) => {
     autoOrderConfigsLoading,
     fetchAllAutoOrderConfigs,
     walletBalance,
+    // Phase 11.1 hotfix — the wallet card on this screen renders
+    // walletBalance (derived from subscriptions[].globalWallet.balance).
+    // Refresh both the lightweight summary AND the full subscriptions
+    // list on focus so the card stays accurate after a recent pack
+    // purchase / wallet-paid order.
+    fetchSubscriptions,
+    refreshSummary,
   } = useSubscription();
   const { addresses } = useAddress();
 
@@ -41,13 +48,17 @@ const AutoOrderSettingsScreen: React.FC<Props> = ({ navigation }) => {
     fetchAllAutoOrderConfigs().catch(() => {});
   }, []);
 
-  // Refresh on focus (when returning from config screen)
+  // Refresh on focus (when returning from config screen). Phase 11.1
+  // hotfix — also refetch subscriptions (for the wallet card balance)
+  // and the live summary (for any header voucher / wallet chips).
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       fetchAllAutoOrderConfigs().catch(() => {});
+      fetchSubscriptions().catch(() => {});
+      refreshSummary().catch(() => {});
     });
     return unsubscribe;
-  }, [navigation, fetchAllAutoOrderConfigs]);
+  }, [navigation, fetchAllAutoOrderConfigs, fetchSubscriptions, refreshSummary]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
