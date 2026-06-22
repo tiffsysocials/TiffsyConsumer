@@ -432,92 +432,81 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
             resizeMode="cover"
           />
           <View style={{ padding: 20 }}>
-            {/* Top Row - Icon, Vouchers Count and Buy More Button */}
-            <View className="flex-row items-start justify-between mb-4">
-              <View className="flex-row items-center">
+            {/* Row 1 — two stat blocks side-by-side: vouchers (left) and
+                wallet (right), each with its own icon + count. The two
+                primary balances read as visual peers. */}
+            <View className="flex-row items-center justify-between mb-4">
+              {/* Vouchers stat */}
+              <View className="flex-row items-center" style={{ flex: 1 }}>
                 <Image
                   source={require('../../assets/icons/voucher4.png')}
                   style={{ width: SPACING.iconXl + 5, height: SPACING.iconXl + 5 }}
                   resizeMode="contain"
                 />
-                <View style={{ marginLeft: SPACING.md }}>
-                  {/* Headline: voucher count — the customer's primary spendable
-                      asset. Wallet chip moved to the right column to pair
-                      visually with the Buy More button. */}
-                  <Text style={{ fontSize: FONT_SIZES.h2, fontWeight: 'bold', color: '#111827' }}>
-                    {usableVouchers}{' '}
-                    <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'normal', color: '#374151' }}>
-                      vouchers
-                    </Text>
+                <Text style={{ marginLeft: SPACING.sm, fontSize: FONT_SIZES.h2, fontWeight: 'bold', color: '#111827' }}>
+                  {usableVouchers}{' '}
+                  <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'normal', color: '#374151' }}>
+                    vouchers
                   </Text>
-                </View>
+                </Text>
               </View>
-              {/* Right column — wallet chip stacked above the Buy More
-                  button so the two interactive pills read as a paired
-                  right-aligned set, balancing the voucher headline on
-                  the left. */}
-              <View style={{ alignItems: 'flex-end' }}>
-                {hasAnySubscription && (
-                  <TouchableOpacity
-                    onPress={() => navigation.navigate('WalletTransactions')}
-                    activeOpacity={0.85}
+
+              {/* Wallet stat — same icon-then-number-then-label structure
+                  as vouchers so the two read as a matched pair. Tap routes
+                  to WalletTransactions. */}
+              {hasAnySubscription && (
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('WalletTransactions')}
+                  activeOpacity={0.85}
+                  style={{ flexDirection: 'row', alignItems: 'center' }}
+                >
+                  <View
                     style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
+                      width: SPACING.iconXl + 5,
+                      height: SPACING.iconXl + 5,
+                      borderRadius: (SPACING.iconXl + 5) / 2,
                       backgroundColor: '#FFFFFF',
-                      borderRadius: 999,
-                      paddingHorizontal: 10,
-                      paddingVertical: 5,
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       borderWidth: 1,
                       borderColor: '#FED7AA',
-                      shadowColor: '#FE8733',
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.12,
-                      shadowRadius: 4,
-                      elevation: 2,
-                      marginBottom: 8,
                     }}
                   >
-                    <View
-                      style={{
-                        width: 18,
-                        height: 18,
-                        borderRadius: 9,
-                        backgroundColor: '#FE8733',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginRight: 6,
-                      }}
-                    >
-                      <MaterialCommunityIcons name="wallet" size={11} color="#FFFFFF" />
-                    </View>
-                    <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '700', color: '#9A3412' }}>
-                      ₹{Number.isInteger(walletBalance) ? walletBalance : walletBalance.toFixed(2)}
-                    </Text>
-                    <Text style={{ fontSize: 11, color: '#9A3412', marginLeft: 4, fontWeight: '500' }}>
+                    <MaterialCommunityIcons name="wallet" size={18} color="#FE8733" />
+                  </View>
+                  <Text style={{ marginLeft: SPACING.sm, fontSize: FONT_SIZES.h2, fontWeight: 'bold', color: '#111827' }}>
+                    ₹{Number.isInteger(walletBalance) ? walletBalance : walletBalance.toFixed(2)}{' '}
+                    <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'normal', color: '#374151' }}>
                       in wallet
                     </Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity
-                  className="bg-white rounded-full"
-                  style={{
-                    paddingHorizontal: SPACING.lg,
-                    paddingVertical: SPACING.sm,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 4,
-                    elevation: 2
-                  }}
-                  onPress={() => navigation.navigate('MealPlans')}
-                >
-                  <Text style={{ color: '#FE8733', fontWeight: '600', fontSize: FONT_SIZES.sm }}>
-                    Buy More
                   </Text>
                 </TouchableOpacity>
-              </View>
+              )}
             </View>
+
+            {/* Row 2 — full-width Buy More CTA. Anchors the card with a
+                single clear call-to-action sitting under both stats. */}
+            <TouchableOpacity
+              onPress={() => navigation.navigate('MealPlans')}
+              activeOpacity={0.85}
+              style={{
+                backgroundColor: '#FE8733',
+                borderRadius: 999,
+                paddingVertical: SPACING.md,
+                alignItems: 'center',
+                justifyContent: 'center',
+                shadowColor: '#FE8733',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.25,
+                shadowRadius: 6,
+                elevation: 3,
+                marginBottom: 16,
+              }}
+            >
+              <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: FONT_SIZES.base }}>
+                Buy More Vouchers
+              </Text>
+            </TouchableOpacity>
 
             {/* Description Text */}
             <Text className="text-sm text-gray-600 mb-4" style={{ lineHeight: 20 }}>
