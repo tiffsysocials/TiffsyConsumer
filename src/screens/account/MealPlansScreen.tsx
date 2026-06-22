@@ -641,17 +641,30 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                             Vouchers
                           </Text>
                         </View>
-                        <Text
+                        {/* Highlighted pill — tinted background so the
+                            equivalence stands out at a glance. */}
+                        <View
                           style={{
-                            fontFamily: 'Inter',
-                            fontWeight: '500',
-                            fontSize: 11,
-                            color: '#FE8733',
-                            marginTop: 2,
+                            backgroundColor: '#FFF7ED',
+                            borderWidth: 1,
+                            borderColor: '#FED7AA',
+                            borderRadius: 999,
+                            paddingHorizontal: 8,
+                            paddingVertical: 3,
+                            marginTop: 4,
                           }}
                         >
-                          1 voucher = 1 meal
-                        </Text>
+                          <Text
+                            style={{
+                              fontFamily: 'DMSans-SemiBold',
+                              fontWeight: '700',
+                              fontSize: 11,
+                              color: '#FE8733',
+                            }}
+                          >
+                            1 voucher = 1 meal
+                          </Text>
+                        </View>
                         <Text
                           style={{
                             fontFamily: 'Inter',
