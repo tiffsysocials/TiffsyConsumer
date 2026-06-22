@@ -18,6 +18,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { MainTabParamList } from '../../types/navigation';
 import { useUser } from '../../context/UserContext';
 import { useSubscription } from '../../context/SubscriptionContext';
+import WalletChip from '../../components/WalletChip';
 import { useAddress } from '../../context/AddressContext';
 import { Subscription } from '../../services/api.service';
 import ConfirmationModal from '../../components/ConfirmationModal';
@@ -41,6 +42,8 @@ const ACCOUNT_MENU_ITEMS = [
   { id: 'mealplans', label: 'Meal Plans', iconName: 'silverware-fork-knife', route: 'MealPlans' as const, authRequired: false },
   { id: 'vouchers', label: 'My Vouchers', iconName: 'ticket-percent-outline', route: 'Vouchers' as const, authRequired: true },
   { id: 'autoordersettings', label: 'Auto-Order Settings', iconName: 'refresh-auto', route: 'AutoOrderSettings' as const, authRequired: true },
+  // Phase 11.1 — full wallet activity (deposits + deductions + refunds)
+  { id: 'wallettx', label: 'Wallet History', iconName: 'wallet-outline', route: 'WalletTransactions' as const, authRequired: true },
   { id: 'mealcalendar', label: 'Meal Calendar', iconName: 'calendar-month-outline', route: 'MealCalendar' as const, authRequired: true },
   { id: 'scheduledmeals', label: 'Scheduled Meals', iconName: 'food-variant', route: 'MyScheduledMeals' as const, authRequired: true },
   { id: 'referral', label: 'Refer & Earn', iconName: 'gift-outline', route: 'ReferAndEarn' as const, authRequired: true },
@@ -71,6 +74,8 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
     activeSubscription,
     vouchers,
     usableVouchers,
+    walletBalance,
+    hasAnySubscription,
     subscriptions,
     loading,
     fetchSubscriptions,
@@ -278,30 +283,39 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
           {isGuest ? (
             <View style={{ width: isSmallDevice ? SPACING.iconXl * 1.2 : SPACING.iconXl * 1.45 }} />
           ) : (
-            <TouchableOpacity
-              onPress={() => navigation.navigate('MealPlans')}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: 'white',
-                borderRadius: SPACING.lg,
-                paddingVertical: SPACING.xs + 1,
-                paddingHorizontal: SPACING.sm,
-                gap: 4,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 4,
-                elevation: 3,
-              }}
-            >
-              <Image
-                source={require('../../assets/icons/voucher5.png')}
-                style={{ width: SPACING.iconSm + 2, height: SPACING.iconSm + 2 }}
-                resizeMode="contain"
-              />
-              <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: 'bold', color: '#FE8733' }}>{usableVouchers}</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {hasAnySubscription && (
+                <WalletChip
+                  balance={walletBalance}
+                  onPress={() => navigation.navigate('Vouchers')}
+                  size="md"
+                />
+              )}
+              <TouchableOpacity
+                onPress={() => navigation.navigate('MealPlans')}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: 'white',
+                  borderRadius: SPACING.lg,
+                  paddingVertical: SPACING.xs + 1,
+                  paddingHorizontal: SPACING.sm,
+                  gap: 4,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3,
+                }}
+              >
+                <Image
+                  source={require('../../assets/icons/voucher5.png')}
+                  style={{ width: SPACING.iconSm + 2, height: SPACING.iconSm + 2 }}
+                  resizeMode="contain"
+                />
+                <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: 'bold', color: '#FE8733' }}>{usableVouchers}</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
         </SafeAreaView>
@@ -425,6 +439,14 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
                       vouchers
                     </Text>
                   </Text>
+                  {hasAnySubscription && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                      <MaterialCommunityIcons name="wallet-outline" size={14} color="#FE8733" />
+                      <Text style={{ fontSize: FONT_SIZES.sm, color: '#374151', marginLeft: 4 }}>
+                        ₹{Number.isInteger(walletBalance) ? walletBalance : walletBalance.toFixed(2)} wallet credit
+                      </Text>
+                    </View>
+                  )}
                 </View>
               </View>
               <TouchableOpacity
