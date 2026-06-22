@@ -777,18 +777,23 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
                   flexDirection: 'row',
                   alignItems: 'center',
                   backgroundColor: 'white',
-                  borderRadius: 20,
-                  paddingVertical: 6,
-                  paddingHorizontal: 10,
-                  gap: 6,
+                  borderRadius: SPACING.lg,
+                  paddingVertical: SPACING.xs + 1,
+                  paddingHorizontal: SPACING.sm,
+                  gap: 4,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3,
                 }}
               >
                 <Image
                   source={require('../../assets/icons/voucher5.png')}
-                  style={{ width: 24, height: 24 }}
+                  style={{ width: SPACING.iconSm + 2, height: SPACING.iconSm + 2 }}
                   resizeMode="contain"
                 />
-                <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#FE8733' }}>
+                <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: 'bold', color: '#FE8733' }}>
                   {usableVouchers}
                 </Text>
               </TouchableOpacity>
