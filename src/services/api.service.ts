@@ -2672,11 +2672,29 @@ class ApiService {
         razorpayOrderId: string;
         razorpayPaymentId: string | null;
         purchaseType: 'ORDER' | 'SUBSCRIPTION';
+        referenceId?: string | null;
         status: string;
         amountRupees: number;
+        amount?: number;
         paymentMethod: string | null;
         paidAt: string | null;
         createdAt: string;
+        breakdown?: {
+          subtotal?: number;
+          tax?: number;
+          autoOrderWalletTopup?: number;
+          autoOrderSetupPrepaidFees?: number;
+          [k: string]: number | undefined;
+        };
+        notes?: {
+          planName?: string;
+          totalVouchers?: number;
+          durationDays?: number;
+          vouchersPerDay?: number;
+          autoOrderSetup?: { addressId?: string };
+          autoOrderSetupQuote?: { totalFeesPrepaid?: number; totalDeliveries?: number };
+          [k: string]: any;
+        };
       }>;
       count: number;
     };

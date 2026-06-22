@@ -15,14 +15,20 @@ import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context'
 import { StackScreenProps } from '@react-navigation/stack';
 import { MainTabParamList } from '../../types/navigation';
 import { useSubscription } from '../../context/SubscriptionContext';
+import WalletChip from '../../components/WalletChip';
 import { Voucher, VoucherStatus } from '../../services/api.service';
 import { useResponsive } from '../../hooks/useResponsive';
 import { SPACING, TOUCH_TARGETS } from '../../constants/spacing';
 import { FONT_SIZES } from '../../constants/typography';
+import SubscriptionsTab from './components/SubscriptionsTab';
 
 type Props = StackScreenProps<MainTabParamList, 'Vouchers'>;
 
-// Filter tab options
+// Top-level tab — split the screen between the voucher list (old
+// behaviour) and the new subscription-payment audit trail.
+type TopTab = 'VOUCHERS' | 'SUBSCRIPTIONS';
+
+// Filter tab options (inside the Vouchers top-tab)
 type FilterTab = 'ALL' | VoucherStatus;
 
 const FILTER_TABS: { id: FilterTab; label: string }[] = [
@@ -38,6 +44,8 @@ const VouchersScreen: React.FC<Props> = ({ navigation }) => {
     vouchers,
     voucherSummary,
     usableVouchers,
+    walletBalance,
+    hasAnySubscription,
     vouchersLoading,
     error,
     fetchVouchers,
@@ -45,6 +53,7 @@ const VouchersScreen: React.FC<Props> = ({ navigation }) => {
   } = useSubscription();
   const { isSmallDevice } = useResponsive();
 
+  const [activeTopTab, setActiveTopTab] = useState<TopTab>('VOUCHERS');
   const [activeFilter, setActiveFilter] = useState<FilterTab>('ALL');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -283,42 +292,98 @@ const VouchersScreen: React.FC<Props> = ({ navigation }) => {
             My Vouchers
           </Text>
 
-          {/* Voucher Button */}
-          <TouchableOpacity
-            onPress={() => navigation.navigate('MealPlans')}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              backgroundColor: 'white',
-              borderRadius: SPACING.lg,
-              paddingVertical: SPACING.xs + 1,
-              paddingHorizontal: SPACING.sm,
-              gap: 4,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 3,
-            }}
-          >
-            <Image
-              source={require('../../assets/icons/voucher4.png')}
-              style={{ width: SPACING.iconSm + 2, height: SPACING.iconSm + 2 }}
-              resizeMode="contain"
-            />
-            <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: 'bold', color: '#FE8733' }}>{usableVouchers}</Text>
-          </TouchableOpacity>
+          {/* Wallet + Voucher chips */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {hasAnySubscription && <WalletChip balance={walletBalance} size="md" />}
+            <TouchableOpacity
+              onPress={() => navigation.navigate('MealPlans')}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: 'white',
+                borderRadius: SPACING.lg,
+                paddingVertical: SPACING.xs + 1,
+                paddingHorizontal: SPACING.sm,
+                gap: 4,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 3,
+              }}
+            >
+              <Image
+                source={require('../../assets/icons/voucher4.png')}
+                style={{ width: SPACING.iconSm + 2, height: SPACING.iconSm + 2 }}
+                resizeMode="contain"
+              />
+              <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: 'bold', color: '#FE8733' }}>{usableVouchers}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
               </SafeAreaView>
       </LinearGradient>
 
       {/* Content Area */}
       <View className="flex-1 bg-gray-50">
-        {/* Summary Cards */}
-        <View className="flex-row px-5 pt-6 pb-4">
+        {/* Top-level tabs: Vouchers (default — preserves old screen
+            verbatim) | Subscriptions (new — payment audit trail). Pill
+            container styled like YourOrdersScreen so the hierarchy is
+            visually distinct from the voucher-status chips below. */}
+        <View
+          style={{
+            flexDirection: 'row',
+            marginHorizontal: 20,
+            marginTop: 16,
+            backgroundColor: '#F3F4F6',
+            borderRadius: 999,
+            padding: 4,
+          }}
+        >
+          {(['VOUCHERS', 'SUBSCRIPTIONS'] as const).map((tab) => {
+            const active = activeTopTab === tab;
+            return (
+              <TouchableOpacity
+                key={tab}
+                onPress={() => setActiveTopTab(tab)}
+                style={{
+                  flex: 1,
+                  paddingVertical: 10,
+                  borderRadius: 999,
+                  backgroundColor: active ? '#FFFFFF' : 'transparent',
+                  alignItems: 'center',
+                  shadowColor: active ? '#000' : 'transparent',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: active ? 0.08 : 0,
+                  shadowRadius: 2,
+                  elevation: active ? 2 : 0,
+                }}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={{
+                    fontSize: FONT_SIZES.base,
+                    fontWeight: active ? '700' : '500',
+                    color: active ? '#FE8733' : '#6B7280',
+                  }}
+                >
+                  {tab === 'VOUCHERS' ? 'Vouchers' : 'Subscriptions'}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {activeTopTab === 'SUBSCRIPTIONS' ? (
+          <SubscriptionsTab onNavigateToPlans={() => navigation.navigate('MealPlans')} />
+        ) : (
+        <>
+        {/* Summary Cards — 4 columns when the user has a subscription
+            (Available / Redeemed / Expired / Wallet), 3 columns otherwise. */}
+        <View className="flex-row px-5 pt-6 pb-4" style={{ gap: 6 }}>
         {/* Available */}
         <View
-          className="flex-1 bg-white rounded-xl p-3 mr-2"
+          className="flex-1 bg-white rounded-xl p-3"
           style={{
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 2 },
@@ -338,7 +403,7 @@ const VouchersScreen: React.FC<Props> = ({ navigation }) => {
 
         {/* Redeemed */}
         <View
-          className="flex-1 bg-white rounded-xl p-3 mr-2"
+          className="flex-1 bg-white rounded-xl p-3"
           style={{
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 2 },
@@ -375,6 +440,29 @@ const VouchersScreen: React.FC<Props> = ({ navigation }) => {
             {voucherSummary?.expired ?? 0}
           </Text>
         </View>
+
+        {/* Wallet — only shown to subscribed users so guests / never-
+            subscribed users don't see an empty fourth card. */}
+        {hasAnySubscription && (
+          <View
+            className="flex-1 bg-white rounded-xl p-3"
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.08,
+              shadowRadius: 8,
+              elevation: 3,
+            }}
+          >
+            <View className="flex-row items-center mb-1">
+              <View className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: '#FE8733' }} />
+              <Text className="text-xs text-gray-500">Wallet</Text>
+            </View>
+            <Text className="text-2xl font-bold text-gray-900">
+              ₹{Number.isInteger(walletBalance) ? walletBalance : walletBalance.toFixed(2)}
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Filter Tabs */}
@@ -450,6 +538,8 @@ const VouchersScreen: React.FC<Props> = ({ navigation }) => {
           }
         />
       )}
+        </>
+        )}
       </View>
     </View>
   );
