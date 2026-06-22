@@ -17,11 +17,12 @@ import { useUser } from '../../context/UserContext';
 import { useResponsive } from '../../hooks/useResponsive';
 import { SPACING, TOUCH_TARGETS } from '../../constants/spacing';
 import { FONT_SIZES } from '../../constants/typography';
+import WalletChip from '../../components/WalletChip';
 
 type Props = StackScreenProps<MainTabParamList, 'OnDemand'>;
 
 const OnDemandScreen: React.FC<Props> = ({ navigation }) => {
-  const { usableVouchers } = useSubscription();
+  const { usableVouchers, walletBalance, hasAnySubscription } = useSubscription();
   const { isGuest } = useUser();
   const { isSmallDevice } = useResponsive();
   const insets = useSafeAreaInsets();
@@ -77,34 +78,46 @@ const OnDemandScreen: React.FC<Props> = ({ navigation }) => {
             On-Demand
           </Text>
 
-          {/* Voucher Button — hidden in guest mode; replaced with an invisible spacer of the same width as the logo so the title stays visually centered */}
+          {/* Wallet + Voucher chips — hidden in guest mode; replaced
+              with an invisible spacer of the same width as the logo so
+              the title stays visually centered. Wallet chip only when
+              the user actually has a pack. */}
           {isGuest ? (
             <View style={{ width: isSmallDevice ? SPACING.iconXl * 1.2 : SPACING.iconXl * 1.45 }} />
           ) : (
-            <TouchableOpacity
-              onPress={() => navigation.navigate('MealPlans')}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: 'white',
-                borderRadius: SPACING.lg,
-                paddingVertical: SPACING.xs + 1,
-                paddingHorizontal: SPACING.sm,
-                gap: 4,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 4,
-                elevation: 3,
-              }}
-            >
-              <Image
-                source={require('../../assets/icons/voucher5.png')}
-                style={{ width: SPACING.iconSm + 2, height: SPACING.iconSm + 2 }}
-                resizeMode="contain"
-              />
-              <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: 'bold', color: '#FE8733' }}>{usableVouchers}</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {hasAnySubscription && (
+                <WalletChip
+                  balance={walletBalance}
+                  onPress={() => navigation.navigate('WalletTransactions' as never)}
+                  size="md"
+                />
+              )}
+              <TouchableOpacity
+                onPress={() => navigation.navigate('MealPlans')}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: 'white',
+                  borderRadius: SPACING.lg,
+                  paddingVertical: SPACING.xs + 1,
+                  paddingHorizontal: SPACING.sm,
+                  gap: 4,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3,
+                }}
+              >
+                <Image
+                  source={require('../../assets/icons/voucher5.png')}
+                  style={{ width: SPACING.iconSm + 2, height: SPACING.iconSm + 2 }}
+                  resizeMode="contain"
+                />
+                <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: 'bold', color: '#FE8733' }}>{usableVouchers}</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
               </SafeAreaView>
