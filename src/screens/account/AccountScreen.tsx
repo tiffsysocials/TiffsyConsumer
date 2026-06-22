@@ -464,9 +464,12 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
                     borderColor: '#FED7AA',
                   }}
                 >
+                  {/* voucher4.png has internal padding so it renders
+                      visually smaller than a same-size vector glyph.
+                      Bump the Image dimensions to compensate. */}
                   <Image
                     source={require('../../assets/icons/voucher4.png')}
-                    style={{ width: 22, height: 22 }}
+                    style={{ width: 32, height: 32 }}
                     resizeMode="contain"
                   />
                 </View>
