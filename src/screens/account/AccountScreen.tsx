@@ -448,14 +448,14 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
                     </Text>
                   </Text>
                   {hasAnySubscription && (
-                    // Flush-left under '29 vouchers' so the two lines share
-                    // the same x-origin. Previously the leading wallet icon
-                    // shifted the text right and the lines looked staggered.
-                    <Text style={{ fontSize: FONT_SIZES.sm, color: '#374151', marginTop: 4 }}>
-                      <Text style={{ color: '#FE8733', fontWeight: '700' }}>
-                        ₹{Number.isInteger(walletBalance) ? walletBalance : walletBalance.toFixed(2)}
+                    // Mirror the '29 vouchers' treatment exactly — big bold
+                    // amount + inline lightweight label — so the two lines
+                    // read as a matched pair instead of headline + caption.
+                    <Text style={{ fontSize: FONT_SIZES.h2, fontWeight: 'bold', color: '#111827', marginTop: 2 }}>
+                      ₹{Number.isInteger(walletBalance) ? walletBalance : walletBalance.toFixed(2)}{' '}
+                      <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'normal', color: '#374151' }}>
+                        wallet credit
                       </Text>
-                      {' '}wallet credit
                     </Text>
                   )}
                 </View>
