@@ -432,78 +432,102 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
             resizeMode="cover"
           />
           <View style={{ padding: 20 }}>
-            {/* Row 1 — two stat blocks side-by-side. BOTH icons live in
-                identical circular white bubbles with a soft orange border
-                so they read as a matched pair (previously the voucher
-                image was raw + the wallet was in a bubble — looked
-                mismatched). Each block gets flex: 1 so they share the
-                row evenly and don't overlap when counts get wider. */}
-            <View className="flex-row items-center mb-4" style={{ gap: 10 }}>
-              {/* Vouchers stat */}
-              <View className="flex-row items-center" style={{ flex: 1 }}>
+            {/* Row 1 — two side-by-side stat blocks, each rendered as a
+                white pill containing icon + number + label inline. Two
+                pills divide the row evenly with flex:1, and the label
+                lives INSIDE each pill so there's no wrapping or overlap
+                possible. Icons match: both 28px circular white bubbles
+                with a soft orange border. */}
+            <View className="flex-row items-center mb-4" style={{ gap: 8 }}>
+              {/* Vouchers stat pill */}
+              <View
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: 'rgba(255,255,255,0.85)',
+                  borderRadius: 999,
+                  paddingVertical: 8,
+                  paddingHorizontal: 10,
+                  borderWidth: 1,
+                  borderColor: '#FED7AA',
+                }}
+              >
                 <View
                   style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 16,
+                    width: 28,
+                    height: 28,
+                    borderRadius: 14,
                     backgroundColor: '#FFFFFF',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    marginRight: 8,
                     borderWidth: 1,
                     borderColor: '#FED7AA',
                   }}
                 >
                   <Image
                     source={require('../../assets/icons/voucher4.png')}
-                    style={{ width: 18, height: 18 }}
+                    style={{ width: 16, height: 16 }}
                     resizeMode="contain"
                   />
                 </View>
-                <View style={{ marginLeft: 8, flexShrink: 1 }}>
-                  <Text
-                    style={{ fontSize: FONT_SIZES.lg, fontWeight: 'bold', color: '#111827', lineHeight: 20 }}
-                    numberOfLines={1}
-                  >
-                    {usableVouchers}
+                <Text
+                  style={{ flex: 1, fontSize: 14, fontWeight: '700', color: '#111827' }}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
+                >
+                  {usableVouchers}
+                  <Text style={{ fontWeight: '500', color: '#374151', fontSize: 13 }}>
+                    {' '}vouchers
                   </Text>
-                  <Text style={{ fontSize: 11, color: '#374151', marginTop: 1 }}>
-                    vouchers
-                  </Text>
-                </View>
+                </Text>
               </View>
 
-              {/* Wallet stat — identical structure to vouchers. Tap → WalletTransactions. */}
+              {/* Wallet stat pill — identical to vouchers. Tap → WalletTransactions. */}
               {hasAnySubscription && (
                 <TouchableOpacity
                   onPress={() => navigation.navigate('WalletTransactions')}
                   activeOpacity={0.85}
-                  style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
+                  style={{
+                    flex: 1,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: 'rgba(255,255,255,0.85)',
+                    borderRadius: 999,
+                    paddingVertical: 8,
+                    paddingHorizontal: 10,
+                    borderWidth: 1,
+                    borderColor: '#FED7AA',
+                  }}
                 >
                   <View
                     style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 16,
+                      width: 28,
+                      height: 28,
+                      borderRadius: 14,
                       backgroundColor: '#FFFFFF',
                       alignItems: 'center',
                       justifyContent: 'center',
+                      marginRight: 8,
                       borderWidth: 1,
                       borderColor: '#FED7AA',
                     }}
                   >
-                    <MaterialCommunityIcons name="wallet" size={16} color="#FE8733" />
+                    <MaterialCommunityIcons name="wallet" size={15} color="#FE8733" />
                   </View>
-                  <View style={{ marginLeft: 8, flexShrink: 1 }}>
-                    <Text
-                      style={{ fontSize: FONT_SIZES.lg, fontWeight: 'bold', color: '#111827', lineHeight: 20 }}
-                      numberOfLines={1}
-                    >
-                      ₹{Number.isInteger(walletBalance) ? walletBalance : walletBalance.toFixed(2)}
+                  <Text
+                    style={{ flex: 1, fontSize: 14, fontWeight: '700', color: '#111827' }}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.8}
+                  >
+                    ₹{Number.isInteger(walletBalance) ? walletBalance : walletBalance.toFixed(2)}
+                    <Text style={{ fontWeight: '500', color: '#374151', fontSize: 13 }}>
+                      {' '}in wallet
                     </Text>
-                    <Text style={{ fontSize: 11, color: '#374151', marginTop: 1 }}>
-                      in wallet
-                    </Text>
-                  </View>
+                  </Text>
                 </TouchableOpacity>
               )}
             </View>
