@@ -448,12 +448,15 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
                     </Text>
                   </Text>
                   {hasAnySubscription && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                      <MaterialCommunityIcons name="wallet-outline" size={14} color="#FE8733" />
-                      <Text style={{ fontSize: FONT_SIZES.sm, color: '#374151', marginLeft: 4 }}>
-                        ₹{Number.isInteger(walletBalance) ? walletBalance : walletBalance.toFixed(2)} wallet credit
+                    // Flush-left under '29 vouchers' so the two lines share
+                    // the same x-origin. Previously the leading wallet icon
+                    // shifted the text right and the lines looked staggered.
+                    <Text style={{ fontSize: FONT_SIZES.sm, color: '#374151', marginTop: 4 }}>
+                      <Text style={{ color: '#FE8733', fontWeight: '700' }}>
+                        ₹{Number.isInteger(walletBalance) ? walletBalance : walletBalance.toFixed(2)}
                       </Text>
-                    </View>
+                      {' '}wallet credit
+                    </Text>
                   )}
                 </View>
               </View>
