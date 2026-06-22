@@ -432,12 +432,10 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
             resizeMode="cover"
           />
           <View style={{ padding: 20 }}>
-            {/* Row 1 — two side-by-side stat blocks, each rendered as a
-                white pill containing icon + number + label inline. Two
-                pills divide the row evenly with flex:1, and the label
-                lives INSIDE each pill so there's no wrapping or overlap
-                possible. Icons match: both 28px circular white bubbles
-                with a soft orange border. */}
+            {/* Row 1 — two side-by-side stat pills with bigger icons and
+                bigger text. Single font size on each pill so nothing
+                auto-shrinks; numberOfLines + ellipsis truncates only if
+                the count is unreasonably wide. */}
             <View className="flex-row items-center mb-4" style={{ gap: 8 }}>
               {/* Vouchers stat pill */}
               <View
@@ -447,7 +445,7 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
                   alignItems: 'center',
                   backgroundColor: 'rgba(255,255,255,0.85)',
                   borderRadius: 999,
-                  paddingVertical: 8,
+                  paddingVertical: 10,
                   paddingHorizontal: 10,
                   borderWidth: 1,
                   borderColor: '#FED7AA',
@@ -455,33 +453,29 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
               >
                 <View
                   style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 14,
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
                     backgroundColor: '#FFFFFF',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginRight: 8,
+                    marginRight: 10,
                     borderWidth: 1,
                     borderColor: '#FED7AA',
                   }}
                 >
                   <Image
                     source={require('../../assets/icons/voucher4.png')}
-                    style={{ width: 16, height: 16 }}
+                    style={{ width: 22, height: 22 }}
                     resizeMode="contain"
                   />
                 </View>
                 <Text
-                  style={{ flex: 1, fontSize: 14, fontWeight: '700', color: '#111827' }}
+                  style={{ flex: 1, fontSize: 16, fontWeight: '700', color: '#111827' }}
                   numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.8}
+                  ellipsizeMode="tail"
                 >
-                  {usableVouchers}
-                  <Text style={{ fontWeight: '500', color: '#374151', fontSize: 13 }}>
-                    {' '}vouchers
-                  </Text>
+                  {usableVouchers} <Text style={{ fontWeight: '500', color: '#374151' }}>vouchers</Text>
                 </Text>
               </View>
 
@@ -496,7 +490,7 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
                     alignItems: 'center',
                     backgroundColor: 'rgba(255,255,255,0.85)',
                     borderRadius: 999,
-                    paddingVertical: 8,
+                    paddingVertical: 10,
                     paddingHorizontal: 10,
                     borderWidth: 1,
                     borderColor: '#FED7AA',
@@ -504,29 +498,25 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
                 >
                   <View
                     style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 14,
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
                       backgroundColor: '#FFFFFF',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      marginRight: 8,
+                      marginRight: 10,
                       borderWidth: 1,
                       borderColor: '#FED7AA',
                     }}
                   >
-                    <MaterialCommunityIcons name="wallet" size={15} color="#FE8733" />
+                    <MaterialCommunityIcons name="wallet" size={20} color="#FE8733" />
                   </View>
                   <Text
-                    style={{ flex: 1, fontSize: 14, fontWeight: '700', color: '#111827' }}
+                    style={{ flex: 1, fontSize: 16, fontWeight: '700', color: '#111827' }}
                     numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.8}
+                    ellipsizeMode="tail"
                   >
-                    ₹{Number.isInteger(walletBalance) ? walletBalance : walletBalance.toFixed(2)}
-                    <Text style={{ fontWeight: '500', color: '#374151', fontSize: 13 }}>
-                      {' '}in wallet
-                    </Text>
+                    ₹{Number.isInteger(walletBalance) ? walletBalance : walletBalance.toFixed(2)} <Text style={{ fontWeight: '500', color: '#374151' }}>in wallet</Text>
                   </Text>
                 </TouchableOpacity>
               )}
