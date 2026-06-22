@@ -215,9 +215,13 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
     return (basePricePerVoucher - thisPricePerVoucher) * plan.totalVouchers;
   };
 
-  // Calculate price per voucher
+  // Calculate price per voucher. Show 2 decimals so a ₹1/14-voucher
+  // plan reads as ₹0.07 instead of being rounded to ₹0.
   const calculatePricePerVoucher = (plan: SubscriptionPlan) => {
-    return Math.round(plan.price / plan.totalVouchers);
+    if (!plan?.totalVouchers || plan.totalVouchers <= 0) return '0';
+    const v = plan.price / plan.totalVouchers;
+    if (v >= 1) return Math.round(v).toString();
+    return v.toFixed(2);
   };
 
   // Render loading skeleton
@@ -483,10 +487,69 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                     resizeMode="cover"
                   />
 
-                  {/* Content */}
+                  {/* Content — surfaces every admin-input field that's set:
+                      badge, name, description, originalPrice strikethrough,
+                      features, voucherValidityDays. Hidden when unset. */}
                   <View style={{ flex: 1, padding: 16 }}>
-                    {/* Voucher Icon + Plan Name */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                    {/* Top row: badge (left, admin-input) + Save chip (right) */}
+                    {(plan.badge || savings > 0) && (
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: 8,
+                        }}
+                      >
+                        {plan.badge ? (
+                          <View
+                            style={{
+                              backgroundColor: '#FE8733',
+                              borderRadius: 12,
+                              paddingHorizontal: 10,
+                              paddingVertical: 3,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontFamily: 'DMSans-SemiBold',
+                                fontWeight: '700',
+                                fontSize: 10,
+                                color: '#FFFFFF',
+                                letterSpacing: 0.5,
+                                textTransform: 'uppercase',
+                              }}
+                            >
+                              {plan.badge}
+                            </Text>
+                          </View>
+                        ) : <View />}
+                        {savings > 0 && (
+                          <View
+                            style={{
+                              backgroundColor: 'rgba(233, 255, 238, 1)',
+                              borderRadius: 16,
+                              paddingHorizontal: 10,
+                              paddingVertical: 3,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontFamily: 'DMSans-SemiBold',
+                                fontWeight: '600',
+                                fontSize: 11,
+                                color: 'rgba(0, 139, 30, 1)',
+                              }}
+                            >
+                              Save ₹{savings}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    )}
+
+                    {/* Icon + Plan name */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
                       <Image
                         source={require('../../assets/icons/newvoucher2.png')}
                         style={{ width: 22, height: 22, marginRight: 8 }}
@@ -495,8 +558,8 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                       <Text
                         style={{
                           fontFamily: 'DMSans-SemiBold',
-                          fontWeight: '600',
-                          fontSize: 14,
+                          fontWeight: '700',
+                          fontSize: 16,
                           color: '#000000',
                         }}
                       >
@@ -504,65 +567,60 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                       </Text>
                     </View>
 
-                    {/* Save Badge - positioned top right */}
-                    {savings > 0 && (
-                      <View
+                    {/* Description (admin-input, optional) */}
+                    {plan.description ? (
+                      <Text
                         style={{
-                          position: 'absolute',
-                          top: 14,
-                          right: 14,
-                          backgroundColor: 'rgba(233, 255, 238, 1)',
-                          borderRadius: 16,
-                          paddingHorizontal: 10,
-                          paddingVertical: 3,
+                          fontFamily: 'Inter',
+                          fontSize: 12,
+                          color: '#374151',
+                          marginBottom: 10,
+                          lineHeight: 16,
                         }}
+                        numberOfLines={2}
                       >
-                        <Text
-                          style={{
-                            fontFamily: 'DMSans-SemiBold',
-                            fontWeight: '600',
-                            fontSize: 11,
-                            color: 'rgba(0, 139, 30, 1)',
-                          }}
-                        >
-                          Save ₹{savings}
-                        </Text>
-                      </View>
+                        {plan.description}
+                      </Text>
+                    ) : (
+                      <View style={{ height: 8 }} />
                     )}
 
-                    {/* Price Row */}
+                    {/* Price row */}
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <View>
-                        {/* Price */}
+                      <View style={{ flex: 1, marginRight: 12 }}>
+                        {/* originalPrice strikethrough (admin-input, optional) */}
+                        {plan.originalPrice && plan.originalPrice > plan.price && (
+                          <Text
+                            style={{
+                              fontFamily: 'Inter',
+                              fontSize: 12,
+                              color: '#9CA3AF',
+                              textDecorationLine: 'line-through',
+                              marginBottom: 2,
+                            }}
+                          >
+                            ₹{plan.originalPrice.toFixed(2)}
+                          </Text>
+                        )}
                         <Text
                           style={{
                             fontFamily: 'DMSans-SemiBold',
-                            fontWeight: '600',
-                            fontSize: 24,
-                            lineHeight: 28,
+                            fontWeight: '700',
+                            fontSize: 26,
+                            lineHeight: 30,
                             color: '#000000',
                           }}
                         >
                           ₹{plan.price.toFixed(2)}
                         </Text>
-
-                        {/* Phase 11.1 — bottom-left voucher count + Meals/Day
-                            line removed. The voucher count is now the big
-                            right headline (no need to repeat it on the left),
-                            and 'Meals/Day' was a misleading cap — customers
-                            can redeem as many meals as they want, the pack
-                            just constrains the total voucher pool. */}
                       </View>
 
-                      {/* Total vouchers — the pack is sold by voucher count
-                          (durationDays is the validity window, not the headline
-                          metric). */}
                       <View style={{ alignItems: 'flex-end' }}>
                         <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
                           <Text
                             style={{
                               fontFamily: 'DMSans-SemiBold',
-                              fontWeight: '600',
+                              fontWeight: '700',
                               fontSize: 30,
                               lineHeight: 34,
                               color: '#000000',
@@ -583,10 +641,6 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                             Vouchers
                           </Text>
                         </View>
-
-                        {/* '1 voucher = 1 meal' clarifier — small, italic,
-                            sits right under the headline so the customer
-                            immediately knows what a voucher buys. */}
                         <Text
                           style={{
                             fontFamily: 'Inter',
@@ -598,21 +652,71 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                         >
                           1 voucher = 1 meal
                         </Text>
-
-                        {/* Price per voucher */}
                         <Text
                           style={{
                             fontFamily: 'Inter',
                             fontWeight: '400',
                             fontSize: 12,
-                            color: '#000000',
+                            color: '#374151',
                             marginTop: 3,
                           }}
                         >
-                          ₹{pricePerVoucher}/Voucher
+                          ₹{pricePerVoucher}/voucher
                         </Text>
                       </View>
                     </View>
+
+                    {/* Features (admin-input array of strings, optional) */}
+                    {Array.isArray(plan.features) && plan.features.length > 0 && (
+                      <View style={{ marginTop: 12 }}>
+                        {plan.features.slice(0, 3).map((feature: string, idx: number) => (
+                          <View
+                            key={idx}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'flex-start',
+                              marginBottom: idx === Math.min(plan.features.length, 3) - 1 ? 0 : 4,
+                            }}
+                          >
+                            <Text style={{ color: '#16A34A', marginRight: 6, fontSize: 12 }}>✓</Text>
+                            <Text
+                              style={{
+                                fontFamily: 'Inter',
+                                fontSize: 12,
+                                color: '#1F2937',
+                                flex: 1,
+                                lineHeight: 16,
+                              }}
+                            >
+                              {feature}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+
+                    {/* Footer — voucher validity. Always present (schema
+                        default is 90 days) so this is reliable. */}
+                    {plan.voucherValidityDays ? (
+                      <View
+                        style={{
+                          marginTop: 10,
+                          paddingTop: 8,
+                          borderTopWidth: 1,
+                          borderTopColor: 'rgba(0,0,0,0.06)',
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontFamily: 'Inter',
+                            fontSize: 11,
+                            color: '#6B7280',
+                          }}
+                        >
+                          Vouchers valid for {plan.voucherValidityDays} days from purchase
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
                 </TouchableOpacity>
               );
