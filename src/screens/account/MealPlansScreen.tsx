@@ -546,43 +546,17 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                           ₹{plan.price.toFixed(2)}
                         </Text>
 
-                        {/* Vouchers and Meals */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
-                          <Text
-                            style={{
-                              fontFamily: 'Inter',
-                              fontWeight: '400',
-                              fontSize: 12,
-                              color: '#000000',
-                            }}
-                          >
-                            {plan.totalVouchers} Vouchers
-                          </Text>
-                          <Text
-                            style={{
-                              fontFamily: 'Inter',
-                              fontWeight: '400',
-                              fontSize: 12,
-                              color: '#000000',
-                              marginHorizontal: 6,
-                            }}
-                          >
-                            •
-                          </Text>
-                          <Text
-                            style={{
-                              fontFamily: 'Inter',
-                              fontWeight: '400',
-                              fontSize: 12,
-                              color: '#000000',
-                            }}
-                          >
-                            {plan.vouchersPerDay} Meals/Day
-                          </Text>
-                        </View>
+                        {/* Phase 11.1 — bottom-left voucher count + Meals/Day
+                            line removed. The voucher count is now the big
+                            right headline (no need to repeat it on the left),
+                            and 'Meals/Day' was a misleading cap — customers
+                            can redeem as many meals as they want, the pack
+                            just constrains the total voucher pool. */}
                       </View>
 
-                      {/* Days */}
+                      {/* Total vouchers — the pack is sold by voucher count
+                          (durationDays is the validity window, not the headline
+                          metric). */}
                       <View style={{ alignItems: 'flex-end' }}>
                         <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
                           <Text
@@ -594,7 +568,7 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                               color: '#000000',
                             }}
                           >
-                            {plan.durationDays}
+                            {plan.totalVouchers}
                           </Text>
                           <Text
                             style={{
@@ -606,9 +580,24 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                               marginLeft: 3,
                             }}
                           >
-                            Days
+                            Vouchers
                           </Text>
                         </View>
+
+                        {/* '1 voucher = 1 meal' clarifier — small, italic,
+                            sits right under the headline so the customer
+                            immediately knows what a voucher buys. */}
+                        <Text
+                          style={{
+                            fontFamily: 'Inter',
+                            fontWeight: '500',
+                            fontSize: 11,
+                            color: '#FE8733',
+                            marginTop: 2,
+                          }}
+                        >
+                          1 voucher = 1 meal
+                        </Text>
 
                         {/* Price per voucher */}
                         <Text
@@ -658,7 +647,7 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
               marginBottom: 16,
             }}
           >
-            How voucher's work?
+            How vouchers work
           </Text>
 
           <View>
