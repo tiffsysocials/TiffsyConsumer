@@ -441,6 +441,8 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
                   resizeMode="contain"
                 />
                 <View style={{ marginLeft: SPACING.md }}>
+                  {/* Headline: voucher count — the customer's primary spendable
+                      asset, so it gets the biggest type. */}
                   <Text style={{ fontSize: FONT_SIZES.h2, fontWeight: 'bold', color: '#111827' }}>
                     {usableVouchers}{' '}
                     <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'normal', color: '#374151' }}>
@@ -448,15 +450,53 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
                     </Text>
                   </Text>
                   {hasAnySubscription && (
-                    // Mirror the '29 vouchers' treatment exactly — big bold
-                    // amount + inline lightweight label — so the two lines
-                    // read as a matched pair instead of headline + caption.
-                    <Text style={{ fontSize: FONT_SIZES.h2, fontWeight: 'bold', color: '#111827', marginTop: 2 }}>
-                      ₹{Number.isInteger(walletBalance) ? walletBalance : walletBalance.toFixed(2)}{' '}
-                      <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'normal', color: '#374151' }}>
-                        wallet credit
+                    // Wallet as a tinted chip sitting under the headline.
+                    // Different visual *type* from the voucher line on purpose
+                    // — vouchers are the main currency, wallet is the
+                    // secondary delivery-fee fund — so a pill differentiates
+                    // them rather than restating the same big-number layout.
+                    <TouchableOpacity
+                      onPress={() => navigation.navigate('WalletTransactions')}
+                      activeOpacity={0.85}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        alignSelf: 'flex-start',
+                        marginTop: 6,
+                        backgroundColor: '#FFFFFF',
+                        borderRadius: 999,
+                        paddingHorizontal: 10,
+                        paddingVertical: 5,
+                        borderWidth: 1,
+                        borderColor: '#FED7AA',
+                        shadowColor: '#FE8733',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.12,
+                        shadowRadius: 4,
+                        elevation: 2,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 18,
+                          height: 18,
+                          borderRadius: 9,
+                          backgroundColor: '#FE8733',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginRight: 6,
+                        }}
+                      >
+                        <MaterialCommunityIcons name="wallet" size={11} color="#FFFFFF" />
+                      </View>
+                      <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '700', color: '#9A3412' }}>
+                        ₹{Number.isInteger(walletBalance) ? walletBalance : walletBalance.toFixed(2)}
                       </Text>
-                    </Text>
+                      <Text style={{ fontSize: 11, color: '#9A3412', marginLeft: 4, fontWeight: '500' }}>
+                        in wallet
+                      </Text>
+                      <MaterialCommunityIcons name="chevron-right" size={14} color="#9A3412" style={{ marginLeft: 2 }} />
+                    </TouchableOpacity>
                   )}
                 </View>
               </View>
