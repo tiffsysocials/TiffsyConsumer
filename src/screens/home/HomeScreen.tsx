@@ -46,6 +46,7 @@ import {
   parseTimeToMinutes,
 } from '../../utils/mealCutoff';
 import NotificationBell from '../../components/NotificationBell';
+import WalletChip from '../../components/WalletChip';
 import { useResponsive, useScaling } from '../../hooks/useResponsive';
 import { SPACING, TOUCH_TARGETS } from '../../constants/spacing';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -87,7 +88,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     setVoucherCount,
   } = useCart();
   const { getMainAddress, selectedAddressId, addresses, currentLocation, isGettingLocation } = useAddress();
-  const { usableVouchers, subscriptions, fetchSubscriptions, fetchVouchers, autoOrderConfigs } = useSubscription();
+  const { usableVouchers, walletBalance, hasAnySubscription, subscriptions, fetchSubscriptions, fetchVouchers, autoOrderConfigs, refreshSummary } = useSubscription();
   const { fetchUnreadCount, fetchNotifications } = useNotifications();
   const { isGuest, exitGuestMode } = useUser();
   const { banners, isLoading: isBannersLoading, loadBanners } = useBanners();
@@ -573,6 +574,15 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     console.log('[HomeScreen] useEffect triggered - selectedAddressId:', selectedAddressId, 'addresses.length:', addresses.length);
     fetchMenu();
   }, [selectedAddressId, addresses.length]);
+
+  // Phase 11.1 — refresh wallet + voucher counts every time the home
+  // screen gains focus. One lightweight call to /api/subscriptions/me/summary
+  // — no need to refetch the full vouchers + subscriptions lists each time.
+  useFocusEffect(
+    useCallback(() => {
+      refreshSummary();
+    }, [refreshSummary])
+  );
 
   // Also refetch menu when screen comes into focus (e.g., returning from AddressScreen)
   useFocusEffect(
@@ -1238,6 +1248,15 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
               <View className="flex-row items-center" style={{ gap: SPACING.sm + 2 }}>
                 {/* Notification Bell */}
                 <NotificationBell color="white" size={SPACING.iconSize - 2} />
+
+                {/* Wallet chip — only shown to subscribed users so guests and
+                    never-subscribed customers don't see a stray ₹0. */}
+                {!isGuest && hasAnySubscription && (
+                  <WalletChip
+                    balance={walletBalance}
+                    onPress={() => navigation.navigate('Vouchers')}
+                  />
+                )}
 
                 {/* Voucher Button — hidden in guest mode only. Logged-in users
                     always see their voucher balance, regardless of today's meal state. */}

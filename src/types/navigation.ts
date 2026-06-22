@@ -58,6 +58,9 @@ export type MainTabParamList = {
   // setupId routes to a specific array entry; addressId picks the first
   // match if multiple setups share an address.
   AutoOrderManage: { subscriptionId?: string; setupId?: string; addressId?: string } | undefined;
+  // Phase 11.1 — full wallet transaction history (deposits + deductions
+  // + refunds across all subscriptions).
+  WalletTransactions: undefined;
   BulkOrders: undefined;
   Vouchers: undefined;  // View all vouchers with status filters
   OnDemand: undefined;  // On-Demand screen (Coming Soon)

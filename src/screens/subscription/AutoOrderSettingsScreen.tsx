@@ -30,6 +30,7 @@ const AutoOrderSettingsScreen: React.FC<Props> = ({ navigation }) => {
     autoOrderConfigs,
     autoOrderConfigsLoading,
     fetchAllAutoOrderConfigs,
+    walletBalance,
   } = useSubscription();
   const { addresses } = useAddress();
 
@@ -170,6 +171,47 @@ const AutoOrderSettingsScreen: React.FC<Props> = ({ navigation }) => {
               </View>
             </View>
           </View>
+        </View>
+
+        {/* Phase 11.1 — wallet card + history tap target. Always visible
+            so the customer can audit deposits/debits any time. */}
+        <View className="mx-4 mb-4">
+          <TouchableOpacity
+            onPress={() => navigation.navigate('WalletTransactions' as never)}
+            activeOpacity={0.7}
+            style={{
+              backgroundColor: '#FFF7ED',
+              borderRadius: 16,
+              padding: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              borderWidth: 1,
+              borderColor: '#FED7AA',
+            }}
+          >
+            <View
+              style={{
+                width: 52, height: 52, borderRadius: 14,
+                backgroundColor: '#fff',
+                alignItems: 'center', justifyContent: 'center',
+                marginRight: 14,
+              }}
+            >
+              <MaterialCommunityIcons name="wallet" size={26} color="#FE8733" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: FONT_SIZES.sm, color: '#9A3412', fontWeight: '600' }}>
+                Auto-order Wallet
+              </Text>
+              <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#FE8733', lineHeight: 28, marginTop: 2 }}>
+                ₹{(walletBalance ?? 0).toFixed(2)}
+              </Text>
+              <Text style={{ fontSize: 11, color: '#9A3412', marginTop: 2 }}>
+                Tap to view full transaction history
+              </Text>
+            </View>
+            <Text style={{ fontSize: 22, color: '#FE8733' }}>›</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Address Configs Section */}

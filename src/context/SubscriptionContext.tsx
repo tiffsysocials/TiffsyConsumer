@@ -43,6 +43,14 @@ interface SubscriptionContextType {
   voucherSummary: VoucherSummary;
   totalVouchersAvailable: number;
   usableVouchers: number; // AVAILABLE + RESTORED vouchers count
+  // Sum of every subscription's globalWallet.balance. Phase-11 wallet is
+  // per-subscription on the backend; we aggregate so callers (header chips,
+  // account card) can show a single rupee number.
+  walletBalance: number;
+  // True when the user has at least one Subscription document — used by UI to
+  // decide whether to show ₹0 wallet (real, just empty) vs hide the chip
+  // entirely (guest / never-subscribed).
+  hasAnySubscription: boolean;
   loading: boolean;
   plansLoading: boolean;
   vouchersLoading: boolean;
@@ -52,6 +60,8 @@ interface SubscriptionContextType {
   fetchPlans: (zoneId?: string) => Promise<void>;
   fetchSubscriptions: (status?: SubscriptionStatus) => Promise<void>;
   fetchVouchers: (status?: VoucherStatus) => Promise<void>;
+  // Phase 11.1 — fast one-shot refresh (server-aggregated summary)
+  refreshSummary: () => Promise<void>;
   purchasePlan: (planId: string) => Promise<PurchaseSubscriptionResponse>;
   cancelSubscription: (subscriptionId: string, reason?: string) => Promise<CancelSubscriptionResponse>;
   checkEligibility: (data: CheckVoucherEligibilityRequest) => Promise<CheckVoucherEligibilityResponse>;
@@ -154,6 +164,8 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       console.log('[SubscriptionContext] fetchSubscriptions - Total vouchers available:', response.data.totalVouchersAvailable);
 
       setSubscriptions(subscriptionsData);
+      // Full refetch landed — drop the summary cache so computed values take over.
+      setSummarySnapshot(null);
 
       // Handle activeSubscription - use API data or derive from subscriptions
       let activeSubData: ActiveSubscriptionSummary | null = response.data.activeSubscription;
@@ -241,6 +253,8 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       console.log('[SubscriptionContext] fetchVouchers - Status breakdown:', JSON.stringify(statusCounts));
 
       setVouchers(allVouchers);
+      // Full refetch landed — drop the summary cache so computed values take over.
+      setSummarySnapshot(null);
 
       // Use summary from API (should be accurate across all pages)
       if (firstResponse.data.summary) {
@@ -264,6 +278,27 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       setVouchersLoading(false);
     }
   }, [isGuest, isAuthenticated]);
+
+  // Phase 11.1 — fast one-shot refresh for HomeScreen / cart / settings.
+  // Hits the lightweight summary endpoint and overrides the locally-
+  // computed usableVouchers + walletBalance with live server values.
+  // Falls silent on error so callers can call it unconditionally on
+  // screen focus without worrying about toast spam.
+  const refreshSummary = useCallback(async (): Promise<void> => {
+    if (!isAuthenticated || isGuest) return;
+    try {
+      const res = await apiService.getWalletAndVoucherSummary();
+      if (res?.success && res.data) {
+        setSummarySnapshot({
+          usableVouchers: res.data.usableVouchers,
+          walletBalance: res.data.walletBalance,
+          asOf: res.data.asOf,
+        });
+      }
+    } catch (err: any) {
+      console.log('[SubscriptionContext] refreshSummary - Error:', err?.message || err);
+    }
+  }, [isAuthenticated, isGuest]);
 
   // Purchase a plan
   const purchasePlan = useCallback(async (planId: string): Promise<PurchaseSubscriptionResponse> => {
@@ -572,8 +607,28 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
     }
   }, [isAuthenticated, isGuest, user, fetchSubscriptions, fetchVouchers]);
 
-  // Calculate usable vouchers (AVAILABLE + RESTORED)
-  const usableVouchers = (voucherSummary?.available ?? 0) + (voucherSummary?.restored ?? 0);
+  // Phase 11.1 — one-shot summary cache (server-side aggregated). When
+  // populated, overrides the locally-computed values until the next full
+  // refetch lands. Powers HomeScreen pull-to-refresh without re-fetching
+  // the entire vouchers + subscriptions lists.
+  const [summarySnapshot, setSummarySnapshot] = useState<{
+    usableVouchers: number;
+    walletBalance: number;
+    asOf: string;
+  } | null>(null);
+
+  const computedUsableVouchers =
+    (voucherSummary?.available ?? 0) + (voucherSummary?.restored ?? 0);
+  const computedWalletBalance = subscriptions.reduce(
+    (sum, s) => sum + (s.globalWallet?.balance ?? 0),
+    0,
+  );
+
+  // Prefer the summary snapshot when present (fresher). The full fetchers
+  // clear it so the computed values become source of truth post-refetch.
+  const usableVouchers = summarySnapshot?.usableVouchers ?? computedUsableVouchers;
+  const walletBalance = summarySnapshot?.walletBalance ?? computedWalletBalance;
+  const hasAnySubscription = subscriptions.length > 0;
 
   // DEBUG: Log voucher calculation details whenever it changes
   useEffect(() => {
@@ -600,6 +655,8 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
     voucherSummary,
     totalVouchersAvailable,
     usableVouchers,
+    walletBalance,
+    hasAnySubscription,
     loading,
     plansLoading,
     vouchersLoading,
@@ -609,6 +666,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
     fetchPlans,
     fetchSubscriptions,
     fetchVouchers,
+    refreshSummary,
     purchasePlan,
     cancelSubscription,
     checkEligibility,

@@ -2191,6 +2191,49 @@ class ApiService {
     );
   }
 
+  // Phase 11.1 — paginated wallet transaction history across all of the
+  // user's subscriptions. Sorted newest first.
+  async getWalletTransactions(params?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      currentBalance: number;
+      total: number;
+      offset: number;
+      limit: number;
+      transactions: Array<{
+        subscriptionId: string;
+        type: 'DEPOSIT' | 'DEDUCTION' | 'REFUND_CREDIT' | 'ADJUSTMENT';
+        source: 'PACK_PURCHASE' | 'TOPUP' | 'AUTO_ORDER' | 'MANUAL' | 'MIGRATION';
+        amount: number;
+        orderId: string | null;
+        balanceBefore: number;
+        balanceAfter: number;
+        timestamp: string;
+        note: string | null;
+      }>;
+    };
+  }> {
+    return this.api.get('/api/subscriptions/wallet/transactions', { params });
+  }
+
+  // Phase 11.1 — one-shot live summary for HomeScreen pull-to-refresh.
+  // Returns the live voucher count + total wallet balance in one call.
+  async getWalletAndVoucherSummary(): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      usableVouchers: number;
+      walletBalance: number;
+      asOf: string;
+    };
+  }> {
+    return this.api.get('/api/subscriptions/me/summary');
+  }
+
   // Phase 11.1 — remove one specific entry from autoOrderSetups[].
   // Wallet balance is preserved (leftover stays in globalWallet).
   async deleteAutoOrderSetup(
