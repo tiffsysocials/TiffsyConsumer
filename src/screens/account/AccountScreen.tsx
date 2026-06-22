@@ -433,7 +433,7 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
           />
           <View style={{ padding: 20 }}>
             {/* Top Row - Icon, Vouchers Count and Buy More Button */}
-            <View className="flex-row items-center justify-between mb-4">
+            <View className="flex-row items-start justify-between mb-4">
               <View className="flex-row items-center">
                 <Image
                   source={require('../../assets/icons/voucher4.png')}
@@ -442,81 +442,81 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
                 />
                 <View style={{ marginLeft: SPACING.md }}>
                   {/* Headline: voucher count — the customer's primary spendable
-                      asset, so it gets the biggest type. */}
+                      asset. Wallet chip moved to the right column to pair
+                      visually with the Buy More button. */}
                   <Text style={{ fontSize: FONT_SIZES.h2, fontWeight: 'bold', color: '#111827' }}>
                     {usableVouchers}{' '}
                     <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'normal', color: '#374151' }}>
                       vouchers
                     </Text>
                   </Text>
-                  {hasAnySubscription && (
-                    // Wallet as a tinted chip sitting under the headline.
-                    // Different visual *type* from the voucher line on purpose
-                    // — vouchers are the main currency, wallet is the
-                    // secondary delivery-fee fund — so a pill differentiates
-                    // them rather than restating the same big-number layout.
-                    <TouchableOpacity
-                      onPress={() => navigation.navigate('WalletTransactions')}
-                      activeOpacity={0.85}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        alignSelf: 'flex-start',
-                        marginTop: 6,
-                        backgroundColor: '#FFFFFF',
-                        borderRadius: 999,
-                        paddingHorizontal: 10,
-                        paddingVertical: 5,
-                        borderWidth: 1,
-                        borderColor: '#FED7AA',
-                        shadowColor: '#FE8733',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.12,
-                        shadowRadius: 4,
-                        elevation: 2,
-                      }}
-                    >
-                      <View
-                        style={{
-                          width: 18,
-                          height: 18,
-                          borderRadius: 9,
-                          backgroundColor: '#FE8733',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          marginRight: 6,
-                        }}
-                      >
-                        <MaterialCommunityIcons name="wallet" size={11} color="#FFFFFF" />
-                      </View>
-                      <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '700', color: '#9A3412' }}>
-                        ₹{Number.isInteger(walletBalance) ? walletBalance : walletBalance.toFixed(2)}
-                      </Text>
-                      <Text style={{ fontSize: 11, color: '#9A3412', marginLeft: 4, fontWeight: '500' }}>
-                        in wallet
-                      </Text>
-                      <MaterialCommunityIcons name="chevron-right" size={14} color="#9A3412" style={{ marginLeft: 2 }} />
-                    </TouchableOpacity>
-                  )}
                 </View>
               </View>
-              <TouchableOpacity
-                className="bg-white rounded-full"
-                style={{
-                  paddingHorizontal: SPACING.lg,
-                  paddingVertical: SPACING.sm,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 4,
-                  elevation: 2
-                }}
-                onPress={() => navigation.navigate('MealPlans')}
-              >
-                <Text style={{ color: '#FE8733', fontWeight: '600', fontSize: FONT_SIZES.sm }}>
-                  Buy More
-                </Text>
-              </TouchableOpacity>
+              {/* Right column — wallet chip stacked above the Buy More
+                  button so the two interactive pills read as a paired
+                  right-aligned set, balancing the voucher headline on
+                  the left. */}
+              <View style={{ alignItems: 'flex-end' }}>
+                {hasAnySubscription && (
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('WalletTransactions')}
+                    activeOpacity={0.85}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      backgroundColor: '#FFFFFF',
+                      borderRadius: 999,
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                      borderWidth: 1,
+                      borderColor: '#FED7AA',
+                      shadowColor: '#FE8733',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.12,
+                      shadowRadius: 4,
+                      elevation: 2,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: 9,
+                        backgroundColor: '#FE8733',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: 6,
+                      }}
+                    >
+                      <MaterialCommunityIcons name="wallet" size={11} color="#FFFFFF" />
+                    </View>
+                    <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '700', color: '#9A3412' }}>
+                      ₹{Number.isInteger(walletBalance) ? walletBalance : walletBalance.toFixed(2)}
+                    </Text>
+                    <Text style={{ fontSize: 11, color: '#9A3412', marginLeft: 4, fontWeight: '500' }}>
+                      in wallet
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  className="bg-white rounded-full"
+                  style={{
+                    paddingHorizontal: SPACING.lg,
+                    paddingVertical: SPACING.sm,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 4,
+                    elevation: 2
+                  }}
+                  onPress={() => navigation.navigate('MealPlans')}
+                >
+                  <Text style={{ color: '#FE8733', fontWeight: '600', fontSize: FONT_SIZES.sm }}>
+                    Buy More
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Description Text */}
