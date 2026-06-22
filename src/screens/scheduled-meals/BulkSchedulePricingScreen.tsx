@@ -23,6 +23,7 @@ import apiService, { BulkPricingData, BulkSlotPricing, AddonItem } from '../../s
 import AddonSelector, { SelectedAddon } from '../../components/AddonSelector';
 import CouponSheet from '../../components/CouponSheet';
 import DeliveryPreferenceToggles from '../../components/DeliveryPreferenceToggles';
+import DeliveryFeeInfoModal from '../../components/DeliveryFeeInfoModal';
 import paymentService from '../../services/payment.service';
 import { useResponsive } from '../../hooks/useResponsive';
 import { SPACING } from '../../constants/spacing';
@@ -65,6 +66,7 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
   const [vouchersToUse, setVouchersToUse] = useState(0);
   const [cookingInstructions, setCookingInstructions] = useState('');
   const [showCookingInput, setShowCookingInput] = useState(false);
+  const [showDeliveryFeeInfo, setShowDeliveryFeeInfo] = useState(false);
   const [leaveAtDoor, setLeaveAtDoor] = useState(false);
   const [doNotContact, setDoNotContact] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1089,7 +1091,21 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
                   );
                   return (
                     <>
-                      {agg.deliveryFee > 0 && <Row label="Delivery Fee" value={agg.deliveryFee} />}
+                      {agg.deliveryFee > 0 && (
+                        <View style={rowStyle}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={labelStyle}>Delivery Fee</Text>
+                            <TouchableOpacity
+                              onPress={() => setShowDeliveryFeeInfo(true)}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                              style={{ marginLeft: 4 }}
+                            >
+                              <MaterialCommunityIcons name="information-outline" size={14} color="#9CA3AF" />
+                            </TouchableOpacity>
+                          </View>
+                          <Text style={valueStyle}>{'\u20B9'}{agg.deliveryFee.toFixed(2)}</Text>
+                        </View>
+                      )}
                       {agg.serviceFee > 0 && <Row label="Service Charge" value={agg.serviceFee} />}
                       {agg.packagingFee > 0 && <Row label="Packaging" value={agg.packagingFee} />}
                       {agg.handlingFee > 0 && <Row label="Handling Fee" value={agg.handlingFee} />}
@@ -1487,6 +1503,11 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
           hasAddons={selectedLunchAddons.length > 0 || selectedDinnerAddons.length > 0}
         />
       )}
+
+      <DeliveryFeeInfoModal
+        visible={showDeliveryFeeInfo}
+        onClose={() => setShowDeliveryFeeInfo(false)}
+      />
     </View>
   );
 };

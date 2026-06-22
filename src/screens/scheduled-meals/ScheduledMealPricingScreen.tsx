@@ -20,6 +20,7 @@ import apiService, { ScheduledMealPricingData, AddonItem } from '../../services/
 import paymentService from '../../services/payment.service';
 import AddonSelector, { SelectedAddon } from '../../components/AddonSelector';
 import DeliveryPreferenceToggles from '../../components/DeliveryPreferenceToggles';
+import DeliveryFeeInfoModal from '../../components/DeliveryFeeInfoModal';
 import { useResponsive, useScaling } from '../../hooks/useResponsive';
 import { SPACING } from '../../constants/spacing';
 import { FONT_SIZES } from '../../constants/typography';
@@ -58,6 +59,7 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [deliveryNotes, setDeliveryNotes] = useState('');
+  const [showDeliveryFeeInfo, setShowDeliveryFeeInfo] = useState(false);
   const [leaveAtDoor, setLeaveAtDoor] = useState(false);
   const [doNotContact, setDoNotContact] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -426,8 +428,17 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
 
               {/* Delivery Fee */}
               {pricing.charges.deliveryFee > 0 && (
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: SPACING.sm }}>
-                  <Text style={{ fontSize: FONT_SIZES.sm, color: '#4B5563' }}>Delivery</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ fontSize: FONT_SIZES.sm, color: '#4B5563' }}>Delivery</Text>
+                    <TouchableOpacity
+                      onPress={() => setShowDeliveryFeeInfo(true)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={{ marginLeft: 4 }}
+                    >
+                      <MaterialCommunityIcons name="information-outline" size={14} color="#9CA3AF" />
+                    </TouchableOpacity>
+                  </View>
                   <Text style={{ fontSize: FONT_SIZES.sm, color: '#4B5563' }}>₹{pricing.charges.deliveryFee}</Text>
                 </View>
               )}
@@ -722,6 +733,11 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+      <DeliveryFeeInfoModal
+        visible={showDeliveryFeeInfo}
+        onClose={() => setShowDeliveryFeeInfo(false)}
+        deliveryFee={pricingData?.pricing?.charges?.deliveryFee ?? null}
+      />
     </View>
   );
 };

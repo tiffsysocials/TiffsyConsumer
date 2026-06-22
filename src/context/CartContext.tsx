@@ -47,6 +47,11 @@ interface CartContextType {
   removeAddon: (itemId: string, addonIndex: number) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
+  // Update cart items' `price` field in-place from a {menuItemId: newPrice}
+  // map. Called by CartScreen after a menu refresh so the per-row total and
+  // the local-fallback subtotal don't show stale numbers if the admin
+  // tweaked thali pricing while the cart was open.
+  syncCartItemPrices: (priceById: Record<string, number>) => void;
   getTotalItems: () => number;
   getSubtotal: () => number;
 
@@ -324,6 +329,24 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setCartItems(prevItems => prevItems.filter(item => item.id !== id));
   }, []);
 
+  // Sync the `price` field on every cart item to the latest menu snapshot.
+  // The caller passes a {menuItemId → newPrice} map; items not in the map
+  // are left untouched. A new array is returned only when at least one
+  // item's price actually changes — that keeps React from re-rendering the
+  // cart on every menu refresh when prices are stable.
+  const syncCartItemPrices = useCallback((priceById: Record<string, number>) => {
+    setCartItems(prevItems => {
+      let mutated = false;
+      const next = prevItems.map(item => {
+        const newPrice = priceById[item.id];
+        if (typeof newPrice !== 'number' || newPrice === item.price) return item;
+        mutated = true;
+        return { ...item, price: newPrice };
+      });
+      return mutated ? next : prevItems;
+    });
+  }, []);
+
   // Remove all items for a specific meal window
   const removeItemsForSlot = useCallback((window: MealWindow) => {
     setCartItems(prevItems => prevItems.filter(item => item.mealWindow !== window));
@@ -544,6 +567,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         removeAddon,
         removeItem,
         clearCart,
+        syncCartItemPrices,
         getTotalItems,
         getSubtotal,
 
