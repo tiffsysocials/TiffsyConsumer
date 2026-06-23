@@ -228,11 +228,11 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   // Handle rate order
-  const handleRateOrder = async (stars: number, comment?: string) => {
+  const handleRateOrder = async (stars: number, comment?: string, tags?: string[]) => {
     try {
       setIsRating(true);
-      console.log('[OrderDetailScreen] Rating order:', orderId, 'Stars:', stars);
-      const response = await apiService.rateOrder(orderId, stars, comment);
+      console.log('[OrderDetailScreen] Rating order:', orderId, 'Stars:', stars, 'Tags:', tags);
+      const response = await apiService.rateOrder(orderId, stars, comment, tags);
       console.log('[OrderDetailScreen] Rating response:', JSON.stringify(response, null, 2));
 
       if (response.success) {
@@ -567,6 +567,43 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               <Text className="text-sm text-gray-900">₹{order.charges.deliveryFee.toFixed(2)}</Text>
             </View>
           )}
+          {/* Phase 8 — distance + source explainer (uses persisted snapshot). */}
+          {(() => {
+            const dm = order.distanceMetadata;
+            if (!dm) return null;
+            const parts: string[] = [];
+            if (dm.distanceFromKitchenKm != null) {
+              parts.push(`${dm.distanceFromKitchenKm.toFixed(1)} km from kitchen`);
+            }
+            if (dm.appliedSourceLabel) {
+              const label =
+                dm.appliedSourceLabel === 'zone' ? 'Zone pricing' :
+                dm.appliedSourceLabel === 'global' ? 'Distance pricing' :
+                'Flat rate';
+              parts.push(label);
+            }
+            if (parts.length === 0) return null;
+            return (
+              <View className="mb-2" style={{ marginTop: -4 }}>
+                <Text style={{ fontSize: 11, color: '#9CA3AF' }}>
+                  {parts.join(' · ')}
+                </Text>
+              </View>
+            );
+          })()}
+          {/* Phase 8 — surface the FREE_DELIVERY saving with the rupee value
+              the coupon zeroed out (deliveryDiscount comes from the order's
+              discount snapshot at placement). */}
+          {order.discount?.deliveryDiscount != null && order.discount.deliveryDiscount > 0 && (
+            <View className="flex-row justify-between mb-2">
+              <Text className="text-sm text-green-600">
+                Free Delivery{order.discount.couponCode ? ` (${order.discount.couponCode})` : ''}
+              </Text>
+              <Text className="text-sm text-green-600">
+                − ₹{order.discount.deliveryDiscount.toFixed(2)}
+              </Text>
+            </View>
+          )}
 
           {order.charges.serviceFee > 0 && (
             <View className="flex-row justify-between mb-2">
@@ -617,15 +654,8 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             </View>
           )}
 
-          {/* Coupon Discount */}
-          {order.discount?.couponCode && order.discount.discountType === 'FREE_DELIVERY' && (
-            <View className="flex-row justify-between mb-2">
-              <Text className="text-sm text-green-600">
-                Free Delivery ({order.discount.couponCode})
-              </Text>
-              <Text className="text-sm text-green-600">Applied</Text>
-            </View>
-          )}
+          {/* Coupon Discount — for FREE_DELIVERY the "saved you ₹X" line above
+              already shows the value, so we don't render a separate "Applied" row. */}
           {order.discount?.couponCode && ((order.discount.discountAmount || 0) + (order.discount.addonDiscountAmount || 0)) > 0 && (
             <View className="flex-row justify-between mb-2">
               <Text className="text-sm text-green-600">
@@ -905,14 +935,14 @@ const OrderDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
         {/* Action Buttons */}
         <View style={{ padding: isSmallDevice ? SPACING.lg : SPACING.xl, marginBottom: SPACING['2xl'] }}>
-          {/* Track Order - for active orders */}
+          {/* Back to Tracking - for active orders (details are opened from the tracking screen) */}
           {isActiveOrder && (
             <TouchableOpacity
               onPress={handleTrackOrder}
               className="rounded-full items-center justify-center mb-3"
               style={{ backgroundColor: '#FE8733', minHeight: TOUCH_TARGETS.comfortable }}
             >
-              <Text className="text-white font-bold" style={{ fontSize: FONT_SIZES.base }}>Track Order</Text>
+              <Text className="text-white font-bold" style={{ fontSize: FONT_SIZES.base }}>Back to Tracking</Text>
             </TouchableOpacity>
           )}
 

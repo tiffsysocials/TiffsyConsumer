@@ -63,6 +63,8 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
   const [leaveAtDoor, setLeaveAtDoor] = useState(false);
   const [doNotContact, setDoNotContact] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  // Number of thalis to schedule for this slot.
+  const [quantity, setQuantity] = useState(1);
 
   // Add-on state
   const [availableAddons, setAvailableAddons] = useState<AddonItem[]>([]);
@@ -134,29 +136,47 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
     fetchAddons();
   }, [pricingData?.kitchen?.id, mealWindow, addonsFetched]);
 
-  // Build items array with addons for pricing/creation
+  // Build items array (main course at the chosen quantity + any addons) for
+  // pricing/creation. Always returns items so the chosen quantity reaches the
+  // backend even when no addons are selected.
   const buildItemsWithAddons = useCallback(() => {
     if (!pricingData) return undefined;
-    if (selectedAddons.length === 0) return undefined;
-    return pricingData.items.map(item => ({
-      menuItemId: item.menuItemId,
-      quantity: item.quantity,
+    const mainItem = pricingData.items.find(i => i.isMainCourse) || pricingData.items[0];
+    if (!mainItem) return undefined;
+    return [{
+      menuItemId: mainItem.menuItemId,
+      quantity,
       addons: selectedAddons.map(a => ({ addonId: a.addonId, quantity: a.quantity })),
-    }));
-  }, [pricingData, selectedAddons]);
+    }];
+  }, [pricingData, quantity, selectedAddons]);
 
   // Re-fetch pricing when addons change
   const handleAddonsChanged = useCallback((newAddons: SelectedAddon[]) => {
     if (!pricingData) return;
-    const items = newAddons.length > 0
-      ? pricingData.items.map(item => ({
-          menuItemId: item.menuItemId,
-          quantity: item.quantity,
+    const mainItem = pricingData.items.find(i => i.isMainCourse) || pricingData.items[0];
+    const items = mainItem
+      ? [{
+          menuItemId: mainItem.menuItemId,
+          quantity,
           addons: newAddons.map(a => ({ addonId: a.addonId, quantity: a.quantity })),
-        }))
+        }]
       : undefined;
     fetchPricing(appliedCoupon || undefined, items);
-  }, [pricingData, appliedCoupon, fetchPricing]);
+  }, [pricingData, quantity, appliedCoupon, fetchPricing]);
+
+  // Re-fetch pricing when thali quantity changes
+  const handleQuantityChange = useCallback((newQty: number) => {
+    if (newQty < 1 || newQty > 10 || !pricingData) return;
+    setQuantity(newQty);
+    const mainItem = pricingData.items.find(i => i.isMainCourse) || pricingData.items[0];
+    if (!mainItem) return;
+    const items = [{
+      menuItemId: mainItem.menuItemId,
+      quantity: newQty,
+      addons: selectedAddons.map(a => ({ addonId: a.addonId, quantity: a.quantity })),
+    }];
+    fetchPricing(appliedCoupon || undefined, items);
+  }, [pricingData, selectedAddons, appliedCoupon, fetchPricing]);
 
   // Add-on handlers
   const selectedAddonsRef = React.useRef(selectedAddons);
@@ -385,8 +405,31 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
                     <Text style={{ fontSize: FONT_SIZES.lg, fontWeight: 'bold', color: '#1F2937', flex: 1 }}>{item.name}</Text>
                     <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: '#1F2937' }}>₹{item.unitPrice}</Text>
                   </View>
-                  {item.quantity > 1 && (
-                    <Text style={{ fontSize: FONT_SIZES.xs, color: '#6B7280', marginTop: 2 }}>Qty: {item.quantity}</Text>
+                  {item.isMainCourse ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: SPACING.sm }}>
+                      <Text style={{ fontSize: FONT_SIZES.xs, color: '#6B7280' }}>How many thalis?</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <TouchableOpacity
+                          onPress={() => handleQuantityChange(quantity - 1)}
+                          disabled={quantity <= 1 || isLoading}
+                          style={{ width: 32, height: 32, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center', opacity: quantity <= 1 ? 0.4 : 1 }}
+                        >
+                          <MaterialCommunityIcons name="minus" size={18} color="#FE8733" />
+                        </TouchableOpacity>
+                        <Text style={{ marginHorizontal: SPACING.md, fontSize: FONT_SIZES.base, fontWeight: '700', color: '#1F2937', minWidth: 20, textAlign: 'center' }}>{quantity}</Text>
+                        <TouchableOpacity
+                          onPress={() => handleQuantityChange(quantity + 1)}
+                          disabled={quantity >= 10 || isLoading}
+                          style={{ width: 32, height: 32, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center', opacity: quantity >= 10 ? 0.4 : 1 }}
+                        >
+                          <MaterialCommunityIcons name="plus" size={18} color="#FE8733" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : (
+                    item.quantity > 1 && (
+                      <Text style={{ fontSize: FONT_SIZES.xs, color: '#6B7280', marginTop: 2 }}>Qty: {item.quantity}</Text>
+                    )
                   )}
                   {item.addons && item.addons.length > 0 && (
                     <View style={{ marginTop: SPACING.xs }}>

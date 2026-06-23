@@ -293,6 +293,50 @@ export interface KitchenMenuResponse {
   };
 }
 
+/**
+ * Phase 6: matched DeliveryZone pricing for a single meal window.
+ * Returned as part of ServiceableKitchensV2Response when the backend
+ * resolves the customer's address against the new DeliveryZone model.
+ */
+export interface MatchedZonePricing {
+  deliveryFee: number;
+  platformFee: number;
+  handlingFee: number;
+  serviceFee: number;
+  packagingFee: number;
+  minOrderAmount: number;
+  freeDeliveryAbove: number | null;
+}
+
+export interface ServiceableKitchenV2 {
+  kitchen: KitchenInfo;
+  matchedZone: {
+    _id: string;
+    name: string;
+    priority: number;
+  };
+  matchedArea: {
+    _id: string;
+    name: string;
+    pincode: string;
+  } | null;
+  fees: MatchedZonePricing;
+  /** Phase 8 — kitchen → customer Haversine distance in km (0.1 precision).
+   *  Absent when either side lacks coordinates. */
+  distanceKm?: number;
+}
+
+export interface ServiceableKitchensV2Response {
+  success: boolean;
+  message?: string;
+  data: {
+    kitchens: ServiceableKitchenV2[];
+    count: number;
+    mealWindow: 'LUNCH' | 'DINNER';
+    message?: string;
+  };
+}
+
 export interface AddressKitchensResponse {
   success: boolean;
   message?: string;
@@ -378,6 +422,8 @@ export interface Coupon {
 export interface GetAvailableCouponsParams {
   kitchenId?: string;
   zoneId?: string;
+  /** Phase 6: per-kitchen DeliveryZone ID (preferred over zoneId post-cutover) */
+  deliveryZoneId?: string;
   orderValue?: number;
   menuType?: 'MEAL_MENU' | 'ON_DEMAND_MENU';
 }
@@ -394,7 +440,10 @@ export interface GetAvailableCouponsResponse {
 export interface ValidateCouponRequest {
   code: string;
   kitchenId: string;
+  /** Legacy pincode-Zone ID. Send empty string if not available. */
   zoneId: string;
+  /** Phase 6: per-kitchen DeliveryZone ID from the matched zone. Optional. */
+  deliveryZoneId?: string;
   orderValue: number;
   itemCount: number;
   menuType: 'MEAL_MENU' | 'ON_DEMAND_MENU';
@@ -480,6 +529,8 @@ export interface CalculatePricingRequest {
   menuType: 'MEAL_MENU' | 'ON_DEMAND_MENU';
   mealWindow?: 'LUNCH' | 'DINNER';
   deliveryAddressId: string;
+  /** Phase 6: authoritative DeliveryZone id resolved by HomeScreen via v2 match. */
+  deliveryZoneId?: string;
   items: OrderItem[];
   voucherCount: number;
   couponCode?: string | null;
@@ -578,6 +629,8 @@ export interface CalculatePricingResponse {
   message: string;
   data: {
     breakdown: PricingBreakdown;
+    /** Phase 8 — present whenever the backend resolved a delivery-pricing source. */
+    distancePricing?: CalculatePricingDistanceBlock;
     voucherEligibility: VoucherEligibility;
     distancePricing?: DistancePricing;
   };
@@ -624,6 +677,7 @@ export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
 export interface OrderRating {
   stars: number;
   comment?: string;
+  tags?: string[];
   ratedAt: string;
 }
 
@@ -716,6 +770,10 @@ export interface Order {
     kitchenAcceptanceDeadline?: string;
     kitchenResponseAt?: string;
     autoRejectedAt?: string;
+    /** Phase 8 — formula-priced delivery fee snapshotted at placement. */
+    computedDeliveryFee?: number;
+    /** Phase 8 — which configuration level priced this order. */
+    appliedSourceLabel?: 'zone' | 'global' | 'flat';
   };
   createdAt: string;
   updatedAt: string;
@@ -810,6 +868,13 @@ export interface OrderTrackingResponse {
 
 export type SubscriptionBadge = 'BEST_VALUE' | 'POPULAR' | 'FAMILY';
 
+// Admin-entered coverage rules surfaced to the consumer (meal types, add-on value).
+export interface PlanCoverageRules {
+  includesAddons?: boolean;
+  addonValuePerVoucher?: number;
+  mealTypes?: ('LUNCH' | 'DINNER' | 'BOTH')[];
+}
+
 export interface SubscriptionPlan {
   _id: string;
   name: string;
@@ -819,7 +884,8 @@ export interface SubscriptionPlan {
   totalVouchers: number;
   price: number;
   originalPrice: number;
-  badge?: SubscriptionBadge;
+  // Free-text marketing label set in the admin panel (e.g. "POPULAR", "BEST SELLER").
+  badge?: string;
   features: string[];
   displayOrder: number;
   applicableZoneIds?: string[];
@@ -1251,6 +1317,7 @@ export interface AutoOrderAddressConfig {
     quantity: number;
     isAvailable?: boolean;
   }>;
+  thaliQuantity: number;
   isPaused: boolean;
   pausedUntil: string | null;
   skippedSlots: SkippedSlot[];
@@ -1288,6 +1355,7 @@ export interface UpdateAutoOrderConfigRequest {
   kitchenId?: string | null;
   weeklySchedule?: WeeklySchedule;
   addons?: Array<{ addonId: string; quantity: number }>;
+  thaliQuantity?: number;
 }
 
 export interface UpdateAutoOrderConfigResponse {
@@ -1333,6 +1401,9 @@ export interface SkipMealRequest {
   date: string; // ISO date string - cannot be in the past
   mealWindow: MealWindowType;
   reason?: string; // Max 200 characters
+  // Omit for a full skip (all thalis). A number N reduces that date's thali
+  // count by N (partial skip).
+  skipQuantity?: number;
 }
 
 export interface SkipMealResponse {
@@ -1343,6 +1414,7 @@ export interface SkipMealResponse {
       date: string;
       mealWindow: MealWindowType;
       reason: string | null;
+      skippedQuantity?: number | null;
     };
     totalSkippedSlots: number;
   };
@@ -1371,6 +1443,59 @@ export interface UnskipMealResponse {
 export interface DeleteAutoOrderConfigResponse {
   success: boolean;
   message: string;
+}
+
+// ─── Per-config auto-order prepaid wallet ────────────────────────────────
+
+export interface AutoOrderWalletTransaction {
+  type: 'DEPOSIT' | 'DEDUCTION' | 'REFUND_CREDIT';
+  amount: number;
+  orderId?: string;
+  paymentTransactionId?: string;
+  balanceBefore: number;
+  balanceAfter: number;
+  timestamp: string;
+  note?: string;
+}
+
+export interface AutoOrderWalletRow {
+  addressId: string;
+  addressLabel: string;
+  addressLine1: string;
+  pincode: string;
+  enabled: boolean;
+  balance: number;
+  totalDeposited: number;
+  totalDeducted: number;
+  transactions: AutoOrderWalletTransaction[];
+  /** vouchersRemaining × per-order charge resolved for this address. */
+  suggestedTopup: number;
+}
+
+export interface AutoOrderWalletsResponse {
+  success: boolean;
+  message: string;
+  data: { wallets: AutoOrderWalletRow[] };
+}
+
+export interface SuggestedAutoOrderTopupResponse {
+  success: boolean;
+  message: string;
+  data: { suggestedAmount: number };
+}
+
+export interface TopupAutoOrderWalletResponse {
+  success: boolean;
+  message: string;
+  data: {
+    razorpayOrderId: string;
+    amount: number;
+    amountRupees: number;
+    key: string;
+    expiresAt: string;
+    suggestedTopup: number;
+    currentBalance: number;
+  };
 }
 
 // GET /api/scheduling/auto-order/schedule?addressId=X
@@ -1438,6 +1563,8 @@ export interface ScheduledMealSlot {
 
 export interface ScheduledMealPricingData {
   kitchen: { id: string; name: string; logo?: string };
+  /** Phase 8 — present on responses from a Phase-8+ backend. */
+  distancePricing?: CalculatePricingDistanceBlock;
   items: Array<{
     menuItemId: string;
     name: string;
@@ -1572,7 +1699,9 @@ export interface CancelScheduledMealData {
   orderNumber: string;
   refundInitiated: boolean;
   vouchersRestored?: number;
-  warning: string | null;
+  warning?: string | null;
+  // Present on a partial cancel (quantity reduced rather than full cancel).
+  newQuantity?: number;
 }
 
 // Bulk scheduling types
@@ -1964,6 +2093,47 @@ class ApiService {
     return this.api.get(`/api/address/${addressId}/kitchens`, { params });
   }
 
+  /**
+   * Phase 6: NEW discovery endpoint using the DeliveryZone model.
+   * Returns kitchens with their matched zone + per-meal-window pricing.
+   *
+   * Parallel to getAddressKitchens during the cutover. When ready to
+   * cut HomeScreen over, swap the call site to this method and read
+   * pricing from kitchen.fees instead of kitchen-level config.
+   */
+  async getServiceableKitchensV2(
+    addressId: string,
+    mealWindow?: 'LUNCH' | 'DINNER',
+  ): Promise<ServiceableKitchensV2Response> {
+    const params = mealWindow ? { mealWindow } : undefined;
+    return this.api.get(`/api/address/${addressId}/serviceable-kitchens-v2`, { params });
+  }
+
+  /**
+   * GET /api/delivery-zones/by-coords?latitude=&longitude=&mealWindow=
+   *
+   * Public (no auth). Used by the GPS-bootstrap consumer flow where the user
+   * has granted location but has no addressId yet. Same per-zone fees shape
+   * as the v2 address endpoint.
+   */
+  async getKitchensByCoordsV2(
+    latitude: number,
+    longitude: number,
+    mealWindow?: 'LUNCH' | 'DINNER',
+  ): Promise<{
+    success: boolean;
+    message?: string;
+    data: {
+      count: number;
+      kitchens: ServiceableKitchenV2[];
+      debug?: Record<string, unknown>;
+    };
+  }> {
+    const params: Record<string, string | number> = { latitude, longitude };
+    if (mealWindow) params.mealWindow = mealWindow;
+    return this.api.get('/api/delivery-zones/by-coords', { params });
+  }
+
   // ============================================
   // ZONE & KITCHEN ENDPOINTS
   // ============================================
@@ -2135,6 +2305,7 @@ class ApiService {
     orderId: string,
     stars: number,
     comment?: string,
+    tags?: string[],
   ): Promise<{
     success: boolean;
     message: string;
@@ -2142,7 +2313,7 @@ class ApiService {
       order: Order;
     };
   }> {
-    return this.api.post(`/api/orders/${orderId}/rate`, { stars, comment });
+    return this.api.post(`/api/orders/${orderId}/rate`, { stars, comment, tags });
   }
 
   // ============================================
@@ -2856,6 +3027,8 @@ class ApiService {
     deliveryNotes?: string;
     leaveAtDoor?: boolean;
     doNotContact?: boolean;
+    /** Phase 6: authoritative DeliveryZone id from CartContext (matchedZoneId). */
+    deliveryZoneId?: string;
   }): Promise<{
     success: boolean;
     message: string;
@@ -2886,13 +3059,15 @@ class ApiService {
     return this.api.get('/api/scheduling/meals', { params });
   }
 
-  // Cancel a scheduled meal
-  async cancelScheduledMeal(id: string, reason?: string): Promise<{
+  // Cancel a scheduled meal. When cancelQuantity is provided and below the
+  // order's thali count, the backend reduces the quantity (partial cancel)
+  // instead of cancelling the whole order.
+  async cancelScheduledMeal(id: string, reason?: string, cancelQuantity?: number): Promise<{
     success: boolean;
     message: string;
     data: CancelScheduledMealData;
   }> {
-    return this.api.patch(`/api/scheduling/meals/${id}/cancel`, { reason });
+    return this.api.patch(`/api/scheduling/meals/${id}/cancel`, { reason, cancelQuantity });
   }
 
   // Bulk scheduling - pricing preview

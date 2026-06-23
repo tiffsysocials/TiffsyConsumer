@@ -25,11 +25,12 @@ import { useNotifications } from '../../context/NotificationContext';
 import { useBanners } from '../../context/BannerContext';
 import { useUser } from '../../context/UserContext';
 import BannerSliderWidget from '../../components/BannerSliderWidget';
-import apiService, { KitchenInfo, MenuItem, AddonItem, Order, extractKitchensFromResponse } from '../../services/api.service';
+import apiService, { KitchenInfo, MenuItem, AddonItem, Order, ServiceableKitchenV2 } from '../../services/api.service';
 import dataPreloader from '../../services/dataPreloader.service';
 import MealWindowModal from '../../components/MealWindowModal';
 import ActiveOrderBanner from '../../components/ActiveOrderBanner';
 import ConfirmationModal from '../../components/ConfirmationModal';
+import PendingReviewPrompt from '../../components/PendingReviewPrompt';
 import {
   getTodaysActiveBasicOrders,
   getActiveOrderBannerContent,
@@ -86,11 +87,14 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     setMealWindow,
     setDeliveryAddressId,
     setVoucherCount,
+    setMatchedZone,
+    setMatchedZoneFeesForWindow,
+    matchedZoneId,
   } = useCart();
   const { getMainAddress, selectedAddressId, addresses, currentLocation, isGettingLocation } = useAddress();
   const { usableVouchers, walletBalance, hasAnySubscription, subscriptions, fetchSubscriptions, fetchVouchers, autoOrderConfigs, refreshSummary } = useSubscription();
   const { fetchUnreadCount, fetchNotifications } = useNotifications();
-  const { isGuest, exitGuestMode } = useUser();
+  const { isGuest, isAuthenticated, exitGuestMode } = useUser();
   const { banners, isLoading: isBannersLoading, loadBanners } = useBanners();
   const insets = useSafeAreaInsets();
   const { width, isSmallDevice } = useResponsive();
@@ -271,6 +275,63 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     setSelectedMeal(prev => (prev === mealWindowInfo.activeMeal ? prev : mealWindowInfo.activeMeal));
   }, [mealWindowInfo.activeMeal, menuData]);
 
+  // Phase 6: when the consumer switches LUNCH ↔ DINNER, re-fetch the v2 fees
+  // for the new window so per-zone pricing stays accurate. Skips if we don't
+  // yet have a kitchen + zone resolved.
+  useEffect(() => {
+    if (!matchedZoneId || !currentKitchen) return;
+    const mealWindowParam: 'LUNCH' | 'DINNER' =
+      selectedMeal === 'lunch' ? 'LUNCH' : 'DINNER';
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const mainAddress = getMainAddress();
+        const addressId = selectedAddressId || mainAddress?.id;
+        let kitchens: ServiceableKitchenV2[] = [];
+
+        if (addressId) {
+          const resp = await apiService.getServiceableKitchensV2(addressId, mealWindowParam);
+          kitchens = resp?.data?.kitchens || [];
+        } else if (
+          currentLocation?.coordinates?.latitude != null &&
+          currentLocation?.coordinates?.longitude != null
+        ) {
+          const resp = await apiService.getKitchensByCoordsV2(
+            currentLocation.coordinates.latitude,
+            currentLocation.coordinates.longitude,
+            mealWindowParam,
+          );
+          kitchens = resp?.data?.kitchens || [];
+        } else {
+          return;
+        }
+
+        if (cancelled) return;
+
+        const myMatch = kitchens.find(
+          (m) => m.kitchen?._id?.toString() === currentKitchen._id.toString(),
+        );
+        if (myMatch && myMatch.matchedZone._id === matchedZoneId) {
+          // Same zone — merge fees for the new window.
+          setMatchedZoneFeesForWindow(mealWindowParam, myMatch.fees);
+        } else if (myMatch) {
+          // Different zone resolved (rare — admin edited zones between fetches).
+          setMatchedZone({
+            id: myMatch.matchedZone._id,
+            name: myMatch.matchedZone.name,
+            fees: { [mealWindowParam]: myMatch.fees },
+          });
+        }
+      } catch (err) {
+        console.warn('[HomeScreen] meal-window v2 refetch failed:', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedMeal, matchedZoneId, currentKitchen, selectedAddressId, currentLocation, getMainAddress, setMatchedZone, setMatchedZoneFeesForWindow]);
+
   // Schedule a setTimeout to the next state transition (cutoff or midnight rollover).
   // This drives auto-flip without burning battery on a 1-minute interval.
   useEffect(() => {
@@ -333,89 +394,75 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
         return;
       }
 
-      let kitchensResponse;
+      // Phase 6: use the new DeliveryZone matcher for both address and GPS
+      // paths. Same response shape on both → per-kitchen `matchedZone` + `fees`.
+      const mealWindowParam: 'LUNCH' | 'DINNER' =
+        selectedMeal === 'lunch' ? 'LUNCH' : 'DINNER';
+      let v2Matches: ServiceableKitchenV2[] = [];
 
-      // If no address but location is available, use pincode to get kitchens
-      if (!addressId && currentLocation?.pincode) {
-        console.log('[HomeScreen] No address, using location pincode:', currentLocation.pincode);
-
+      if (addressId) {
+        console.log('[HomeScreen] v2 getServiceableKitchensV2', { addressId, mealWindowParam });
         try {
-          // Step 1a: Get zone by pincode
-          console.log('[HomeScreen] Calling getZoneByPincode...');
-          const zoneResponse = await apiService.getZoneByPincode(currentLocation.pincode);
-          console.log('[HomeScreen] Zone response:', JSON.stringify(zoneResponse, null, 2));
-
-          if (!zoneResponse.data) {
-            setMenuError('No kitchens available for your location. Please add a delivery address.');
-            setRequiresAddress(true);
-            setIsLoadingMenu(false);
-            return;
-          }
-
-          // Access zone data - handle both nested and flat response structures
-          const zoneData = (zoneResponse.data as any).zone || zoneResponse.data;
-          const zoneId = zoneData._id;
-
-          if (!zoneId) {
-            setMenuError('No kitchens available for your location. Please add a delivery address.');
-            setRequiresAddress(true);
-            setIsLoadingMenu(false);
-            return;
-          }
-
-          console.log('[HomeScreen] Zone found:', zoneId);
-
-          // Step 1b: Get kitchens for the zone
-          console.log('[HomeScreen] Calling getKitchensForZone...');
-          kitchensResponse = await apiService.getKitchensForZone(zoneId, 'MEAL_MENU');
+          const resp = await apiService.getServiceableKitchensV2(addressId, mealWindowParam);
+          v2Matches = resp?.data?.kitchens || [];
         } catch (error: any) {
-          console.error('[HomeScreen] Error in zone/kitchen lookup:', error);
+          console.error('[HomeScreen] Error in getServiceableKitchensV2:', error);
           throw error;
         }
-      } else if (!addressId) {
-        // If no address and no location, user needs to add one
+      } else if (
+        currentLocation?.coordinates?.latitude != null &&
+        currentLocation?.coordinates?.longitude != null
+      ) {
+        console.log('[HomeScreen] v2 getKitchensByCoordsV2', {
+          lat: currentLocation.coordinates.latitude,
+          lng: currentLocation.coordinates.longitude,
+          mealWindowParam,
+        });
+        try {
+          const resp = await apiService.getKitchensByCoordsV2(
+            currentLocation.coordinates.latitude,
+            currentLocation.coordinates.longitude,
+            mealWindowParam,
+          );
+          v2Matches = resp?.data?.kitchens || [];
+        } catch (error: any) {
+          console.error('[HomeScreen] Error in getKitchensByCoordsV2:', error);
+          throw error;
+        }
+      } else {
+        // No address and no location → require user to set one
         setRequiresAddress(true);
         setIsLoadingMenu(false);
         return;
-      } else {
-        // Step 1: Get kitchens for the address
-        console.log('[HomeScreen] Calling getAddressKitchens with addressId:', addressId);
-        try {
-          kitchensResponse = await apiService.getAddressKitchens(addressId, 'MEAL_MENU');
-        } catch (error: any) {
-          console.error('[HomeScreen] Error in getAddressKitchens:', error);
-          throw error;
-        }
       }
 
-      console.log('[HomeScreen] Raw kitchens response:', JSON.stringify(kitchensResponse, null, 2));
+      console.log('[HomeScreen] v2 matches count:', v2Matches.length);
 
-      // Extract kitchens using helper function (handles both old and new formats)
-      let allKitchens = extractKitchensFromResponse(kitchensResponse);
-
-      // Backend filters kitchens by current operating window when menuType is passed.
-      // If empty, retry without the filter so a kitchen whose windows have ended for the day
-      // is still surfaced — the three-state cutoff UI then renders "Ordering closed for today /
-      // Schedule for tomorrow" instead of a misleading "No kitchen available" error.
-      if (!allKitchens.length) {
-        console.log('[HomeScreen] No kitchens with active window — retrying without menuType filter');
+      // If empty, retry without `mealWindow` so a kitchen whose windows have
+      // ended for the day is still surfaced (three-state cutoff UI shows
+      // "Schedule for tomorrow" instead of a misleading "No kitchen available").
+      if (v2Matches.length === 0) {
         try {
-          if (!addressId && currentLocation?.pincode) {
-            const zoneResp = await apiService.getZoneByPincode(currentLocation.pincode);
-            const zoneData2: any = (zoneResp.data as any)?.zone || zoneResp.data;
-            const zoneId2 = zoneData2?._id;
-            if (zoneId2) {
-              kitchensResponse = await apiService.getKitchensForZone(zoneId2);
-            }
-          } else if (addressId) {
-            kitchensResponse = await apiService.getAddressKitchens(addressId);
+          if (addressId) {
+            const respFb = await apiService.getServiceableKitchensV2(addressId);
+            v2Matches = respFb?.data?.kitchens || [];
+          } else if (
+            currentLocation?.coordinates?.latitude != null &&
+            currentLocation?.coordinates?.longitude != null
+          ) {
+            const respFb = await apiService.getKitchensByCoordsV2(
+              currentLocation.coordinates.latitude,
+              currentLocation.coordinates.longitude,
+            );
+            v2Matches = respFb?.data?.kitchens || [];
           }
-          allKitchens = extractKitchensFromResponse(kitchensResponse);
-          console.log('[HomeScreen] Fallback kitchens count:', allKitchens.length);
+          console.log('[HomeScreen] v2 fallback (no mealWindow) matches count:', v2Matches.length);
         } catch (err) {
-          console.warn('[HomeScreen] Kitchen fallback lookup failed:', err);
+          console.warn('[HomeScreen] v2 fallback lookup failed:', err);
         }
       }
+
+      let allKitchens: KitchenInfo[] = v2Matches.map((m) => m.kitchen);
 
       console.log('[HomeScreen] Extracted kitchens count:', allKitchens.length);
       console.log('[HomeScreen] First kitchen full data:', JSON.stringify(allKitchens[0], null, 2));
@@ -479,6 +526,24 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
       setKitchenId(selectedKitchen._id);
       // Set delivery address in cart context
       setDeliveryAddressId(addressId || null);
+
+      // Phase 6: persist the matched DeliveryZone + per-window fees for this
+      // kitchen so CartScreen/CouponSheet/order payload can read them.
+      const matchForSelected = v2Matches.find(
+        (m) => m.kitchen?._id?.toString() === selectedKitchen._id.toString(),
+      );
+      if (matchForSelected) {
+        setMatchedZone({
+          id: matchForSelected.matchedZone._id,
+          name: matchForSelected.matchedZone.name,
+          fees: { [mealWindowParam]: matchForSelected.fees },
+        });
+      } else {
+        // Selected kitchen wasn't in the matched set (rare — usually means the
+        // kitchen-selection logic picked a non-DeliveryZone-matched kitchen).
+        // Clear matched-zone so downstream code falls back to defaults.
+        setMatchedZone(null);
+      }
 
       // Step 2: Get menu for the kitchen
       console.log('[HomeScreen] Calling getKitchenMenu for kitchen:', selectedKitchen._id);
@@ -1987,6 +2052,9 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
         }}
         onCancel={() => setShowGuestLoginPrompt(false)}
       />
+
+      {/* Zomato-style: prompt to review a delivered, unrated order on app open */}
+      <PendingReviewPrompt enabled={isAuthenticated && !isGuest} />
     </View>
   );
 };

@@ -288,7 +288,7 @@ class PaymentService {
     autoOrderSetup?: import('./api.service').AutoOrderSetupForm,
   ): Promise<SubscriptionPaymentResult> {
     try {
-      console.log('[PaymentService] Processing subscription payment for planId:', planId);
+      console.log('[PaymentService] Processing subscription payment for planId:', planId, autoOrderNudge ? `(with nudge: ₹${autoOrderNudge.amount} for ${autoOrderNudge.addressId})` : '');
 
       // Step 1: Initiate payment with backend
       // Phase 11 — autoOrderSetup, if present, makes the Razorpay total
@@ -670,6 +670,53 @@ class PaymentService {
     skip?: number;
   }) {
     return apiService.getPaymentHistory(params);
+  }
+
+  /**
+   * Top up a specific config's auto-order prepaid wallet.
+   *   1. Backend creates Razorpay order for the chosen amount
+   *   2. Razorpay sheet opens
+   *   3. Backend verifies + credits the wallet via the existing verifyPayment
+   *      flow (which dispatches AUTO_ORDER_WALLET_TOPUP to creditWallet)
+   */
+  async topupAutoOrderWallet(
+    addressId: string,
+    amount: number,
+    prefill: { name: string; contact: string; email: string },
+  ): Promise<{ success: boolean; error?: string; paymentId?: string }> {
+    try {
+      const initiate = await apiService.topupAutoOrderWallet(addressId, amount);
+      if (!initiate.success) {
+        return { success: false, error: initiate.message || 'Failed to initiate top-up' };
+      }
+      const data = initiate.data;
+      const checkoutOptions: RazorpayOptions = {
+        key: data.key,
+        amount: data.amount,
+        currency: 'INR',
+        name: MERCHANT_NAME,
+        description: 'Auto-order wallet top-up',
+        order_id: data.razorpayOrderId,
+        prefill,
+        theme: { color: THEME_COLOR },
+      };
+      const paymentResponse = await this.openCheckout(checkoutOptions);
+      const verifyResponse = await apiService.verifyPayment({
+        razorpayOrderId: paymentResponse.razorpay_order_id,
+        razorpayPaymentId: paymentResponse.razorpay_payment_id,
+        razorpaySignature: paymentResponse.razorpay_signature,
+      });
+      if (!verifyResponse.success || !verifyResponse.data?.success) {
+        return { success: false, error: verifyResponse.message || 'Verification failed' };
+      }
+      return { success: true, paymentId: paymentResponse.razorpay_payment_id };
+    } catch (error: any) {
+      const isCancel = (error?.code === 0 || error?.code === 2) && !error?.description?.includes('BAD_REQUEST_ERROR');
+      if (isCancel) {
+        return { success: false, error: 'Payment cancelled' };
+      }
+      return { success: false, error: error?.description || error?.message || 'Top-up failed' };
+    }
   }
 }
 

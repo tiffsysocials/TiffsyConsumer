@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useCart } from '../context/CartContext';
 import apiService, {
   Coupon,
   CouponDiscountType,
@@ -87,6 +88,12 @@ const CouponSheet: React.FC<CouponSheetProps> = ({
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const drawerTranslateY = useRef(new Animated.Value(600)).current;
 
+  // Phase 6: pull the matched DeliveryZone id from CartContext. The legacy
+  // `zoneId` prop (pincode-based Zone model) is still accepted as a fallback
+  // for callers that haven't migrated.
+  const { matchedZoneId } = useCart();
+  const effectiveZoneId = matchedZoneId || zoneId || '';
+
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [manualCode, setManualCode] = useState('');
@@ -120,7 +127,9 @@ const CouponSheet: React.FC<CouponSheetProps> = ({
         const response = await apiService.getAvailableCoupons({
           menuType,
           kitchenId,
-          zoneId,
+          // Prefer the DeliveryZone id when available; fall back to legacy zoneId.
+          deliveryZoneId: matchedZoneId || undefined,
+          zoneId: matchedZoneId ? undefined : (zoneId || undefined),
           orderValue,
         });
         if (response.success && response.data?.coupons) {
@@ -134,7 +143,7 @@ const CouponSheet: React.FC<CouponSheetProps> = ({
     };
 
     fetchCoupons();
-  }, [visible, menuType, kitchenId, zoneId, orderValue]);
+  }, [visible, menuType, kitchenId, matchedZoneId, zoneId, orderValue]);
 
   const handleApplyCoupon = useCallback(async (code: string) => {
     if (!code.trim()) return;
@@ -146,7 +155,12 @@ const CouponSheet: React.FC<CouponSheetProps> = ({
       const response = await apiService.validateCoupon({
         code: code.trim(),
         kitchenId,
-        zoneId: zoneId || '',
+        deliveryZoneId: matchedZoneId || undefined,
+        // Send legacy zoneId only when no DeliveryZone matched. Sending an
+        // empty string previously caused the backend to treat the request
+        // as zone-less, which is exactly what `undefined` does — but the
+        // request payload is cleaner without the empty field.
+        zoneId: matchedZoneId ? undefined : (zoneId || undefined),
         orderValue,
         itemCount,
         menuType,

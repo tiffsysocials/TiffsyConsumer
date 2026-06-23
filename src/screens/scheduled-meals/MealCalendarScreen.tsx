@@ -56,7 +56,7 @@ const createEmptySlot = (): MergedSlotData => ({
 
 const MealCalendarScreen: React.FC<Props> = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
-  const { skipMeal, unskipMeal, getScheduleForAddress } = useSubscription();
+  const { skipMeal, unskipMeal, getScheduleForAddress, autoOrderConfigs } = useSubscription();
   const { addresses, selectedAddressId } = useAddress();
   const { showAlert } = useAlert();
 
@@ -321,13 +321,16 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation, route }) => {
     setSelectedDate(null);
   }, [panelHeight]);
 
-  // Skip auto-order meal
-  const handleSkipMeal = useCallback(async (mealWindow: 'LUNCH' | 'DINNER') => {
+  // Perform the actual skip (full or partial via skipQuantity)
+  const doSkipMeal = useCallback(async (mealWindow: 'LUNCH' | 'DINNER', skipQuantity?: number) => {
     if (!selectedDate || !currentAddressId) return;
     setIsActionLoading(true);
     try {
-      await skipMeal({ addressId: currentAddressId, date: selectedDate, mealWindow });
-      showAlert('Skipped', `${mealWindow} on ${formatShortDate(selectedDate)} has been skipped`, undefined, 'success');
+      await skipMeal({ addressId: currentAddressId, date: selectedDate, mealWindow, skipQuantity });
+      const label = skipQuantity
+        ? `Reduced ${mealWindow} on ${formatShortDate(selectedDate)} by ${skipQuantity} thali${skipQuantity > 1 ? 's' : ''}`
+        : `${mealWindow} on ${formatShortDate(selectedDate)} has been skipped`;
+      showAlert(skipQuantity ? 'Updated' : 'Skipped', label, undefined, 'success');
       fetchAndMergeData(currentAddressId);
     } catch (err: any) {
       showAlert('Error', err.message || 'Failed to skip meal', undefined, 'error');
@@ -335,6 +338,27 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation, route }) => {
       setIsActionLoading(false);
     }
   }, [selectedDate, currentAddressId, skipMeal, showAlert, fetchAndMergeData]);
+
+  // Skip auto-order meal. For multi-thali slots, ask whether to skip all or
+  // just reduce the count by one.
+  const handleSkipMeal = useCallback((mealWindow: 'LUNCH' | 'DINNER') => {
+    const config = autoOrderConfigs?.find(c => c.addressId === currentAddressId);
+    const thaliQty = config?.thaliQuantity || 1;
+    if (thaliQty > 1) {
+      showAlert(
+        'Skip Meal',
+        `This slot auto-orders ${thaliQty} thalis. What would you like to do?`,
+        [
+          { text: `Skip all ${thaliQty}`, style: 'destructive', onPress: () => doSkipMeal(mealWindow) },
+          { text: 'Just 1 fewer thali', onPress: () => doSkipMeal(mealWindow, 1) },
+          { text: 'Keep', style: 'cancel' },
+        ],
+        'warning'
+      );
+      return;
+    }
+    doSkipMeal(mealWindow);
+  }, [autoOrderConfigs, currentAddressId, showAlert, doSkipMeal]);
 
   // Unskip auto-order meal
   const handleUnskipMeal = useCallback(async (mealWindow: 'LUNCH' | 'DINNER') => {

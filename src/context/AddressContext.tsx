@@ -215,8 +215,10 @@ export const AddressProvider: React.FC<{ children: ReactNode }> = ({ children })
   const checkServiceability = async (pincode: string): Promise<ServiceabilityResult> => {
     setIsCheckingServiceability(true);
     try {
-      const response = await apiService.checkServiceability(pincode);
-      // Handle the zone lookup response format
+      // Phase 6: route through the DeliveryZone-backed POST endpoint
+      // (/api/customer/check-serviceability) instead of the legacy
+      // /api/zones/lookup which used the pincode→Zone model.
+      const response = await apiService.checkServiceabilityPost(pincode);
       return {
         isServiceable: response.data.isServiceable,
         message: response.data.message,

@@ -36,6 +36,10 @@ export enum NotificationType {
   PROMOTIONAL = 'PROMOTIONAL',
   ADMIN_PUSH = 'ADMIN_PUSH',
 
+  // Kitchen broadcasts (sent to all consumers of a kitchen)
+  KITCHEN_OPEN = 'KITCHEN_OPEN',
+  ORDER_CUTOFF_REMINDER = 'ORDER_CUTOFF_REMINDER',
+
   // Scheduled meal notifications
   SCHEDULED_MEAL_CREATED = 'SCHEDULED_MEAL_CREATED',
   SCHEDULED_MEAL_PLACED = 'SCHEDULED_MEAL_PLACED',
@@ -128,6 +132,10 @@ export const NotificationChannelMapping: Record<NotificationType, string> = {
   [NotificationType.MENU_UPDATE]: NotificationChannels.GENERAL,
   [NotificationType.PROMOTIONAL]: NotificationChannels.GENERAL,
   [NotificationType.ADMIN_PUSH]: NotificationChannels.GENERAL,
+
+  // Kitchen broadcasts → general_channel
+  [NotificationType.KITCHEN_OPEN]: NotificationChannels.GENERAL,
+  [NotificationType.ORDER_CUTOFF_REMINDER]: NotificationChannels.GENERAL,
 
   // Legacy
   [NotificationType.ORDER_STATUS_CHANGE]: NotificationChannels.ORDERS,

@@ -74,6 +74,8 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
     setVoucherCount,
     setCouponCode,
     setDeliveryAddressId,
+    addressManuallyChosen,
+    setAddressManuallyChosen,
     getOrderItems,
     resetOrderContext,
     setMealWindow,
@@ -86,6 +88,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
     removeItemsForSlot,
     slotVoucherCounts,
     setSlotVoucherCount,
+    matchedZoneId,
   } = useCart();
 
   const { addresses, getMainAddress, currentLocation } = useAddress();
@@ -216,6 +219,8 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
   const [lunchPricing, setLunchPricing] = useState<SlotPricing>({ pricing: null, voucherInfo: null, distancePricing: null, error: null });
   const [dinnerPricing, setDinnerPricing] = useState<SlotPricing>({ pricing: null, voucherInfo: null, distancePricing: null, error: null });
   const [isCalculating, setIsCalculating] = useState(false);
+  // Phase 9 — controls the Delivery Fee breakdown popup
+  const [deliveryInfoOpen, setDeliveryInfoOpen] = useState(false);
 
   // Backward compat helpers
   const pricing = selectedMealWindows.length === 1
@@ -339,12 +344,15 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
     if (addresses.length === 0) return;
     const isSelectionValid = addresses.some(a => a.id === localSelectedAddressId);
     if (isSelectionValid) return;
+    // Same precedence as the initial seed: route param > live default >
+    // cached cart-context id > first address. The default outranks the cache so
+    // a deleted selection falls back to the user's current default, not a stale
+    // previously-cached address.
     const fallbackId =
       route.params?.deliveryAddressId && addresses.some(a => a.id === route.params!.deliveryAddressId)
         ? route.params!.deliveryAddressId!
-        : deliveryAddressId && addresses.some(a => a.id === deliveryAddressId)
-          ? deliveryAddressId
-          : getMainAddress()?.id || addresses[0].id;
+        : getMainAddress()?.id
+          || (deliveryAddressId && addresses.some(a => a.id === deliveryAddressId) ? deliveryAddressId : addresses[0].id);
     setLocalSelectedAddressId(fallbackId);
   }, [addresses, localSelectedAddressId]);
 
@@ -431,7 +439,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
       setLocalSelectedAddressId(match.id);
     }
     gpsAutoSelectKeyRef.current = gpsMatchSetKey;
-  }, [gpsMatchSetKey, isSchedulingMode]);
+  }, [gpsMatchSetKey, isSchedulingMode, addressManuallyChosen]);
 
   // When slots are toggled, add/remove items for that slot
   const handleToggleSlot = useCallback(async (slot: 'LUNCH' | 'DINNER') => {
@@ -597,7 +605,13 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
               grandTotal: p.grandTotal,
               amountToPay: p.amountToPay,
             };
-            return { slot, data: { success: true, data: { breakdown: mapped, voucherEligibility: null } } };
+            // Phase 8 — scheduling endpoint now returns distancePricing
+            // sibling at the same shape as /api/orders/calculate-pricing.
+            // Pull it through so the cart explainer renders in scheduling
+            // mode too. `as any` because ScheduledMealPricingResponse type
+            // doesn't yet carry the field; consumer accepts it loosely.
+            const respDp = (response.data as any)?.distancePricing;
+            return { slot, data: { success: true, data: { breakdown: mapped, voucherEligibility: null, distancePricing: respDp } } };
           }
           return { slot, data: response };
         } else {
@@ -607,6 +621,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
             menuType: menuType!,
             mealWindow: menuType === 'MEAL_MENU' ? slot : undefined,
             deliveryAddressId: localSelectedAddressId,
+            deliveryZoneId: matchedZoneId || undefined,
             items,
             voucherCount: slotVoucherCounts[slot] || 0,
             couponCode: couponCode || null,
@@ -728,6 +743,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
             specialInstructions: cookingInstructions.trim() || undefined,
             leaveAtDoor: leaveAtDoor || undefined,
             doNotContact: doNotContact || undefined,
+            deliveryZoneId: matchedZoneId || undefined,
           });
 
           console.log(`[CartScreen] createScheduledMeal response for ${slot}:`, JSON.stringify(response));
@@ -750,6 +766,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
             menuType: menuType!,
             mealWindow: slot,
             deliveryAddressId: localSelectedAddressId,
+            deliveryZoneId: matchedZoneId || undefined,
             items: slotItems,
             voucherCount: slotVouchers,
             couponCode: couponCode || null,
@@ -919,6 +936,8 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const handleSelectAddress = (addressId: string) => {
+    // Explicit in-cart pick — must beat GPS auto-select.
+    setAddressManuallyChosen(true);
     setLocalSelectedAddressId(addressId);
   };
 
@@ -2439,6 +2458,65 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
         extraVouchersIssued={extraVouchersIssued}
         cancelDeadline={orderResult?.cancelDeadline}
       />
+
+      {/* Phase 9 — Delivery Fee breakdown popup */}
+      <Modal
+        visible={deliveryInfoOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeliveryInfoOpen(false)}>
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 }}
+          onPress={() => setDeliveryInfoOpen(false)}>
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={{ backgroundColor: '#fff', borderRadius: 12, padding: 20, width: '100%', maxWidth: 380 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827' }}>How delivery fee is calculated</Text>
+              <TouchableOpacity onPress={() => setDeliveryInfoOpen(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <MaterialCommunityIcons name="close" size={22} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            {(() => {
+              const renderFor = (label: string, dp: CalculatePricingDistanceBlock | null) => {
+                if (!dp) return null;
+                const distKm = dp.distanceKm ?? 0;
+                const extraKm = Math.max(0, distKm - dp.source.baseFreeUptoKm);
+                const base = dp.source.baseFeeEnabled ? dp.source.baseFee : 0;
+                const baseLabel = dp.source.baseFeeEnabled
+                  ? `₹${dp.source.baseFee} base`
+                  : `₹0 base (waived — usually ₹${dp.source.baseFee})`;
+                const within = extraKm <= 0;
+                const formula = within
+                  ? `${distKm.toFixed(1)} km within free range → only base applies → ₹${Math.ceil(base)}`
+                  : `${distKm.toFixed(1)} km · ${baseLabel} + ${extraKm.toFixed(1)} km × ₹${dp.source.perKmAfterFree} = ₹${Math.ceil(base + extraKm * dp.source.perKmAfterFree)}`;
+                return (
+                  <View key={label} style={{ marginBottom: 10 }}>
+                    {(selectedMealWindows.length > 1) && (
+                      <Text style={{ fontSize: 12, color: '#6B7280', fontWeight: '600', marginBottom: 2 }}>{label}</Text>
+                    )}
+                    <Text style={{ fontSize: 13, color: '#374151', lineHeight: 18 }}>{formula}</Text>
+                    {!dp.source.baseFeeEnabled && (
+                      <Text style={{ fontSize: 11, color: '#10B981', marginTop: 4 }}>
+                        Base fee waived — you saved ₹{dp.source.baseFee}.
+                      </Text>
+                    )}
+                  </View>
+                );
+              };
+              return (
+                <>
+                  {selectedMealWindows.includes('LUNCH') && renderFor('Lunch', lunchPricing.distancePricing)}
+                  {selectedMealWindows.includes('DINNER') && renderFor('Dinner', dinnerPricing.distancePricing)}
+                  <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 6 }}>
+                    Fees are rounded up to the next whole rupee.
+                  </Text>
+                </>
+              );
+            })()}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
     </SafeAreaView>
   );

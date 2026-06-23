@@ -28,6 +28,52 @@ import ConfirmationModal from '../../components/ConfirmationModal';
 
 type Props = StackScreenProps<MainTabParamList, 'MealPlans'>;
 
+// Strip a trailing price accidentally typed into the plan name in the admin panel,
+// e.g. "Weekly Starter 700", "Weekly Starter ₹700", "Weekly Starter - Rs.700/-".
+const cleanPlanName = (name: string): string => {
+  if (!name) return name;
+  const cleaned = name
+    .replace(/[\s\-–—:|.,]*(?:₹|rs\.?)?\s*\d[\d,]*(?:\.\d+)?\s*\/?-?\s*$/i, '')
+    .trim();
+  return cleaned.length > 0 ? cleaned : name;
+};
+
+// Human-readable label for the admin-configured meal coverage (LUNCH / DINNER / BOTH).
+const getMealTypesLabel = (mealTypes?: string[]): string | null => {
+  if (!mealTypes || mealTypes.length === 0) return null;
+  if (mealTypes.includes('BOTH') || (mealTypes.includes('LUNCH') && mealTypes.includes('DINNER'))) {
+    return 'Lunch & Dinner';
+  }
+  return mealTypes
+    .map((m) => m.charAt(0).toUpperCase() + m.slice(1).toLowerCase())
+    .join(' & ');
+};
+
+// Small pill used to surface plan metadata (validity, coverage, add-ons).
+const MetaChip: React.FC<{ label: string }> = ({ label }) => (
+  <View
+    style={{
+      backgroundColor: '#FFF4EC',
+      borderRadius: 999,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      marginRight: 8,
+      marginBottom: 8,
+    }}
+  >
+    <Text
+      style={{
+        fontFamily: 'Inter',
+        fontWeight: '500',
+        fontSize: 11,
+        color: '#FE8733',
+      }}
+    >
+      {label}
+    </Text>
+  </View>
+);
+
 const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
   const { user, isGuest, exitGuestMode } = useUser();
   const [showGuestLoginPrompt, setShowGuestLoginPrompt] = useState(false);
@@ -458,6 +504,18 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
               );
               const hasActivePlan = activeSubscriptionsForPlan.length > 0;
 
+              const discountPct =
+                plan.originalPrice && plan.originalPrice > plan.price
+                  ? Math.round(((plan.originalPrice - plan.price) / plan.originalPrice) * 100)
+                  : 0;
+              const mealLabel = getMealTypesLabel(plan.coverageRules?.mealTypes);
+              const hasExtraContent =
+                !!plan.description ||
+                (plan.features && plan.features.length > 0) ||
+                !!plan.voucherValidityDays ||
+                !!mealLabel ||
+                !!plan.coverageRules?.includesAddons;
+
               return (
                 <TouchableOpacity
                   key={plan._id}
@@ -471,21 +529,22 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                   activeOpacity={0.8}
                   style={{
                     width: '100%',
-                    minHeight: 130,
                     borderRadius: 28,
                     borderWidth: 1,
                     borderColor: '#FE8733',
                     marginBottom: 16,
                     overflow: 'hidden',
-                    position: 'relative',
+                    backgroundColor: '#FFFFFF',
                   }}
                 >
-                  {/* Background Image */}
-                  <Image
-                    source={require('../../assets/images/myaccount/voucherbackgound.png')}
-                    style={{ position: 'absolute', width: '100%', height: '100%' }}
-                    resizeMode="cover"
-                  />
+                  {/* Voucher block (top) */}
+                  <View style={{ minHeight: 130, position: 'relative' }}>
+                    {/* Background Image */}
+                    <Image
+                      source={require('../../assets/images/myaccount/voucherbackgound.png')}
+                      style={{ position: 'absolute', width: '100%', height: '100%' }}
+                      resizeMode="cover"
+                    />
 
                   {/* Content — surfaces every admin-input field that's set:
                       badge, name, description, originalPrice strikethrough,
@@ -611,7 +670,7 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                             color: '#000000',
                           }}
                         >
-                          ₹{plan.price.toFixed(2)}
+                          {cleanPlanName(plan.name)}
                         </Text>
                       </View>
 
@@ -676,7 +735,77 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
                         >
                           ₹{pricePerVoucher}/voucher
                         </Text>
-                      </View>
+                      )}
+
+                      {/* Features */}
+                      {plan.features && plan.features.length > 0 && (
+                        <View>
+                          {plan.features.map((feature, fIdx) => (
+                            <View
+                              key={fIdx}
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'flex-start',
+                                marginBottom: fIdx === plan.features.length - 1 ? 0 : 8,
+                              }}
+                            >
+                              <View
+                                style={{
+                                  width: 16,
+                                  height: 16,
+                                  borderRadius: 8,
+                                  backgroundColor: '#FE8733',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  marginRight: 8,
+                                  marginTop: 1,
+                                }}
+                              >
+                                <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '700', lineHeight: 12 }}>
+                                  ✓
+                                </Text>
+                              </View>
+                              <Text
+                                style={{
+                                  flex: 1,
+                                  fontFamily: 'Inter',
+                                  fontWeight: '400',
+                                  fontSize: 13,
+                                  lineHeight: 18,
+                                  color: '#374151',
+                                }}
+                              >
+                                {feature}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                      {/* Meta chips: validity, meal coverage, add-ons */}
+                      {(!!plan.voucherValidityDays || !!mealLabel || !!plan.coverageRules?.includesAddons) && (
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            flexWrap: 'wrap',
+                            marginTop: plan.description || (plan.features && plan.features.length > 0) ? 12 : 0,
+                          }}
+                        >
+                          {!!plan.voucherValidityDays && (
+                            <MetaChip label={`Valid ${plan.voucherValidityDays} days`} />
+                          )}
+                          {!!mealLabel && <MetaChip label={mealLabel} />}
+                          {!!plan.coverageRules?.includesAddons && (
+                            <MetaChip
+                              label={
+                                plan.coverageRules.addonValuePerVoucher
+                                  ? `Add-ons ₹${plan.coverageRules.addonValuePerVoucher}/meal`
+                                  : 'Add-ons included'
+                              }
+                            />
+                          )}
+                        </View>
+                      )}
                     </View>
 
                     {/* Features (admin-input array of strings, optional) */}
