@@ -624,6 +624,21 @@ export interface DistancePricing {
   };
 }
 
+// Phase 8 — resolved distance-pricing breakdown returned alongside the pricing
+// block (test-branch type, preserved during the main+test consolidation).
+export interface CalculatePricingDistanceBlock {
+  distanceKm: number | null;
+  computedDeliveryFee: number;
+  appliedSourceLabel: 'zone' | 'global' | 'flat';
+  source: {
+    enabled: boolean;
+    baseFee: number;
+    baseFeeEnabled: boolean;
+    baseFreeUptoKm: number;
+    perKmAfterFree: number;
+  };
+}
+
 export interface CalculatePricingResponse {
   success: boolean;
   message: string;

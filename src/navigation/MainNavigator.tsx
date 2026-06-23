@@ -25,7 +25,6 @@ import OnDemandScreen from '../screens/ondemand/OnDemandScreen';
 import NotificationsScreen from '../screens/notifications/NotificationsScreen';
 import AutoOrderSettingsScreen from '../screens/subscription/AutoOrderSettingsScreen';
 import AutoOrderConfigScreen from '../screens/subscription/AutoOrderConfigScreen';
-import AutoOrderWalletsScreen from '../screens/subscription/AutoOrderWalletsScreen';
 import ScheduledMealPricingScreen from '../screens/scheduled-meals/ScheduledMealPricingScreen';
 import MyScheduledMealsScreen from '../screens/scheduled-meals/MyScheduledMealsScreen';
 import ChatSupportScreen from '../screens/account/ChatSupportScreen';
@@ -100,7 +99,6 @@ const MainNavigatorContent = () => {
         <Stack.Screen name="Notifications" component={NotificationsScreen} />
         <Stack.Screen name="AutoOrderSettings" component={AutoOrderSettingsScreen} />
         <Stack.Screen name="AutoOrderConfig" component={AutoOrderConfigScreen} />
-        <Stack.Screen name="AutoOrderWallets" component={AutoOrderWalletsScreen} />
         <Stack.Screen name="ScheduledMealPricing" component={ScheduledMealPricingScreen} />
         <Stack.Screen name="MyScheduledMeals" component={MyScheduledMealsScreen} />
         <Stack.Screen name="ChatSupport" component={ChatSupportScreen} />
