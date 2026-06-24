@@ -647,7 +647,6 @@ export interface CalculatePricingResponse {
     /** Phase 8 — present whenever the backend resolved a delivery-pricing source. */
     distancePricing?: CalculatePricingDistanceBlock;
     voucherEligibility: VoucherEligibility;
-    distancePricing?: DistancePricing;
   };
 }
 
@@ -779,8 +778,6 @@ export interface Order {
   distanceMetadata?: {
     distanceFromKitchenKm?: number;
     distanceFromKitchenMeters?: number;
-    computedDeliveryFee?: number;
-    appliedSourceLabel?: string;
     acceptanceZone?: 'AUTO_ACCEPT' | 'MANUAL_ACCEPT';
     kitchenAcceptanceDeadline?: string;
     kitchenResponseAt?: string;

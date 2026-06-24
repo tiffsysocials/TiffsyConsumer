@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   TextInput,
   Switch,
+  Modal,
+  Pressable,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Svg, { Path } from 'react-native-svg';
@@ -30,6 +32,7 @@ import apiService, {
   Order,
   AddonItem,
   DistancePricing,
+  CalculatePricingDistanceBlock,
 } from '../../services/api.service';
 import AddonSelector from '../../components/AddonSelector';
 import CouponSheet from '../../components/CouponSheet';
