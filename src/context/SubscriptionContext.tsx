@@ -164,8 +164,12 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       console.log('[SubscriptionContext] fetchSubscriptions - Total vouchers available:', response.data.totalVouchersAvailable);
 
       setSubscriptions(subscriptionsData);
-      // Full refetch landed — drop the summary cache so computed values take over.
-      setSummarySnapshot(null);
+      // Keep the fast-path snapshot's wallet in sync with the fresh ACTIVE+PAUSED
+      // sum instead of nulling it (nulling let the balance flip between sources).
+      const freshWallet = subscriptionsData
+        .filter((s: Subscription) => s.status === 'ACTIVE' || s.status === 'PAUSED')
+        .reduce((sum: number, s: Subscription) => sum + (s.globalWallet?.balance ?? 0), 0);
+      setSummarySnapshot((prev) => (prev ? { ...prev, walletBalance: freshWallet } : prev));
 
       // Handle activeSubscription - use API data or derive from subscriptions
       let activeSubData: ActiveSubscriptionSummary | null = response.data.activeSubscription;
@@ -253,8 +257,18 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       console.log('[SubscriptionContext] fetchVouchers - Status breakdown:', JSON.stringify(statusCounts));
 
       setVouchers(allVouchers);
-      // Full refetch landed — drop the summary cache so computed values take over.
-      setSummarySnapshot(null);
+      // Keep the fast-path snapshot's voucher count in sync with the fresh,
+      // authoritative usable count instead of nulling it (nulling let the count
+      // flip between the home and vouchers screens).
+      const freshSummary = firstResponse.data.summary;
+      if (freshSummary) {
+        const freshUsable =
+          freshSummary.usable ??
+          (freshSummary.available ?? 0) + (freshSummary.restored ?? 0);
+        setSummarySnapshot((prev) =>
+          prev ? { ...prev, usableVouchers: freshUsable } : prev,
+        );
+      }
 
       // Use summary from API (should be accurate across all pages)
       if (firstResponse.data.summary) {
@@ -618,11 +632,14 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
   } | null>(null);
 
   const computedUsableVouchers =
+    voucherSummary?.usable ??
     (voucherSummary?.available ?? 0) + (voucherSummary?.restored ?? 0);
-  const computedWalletBalance = subscriptions.reduce(
-    (sum, s) => sum + (s.globalWallet?.balance ?? 0),
-    0,
-  );
+  // Match the server's /me/summary definition exactly: only ACTIVE + PAUSED subs
+  // (otherwise leftover wallet on EXPIRED/CANCELLED subs makes the balance flip
+  // between the snapshot and the computed value).
+  const computedWalletBalance = subscriptions
+    .filter((s) => s.status === 'ACTIVE' || s.status === 'PAUSED')
+    .reduce((sum, s) => sum + (s.globalWallet?.balance ?? 0), 0);
 
   // Prefer the summary snapshot when present (fresher). The full fetchers
   // clear it so the computed values become source of truth post-refetch.

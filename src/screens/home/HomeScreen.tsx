@@ -898,7 +898,9 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([fetchMenu(), loadBanners(true)]);
+    // refreshSummary() keeps the voucher/wallet chip in sync on pull-to-refresh
+    // (previously it only refetched menu + banners, so the count looked stale).
+    await Promise.all([fetchMenu(), loadBanners(true), refreshSummary()]);
     setRefreshing(false);
   };
 

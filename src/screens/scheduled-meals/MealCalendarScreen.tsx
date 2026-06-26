@@ -96,6 +96,12 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation, route }) => {
   const [selectedSlots, setSelectedSlots] = useState<Set<string>>(new Set());
   // Key format: "2026-02-24_LUNCH", "2026-02-24_DINNER"
 
+  // Partial-skip quantity picker (multi-thali setups). Holds the meal window +
+  // the address's thali count; `skipQty` is how many thalis to skip (1..maxThali,
+  // where maxThali means skip the whole meal).
+  const [skipPicker, setSkipPicker] = useState<{ mealWindow: 'LUNCH' | 'DINNER'; maxThali: number } | null>(null);
+  const [skipQty, setSkipQty] = useState(1);
+
   const getDefaultAddressId = useCallback((): string | null => {
     if (selectedAddressId) return selectedAddressId;
     const defaultAddr = addresses.find(a => a.isMain);
@@ -339,26 +345,36 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   }, [selectedDate, currentAddressId, skipMeal, showAlert, fetchAndMergeData]);
 
-  // Skip auto-order meal. For multi-thali slots, ask whether to skip all or
-  // just reduce the count by one.
+  // Thalis auto-ordered for the current address — max across its setups (a user
+  // can have more than one setup on the same address). Drives the skip picker.
+  const thaliQtyForAddress = useCallback((): number => {
+    const matching = (autoOrderConfigs || []).filter(c => c.addressId === currentAddressId);
+    const max = matching.reduce((m, c) => Math.max(m, c.thaliQuantity || 1), 0);
+    return max > 0 ? max : 1;
+  }, [autoOrderConfigs, currentAddressId]);
+
+  // Skip auto-order meal. Single-thali → skip immediately. Multi-thali → open a
+  // quantity picker so the user can reduce by any amount (or skip the whole meal).
   const handleSkipMeal = useCallback((mealWindow: 'LUNCH' | 'DINNER') => {
-    const config = autoOrderConfigs?.find(c => c.addressId === currentAddressId);
-    const thaliQty = config?.thaliQuantity || 1;
-    if (thaliQty > 1) {
-      showAlert(
-        'Skip Meal',
-        `This slot auto-orders ${thaliQty} thalis. What would you like to do?`,
-        [
-          { text: `Skip all ${thaliQty}`, style: 'destructive', onPress: () => doSkipMeal(mealWindow) },
-          { text: 'Just 1 fewer thali', onPress: () => doSkipMeal(mealWindow, 1) },
-          { text: 'Keep', style: 'cancel' },
-        ],
-        'warning'
-      );
+    const maxThali = thaliQtyForAddress();
+    if (maxThali > 1) {
+      setSkipQty(1);
+      setSkipPicker({ mealWindow, maxThali });
       return;
     }
     doSkipMeal(mealWindow);
-  }, [autoOrderConfigs, currentAddressId, showAlert, doSkipMeal]);
+  }, [thaliQtyForAddress, doSkipMeal]);
+
+  // Confirm the picker. Skipping the full count is a "skip all" (skipQuantity
+  // undefined → backend full-skips + refunds add-ons); fewer is a partial skip
+  // that trims the order's thali count (add-ons kept).
+  const confirmSkipQuantity = useCallback(() => {
+    if (!skipPicker) return;
+    const { mealWindow, maxThali } = skipPicker;
+    const qty = Math.min(Math.max(1, skipQty), maxThali);
+    setSkipPicker(null);
+    doSkipMeal(mealWindow, qty >= maxThali ? undefined : qty);
+  }, [skipPicker, skipQty, doSkipMeal]);
 
   // Unskip auto-order meal
   const handleUnskipMeal = useCallback(async (mealWindow: 'LUNCH' | 'DINNER') => {
@@ -1089,6 +1105,75 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation, route }) => {
               <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: '#FE8733' }}>Add new address</Text>
             </TouchableOpacity>
           </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Partial-skip quantity picker (multi-thali setups) */}
+      <Modal visible={!!skipPicker} transparent animationType="fade" onRequestClose={() => setSkipPicker(null)}>
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: SPACING.lg }}
+          activeOpacity={1}
+          onPress={() => setSkipPicker(null)}
+        >
+          <TouchableOpacity activeOpacity={1} style={{ backgroundColor: 'white', borderRadius: 20, padding: SPACING.lg }}>
+            {skipPicker && (() => {
+              const { maxThali } = skipPicker;
+              const keep = maxThali - skipQty;
+              const isAll = skipQty >= maxThali;
+              const mealLabel = skipPicker.mealWindow.charAt(0) + skipPicker.mealWindow.slice(1).toLowerCase();
+              return (
+                <>
+                  <Text style={{ fontSize: FONT_SIZES.lg, fontWeight: 'bold', color: '#1F2937', textAlign: 'center', marginBottom: SPACING.xs }}>
+                    Skip {mealLabel}
+                  </Text>
+                  <Text style={{ fontSize: FONT_SIZES.sm, color: '#6B7280', textAlign: 'center', marginBottom: SPACING.lg }}>
+                    This slot auto-orders {maxThali} thalis. How many do you want to skip?
+                  </Text>
+
+                  {/* Stepper */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.md }}>
+                    <TouchableOpacity
+                      onPress={() => setSkipQty(q => Math.max(1, q - 1))}
+                      disabled={skipQty <= 1}
+                      style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: skipQty <= 1 ? '#E5E7EB' : '#FCA5A5', alignItems: 'center', justifyContent: 'center', backgroundColor: skipQty <= 1 ? '#F9FAFB' : '#FFF5F5' }}
+                    >
+                      <MaterialCommunityIcons name="minus" size={22} color={skipQty <= 1 ? '#D1D5DB' : '#DC2626'} />
+                    </TouchableOpacity>
+                    <Text style={{ fontSize: 28, fontWeight: '800', color: '#1F2937', minWidth: 64, textAlign: 'center' }}>{skipQty}</Text>
+                    <TouchableOpacity
+                      onPress={() => setSkipQty(q => Math.min(maxThali, q + 1))}
+                      disabled={skipQty >= maxThali}
+                      style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: skipQty >= maxThali ? '#E5E7EB' : '#FCA5A5', alignItems: 'center', justifyContent: 'center', backgroundColor: skipQty >= maxThali ? '#F9FAFB' : '#FFF5F5' }}
+                    >
+                      <MaterialCommunityIcons name="plus" size={22} color={skipQty >= maxThali ? '#D1D5DB' : '#DC2626'} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <Text style={{ fontSize: FONT_SIZES.sm, color: isAll ? '#DC2626' : '#047857', textAlign: 'center', fontWeight: '600', marginBottom: SPACING.lg }}>
+                    {isAll ? 'Skips the entire meal' : `Keeps ${keep} thali${keep > 1 ? 's' : ''} this day`}
+                  </Text>
+
+                  <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+                    <TouchableOpacity
+                      onPress={() => setSkipPicker(null)}
+                      style={{ flex: 1, paddingVertical: SPACING.md, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center' }}
+                    >
+                      <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: '#6B7280' }}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={confirmSkipQuantity}
+                      disabled={isActionLoading}
+                      style={{ flex: 1, paddingVertical: SPACING.md, borderRadius: 12, backgroundColor: '#DC2626', alignItems: 'center' }}
+                    >
+                      <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '700', color: 'white' }}>
+                        {isAll ? 'Skip meal' : `Skip ${skipQty}`}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              );
+            })()}
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
     </View>

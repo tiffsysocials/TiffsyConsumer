@@ -1686,6 +1686,7 @@ export interface ScheduledMealListItem {
   _id: string;
   orderNumber: string;
   orderSource?: 'DIRECT' | 'SCHEDULED' | 'AUTO_ORDER';
+  deliveryAddressId?: string;
   status: string;
   paymentStatus: string;
   mealWindow: 'LUNCH' | 'DINNER';
