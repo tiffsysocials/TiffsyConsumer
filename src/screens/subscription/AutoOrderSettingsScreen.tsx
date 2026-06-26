@@ -84,18 +84,24 @@ const AutoOrderSettingsScreen: React.FC<Props> = ({ navigation }) => {
 
   const activeConfigCount = autoOrderConfigs.filter(c => c.enabled).length;
 
-  // Merge all saved addresses with their configs (if any)
-  const mergedAddresses = addresses.map(addr => {
-    const config = autoOrderConfigs.find(c => c.addressId === addr.id);
-    return { address: addr, config };
-  });
-  // Also include configs whose address isn't in the local addresses list (edge case)
-  const orphanConfigs = autoOrderConfigs.filter(
-    c => !addresses.some(a => a.id === c.addressId)
+  // Phase 11.1.x — one row per SETUP, not per address. A user with two
+  // packs that each set up auto-order on the same address now sees two
+  // distinct cards (different setupIds, different wallets, possibly
+  // different schedules) instead of the old "first config wins" merge
+  // that silently hid the second. Configs whose addressId doesn't match
+  // a local address (deleted/orphaned) render with the address fields
+  // off the config itself.
+  const configRows = autoOrderConfigs.map(c => ({
+    address: addresses.find(a => a.id === c.addressId) || null,
+    config: c,
+  }));
+  // Addresses that have NO setup at all → "Not Set Up" cards.
+  const addressesWithoutConfig = addresses.filter(
+    a => !autoOrderConfigs.some(c => c.addressId === a.id)
   );
   const allItems = [
-    ...mergedAddresses,
-    ...orphanConfigs.map(c => ({ address: null, config: c })),
+    ...configRows,
+    ...addressesWithoutConfig.map(a => ({ address: a, config: null })),
   ];
 
   // Loading state
