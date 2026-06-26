@@ -16,6 +16,7 @@ import { useAddress } from '../../context/AddressContext';
 import { useUser } from '../../context/UserContext';
 import { useAlert } from '../../context/AlertContext';
 import locationService from '../../services/location.service';
+import apiService from '../../services/api.service';
 import { useResponsive } from '../../hooks/useResponsive';
 import { SPACING, TOUCH_TARGETS } from '../../constants/spacing';
 import { FONT_SIZES } from '../../constants/typography';
@@ -23,7 +24,7 @@ import { FONT_SIZES } from '../../constants/typography';
 const ADDRESS_LABELS = ['Home', 'Office', 'Other'];
 
 const AddressSetupScreen: React.FC = () => {
-  const { checkServiceability, createAddressOnServer, getCurrentLocationWithAddress } = useAddress();
+  const { createAddressOnServer, getCurrentLocationWithAddress } = useAddress();
   const { setNeedsAddressSetup, user, logout } = useUser();
   const { showAlert } = useAlert();
   const { isSmallDevice } = useResponsive();
@@ -89,11 +90,18 @@ const AddressSetupScreen: React.FC = () => {
       // Clear any existing errors for auto-filled fields
       setErrors({});
 
-      // Auto-check pincode serviceability
-      if (location.pincode && location.pincode.length === 6) {
+      // Coordinate-based serviceability (matches the new backend matcher).
+      if (location.coordinates) {
         setIsCheckingPincode(true);
-        const result = await checkServiceability(location.pincode);
-        setPincodeServiceable(result.isServiceable);
+        try {
+          const res = await apiService.getKitchensByCoordsV2(
+            location.coordinates.latitude,
+            location.coordinates.longitude,
+          );
+          setPincodeServiceable((res?.data?.count ?? 0) > 0);
+        } catch {
+          setPincodeServiceable(null);
+        }
         setIsCheckingPincode(false);
       }
 
@@ -120,17 +128,10 @@ const AddressSetupScreen: React.FC = () => {
     }
   };
 
-  const handlePincodeChange = async (text: string) => {
-    const pincode = text.replace(/[^0-9]/g, '');
-    updateFormField('pincode', pincode);
-    setPincodeServiceable(null);
-
-    if (pincode.length === 6) {
-      setIsCheckingPincode(true);
-      const result = await checkServiceability(pincode);
-      setPincodeServiceable(result.isServiceable);
-      setIsCheckingPincode(false);
-    }
+  const handlePincodeChange = (text: string) => {
+    // Pincode is informational here; serviceability is coordinate-based
+    // (set when GPS/forward-geocode resolves the location).
+    updateFormField('pincode', text.replace(/[^0-9]/g, ''));
   };
 
   const validateForm = (): boolean => {
@@ -169,45 +170,52 @@ const AddressSetupScreen: React.FC = () => {
       return;
     }
 
-    const persistAddress = async () => {
-      // Use GPS coordinates if available, otherwise forward geocode
+    setIsSubmitting(true);
+    try {
+      // Resolve coordinates: GPS pin if detected, else forward-geocode the typed
+      // address (onboarding bootstrap has no map screen yet).
       let coordinates = formCoordinates;
       if (!coordinates) {
         const fullAddress = `${addressForm.addressLine1}, ${addressForm.locality}, ${addressForm.city}, ${addressForm.state}, ${addressForm.pincode}`;
         coordinates = await locationService.forwardGeocode(fullAddress);
       }
 
-      await createAddressOnServer({
-        label: addressForm.label,
-        pincode: addressForm.pincode,
-        addressLine1: addressForm.addressLine1,
-        addressLine2: addressForm.addressLine2,
-        landmark: addressForm.landmark,
-        locality: addressForm.locality,
-        city: addressForm.city,
-        state: addressForm.state,
-        contactName: addressForm.contactName,
-        contactPhone: '+91' + addressForm.contactPhone,
-        isMain: true,
-        coordinates: coordinates || undefined,
-      });
+      const persistAddress = async () => {
+        await createAddressOnServer({
+          label: addressForm.label,
+          pincode: addressForm.pincode,
+          addressLine1: addressForm.addressLine1,
+          addressLine2: addressForm.addressLine2,
+          landmark: addressForm.landmark,
+          locality: addressForm.locality,
+          city: addressForm.city,
+          state: addressForm.state,
+          contactName: addressForm.contactName,
+          contactPhone: '+91' + addressForm.contactPhone,
+          isMain: true,
+          coordinates: coordinates || undefined,
+        });
+        // Address created successfully, exit address setup flow
+        setNeedsAddressSetup(false);
+      };
 
-      // Address created successfully, exit address setup flow
-      setNeedsAddressSetup(false);
-    };
+      // Coordinate-based serviceability (matches the new backend matcher). If
+      // coordinates couldn't be resolved, don't block — let the server decide.
+      let serviceable = true;
+      if (coordinates) {
+        try {
+          const res = await apiService.getKitchensByCoordsV2(coordinates.latitude, coordinates.longitude);
+          serviceable = (res?.data?.count ?? 0) > 0;
+        } catch {
+          serviceable = true;
+        }
+      }
 
-    setIsSubmitting(true);
-    try {
-      // Check serviceability — if not serviceable, ask the user before saving
-      // rather than blocking. Server stores `isServiceable: false` on the record
-      // and the home screen surfaces a non-serviceable empty-state.
-      const serviceabilityResult = await checkServiceability(addressForm.pincode);
-
-      if (!serviceabilityResult.isServiceable) {
+      if (!serviceable) {
         setIsSubmitting(false);
         showAlert(
-          'Pincode Not Serviceable',
-          "We don't deliver to this pincode yet. Save this address anyway? We'll let you know when we expand here.",
+          'Location Not Serviceable',
+          "We don't deliver to this location yet. Save this address anyway? We'll let you know when we expand here.",
           [
             { text: 'Cancel', style: 'cancel' },
             {

@@ -21,7 +21,6 @@ import { useAlert } from '../../context/AlertContext';
 import { useUser } from '../../context/UserContext';
 import Svg, { Path } from 'react-native-svg';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import locationService from '../../services/location.service';
 import { useResponsive } from '../../hooks/useResponsive';
 import { SPACING, TOUCH_TARGETS } from '../../constants/spacing';
 import { FONT_SIZES } from '../../constants/typography';
@@ -73,7 +72,6 @@ const AddressScreen: React.FC<Props> = ({ navigation, route }) => {
     updateAddressOnServer,
     deleteAddressOnServer,
     setDefaultAddressOnServer,
-    checkServiceability,
     getCurrentLocationWithAddress,
     currentLocation,
     isGettingLocation,
@@ -105,8 +103,12 @@ const AddressScreen: React.FC<Props> = ({ navigation, route }) => {
     setFormData(prev => ({
       ...prev,
       label: prev.label || 'HOME',
-      addressLine1: picked.addressLine1 || prev.addressLine1 || '',
+      // Flat/house stays the user's to type (don't overwrite with the geocoded
+      // street). The geocoded street goes into line2 as a prefilled hint.
+      addressLine1: prev.addressLine1 || '',
+      addressLine2: prev.addressLine2 || picked.addressLine1 || '',
       locality: picked.locality || prev.locality || '',
+      // city/state/pincode are derived from the pin (read-only in the form).
       city: picked.city || prev.city || '',
       state: picked.state || prev.state || '',
       pincode: picked.pincode || prev.pincode || '',
@@ -114,6 +116,7 @@ const AddressScreen: React.FC<Props> = ({ navigation, route }) => {
       contactPhone: prev.contactPhone || user?.phone || '',
     }));
     setFormCoordinates({ latitude: picked.latitude, longitude: picked.longitude });
+    setMapServiceable(picked.isServiceable === undefined ? null : !!picked.isServiceable);
     // Reopen whichever modal the user came from. If editingAddress is set, they
     // were editing; otherwise they were adding a new address.
     if (editingAddress) {
@@ -130,8 +133,8 @@ const AddressScreen: React.FC<Props> = ({ navigation, route }) => {
   const [formData, setFormData] = useState<AddressFormData>(emptyFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formCoordinates, setFormCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [isCheckingPincode, setIsCheckingPincode] = useState(false);
-  const [pincodeServiceable, setPincodeServiceable] = useState<boolean | null>(null);
+  // Serviceability from the map step (coordinate-based), surfaced in the details sheet.
+  const [mapServiceable, setMapServiceable] = useState<boolean | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   // Fetch addresses on mount
@@ -157,19 +160,6 @@ const AddressScreen: React.FC<Props> = ({ navigation, route }) => {
     );
   });
 
-  // Check serviceability when pincode changes
-  const handlePincodeChange = async (pincode: string) => {
-    setFormData({ ...formData, pincode });
-    setPincodeServiceable(null);
-
-    if (pincode.length === 6) {
-      setIsCheckingPincode(true);
-      const result = await checkServiceability(pincode);
-      setPincodeServiceable(result.isServiceable);
-      setIsCheckingPincode(false);
-    }
-  };
-
   const resetForm = () => {
     // Seed contact name & phone from the user's profile so they don't have to retype every time.
     // Fields stay editable — onChangeText overrides these defaults.
@@ -179,10 +169,16 @@ const AddressScreen: React.FC<Props> = ({ navigation, route }) => {
       contactPhone: user?.phone || '',
     });
     setFormCoordinates(null);
-    setPincodeServiceable(null);
+    setMapServiceable(null);
   };
 
   const handleAddAddress = async () => {
+    // Pin is mandatory — coordinates always come from the map step.
+    if (!formCoordinates) {
+      showAlert('Set your location', 'Please pin your delivery location on the map first.', undefined, 'error');
+      return;
+    }
+
     // Validation - check all required fields
     if (!formData.addressLine1 || !formData.locality || !formData.city ||
         !formData.state || !formData.pincode || !formData.contactName || !formData.contactPhone) {
@@ -235,13 +231,6 @@ const AddressScreen: React.FC<Props> = ({ navigation, route }) => {
     const proceedWithSave = async () => {
       setIsSubmitting(true);
       try {
-        // Get coordinates: use GPS coordinates if available, otherwise forward geocode the address
-        let coordinates = formCoordinates;
-        if (!coordinates) {
-          const fullAddress = `${formData.addressLine1}, ${formData.locality}, ${formData.city}, ${formData.state}, ${formData.pincode}`;
-          coordinates = await locationService.forwardGeocode(fullAddress);
-        }
-
         await createAddressOnServer({
           label: formData.label,
           addressLine1: formData.addressLine1,
@@ -254,14 +243,14 @@ const AddressScreen: React.FC<Props> = ({ navigation, route }) => {
           contactName: formData.contactName,
           contactPhone: formData.contactPhone,
           isMain: addresses.length === 0, // First address is default
-          coordinates: coordinates || undefined,
+          coordinates: formCoordinates, // always set (pin mandatory)
         });
         setShowAddModal(false);
         resetForm();
-        if (pincodeServiceable === false) {
+        if (mapServiceable === false) {
           showAlert(
             'Address Saved',
-            "We don't deliver to this pincode yet. We'll let you know when we expand here.",
+            "We don't deliver to this location yet. We'll let you know when we expand here.",
             undefined,
             'warning',
           );
@@ -275,10 +264,10 @@ const AddressScreen: React.FC<Props> = ({ navigation, route }) => {
       }
     };
 
-    if (pincodeServiceable === false) {
+    if (mapServiceable === false) {
       showAlert(
-        'Pincode Not Serviceable',
-        "We don't deliver to this pincode yet. Save this address anyway? We'll let you know when we expand here.",
+        'Location Not Serviceable',
+        "We don't deliver to this location yet. Save this address anyway? We'll let you know when we expand here.",
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Save Anyway', style: 'default', onPress: () => { proceedWithSave(); } },
@@ -306,12 +295,25 @@ const AddressScreen: React.FC<Props> = ({ navigation, route }) => {
       contactPhone: address.contactPhone || '',
     });
     setFormCoordinates(address.coordinates || null);
-    setPincodeServiceable(address.isServiceable ?? null);
-    setShowEditModal(true);
+    setMapServiceable(address.isServiceable ?? null);
+    // Map-first edit: open the picker at the saved pin. The details sheet
+    // reopens (via the pickedLocation effect) when the user confirms.
+    navigation.navigate(
+      'LocationPicker',
+      address.coordinates
+        ? { initialLatitude: address.coordinates.latitude, initialLongitude: address.coordinates.longitude }
+        : undefined,
+    );
   };
 
   const handleUpdateAddress = async () => {
     if (!editingAddress) return;
+
+    // Pin is mandatory — coordinates always come from the map step.
+    if (!formCoordinates) {
+      showAlert('Set your location', 'Please pin your delivery location on the map first.', undefined, 'error');
+      return;
+    }
 
     // Validation - check all required fields
     if (!formData.addressLine1 || !formData.locality || !formData.city ||
@@ -364,13 +366,6 @@ const AddressScreen: React.FC<Props> = ({ navigation, route }) => {
 
     setIsSubmitting(true);
     try {
-      // Get coordinates: use existing if available, otherwise forward geocode
-      let coordinates = formCoordinates;
-      if (!coordinates) {
-        const fullAddress = `${formData.addressLine1}, ${formData.locality}, ${formData.city}, ${formData.state}, ${formData.pincode}`;
-        coordinates = await locationService.forwardGeocode(fullAddress);
-      }
-
       await updateAddressOnServer(editingAddress.id, {
         label: formData.label,
         addressLine1: formData.addressLine1,
@@ -382,7 +377,7 @@ const AddressScreen: React.FC<Props> = ({ navigation, route }) => {
         pincode: formData.pincode,
         contactName: formData.contactName,
         contactPhone: formData.contactPhone,
-        coordinates: coordinates || undefined,
+        coordinates: formCoordinates, // always set (pin mandatory)
       });
       setShowEditModal(false);
       setEditingAddress(null);
@@ -438,61 +433,56 @@ const AddressScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const renderAddressForm = (isEdit: boolean) => (
     <ScrollView showsVerticalScrollIndicator={false}>
-      {/* Use Current Location — opens the map picker. Shown for both add and edit so users can re-pin an existing address. */}
-      <TouchableOpacity
+      {/* Location chosen on the map (step 1). "Change" re-opens the picker. */}
+      <View style={{ marginBottom: 16, backgroundColor: '#FFF7ED', borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'flex-start', borderWidth: 1.5, borderColor: '#FE8733' }}>
+        <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: '#FE8733', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+          <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+            <Path
+              d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"
+              stroke="white"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: '#9A3412' }}>Delivering to this pin</Text>
+          <Text style={{ fontSize: 12, color: '#9A3412', marginTop: 2 }} numberOfLines={2}>
+            {[formData.locality, formData.city, formData.pincode].filter(Boolean).join(', ') || 'Location set on map'}
+          </Text>
+        </View>
+        <TouchableOpacity
           onPress={() => {
-            // Close the current modal before navigating so the map picker isn't covered.
-            // The pickedLocation effect will reopen the correct modal on return.
-            if (isEdit) {
-              setShowEditModal(false);
-            } else {
-              setShowAddModal(false);
-            }
-            navigation.navigate('LocationPicker');
+            // Close this sheet before navigating so the map isn't covered;
+            // the pickedLocation effect reopens it on return.
+            if (isEdit) { setShowEditModal(false); } else { setShowAddModal(false); }
+            navigation.navigate(
+              'LocationPicker',
+              formCoordinates
+                ? { initialLatitude: formCoordinates.latitude, initialLongitude: formCoordinates.longitude }
+                : undefined,
+            );
           }}
-          activeOpacity={0.85}
-          style={{
-            marginBottom: 20,
-            backgroundColor: '#FFF7ED',
-            borderRadius: 14,
-            padding: 14,
-            flexDirection: 'row',
-            alignItems: 'center',
-            borderWidth: 1.5,
-            borderColor: '#FE8733',
-          }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <View
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: 19,
-              backgroundColor: '#FE8733',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginRight: 12,
-            }}
-          >
-            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-              <Path
-                d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"
-                stroke="white"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </Svg>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: '#9A3412' }}>
-              Use Current Location
-            </Text>
-            <Text style={{ fontSize: 12, color: '#9A3412', marginTop: 2 }}>
-              Pinpoint on map to autofill your address
-            </Text>
-          </View>
-          <Text style={{ fontSize: 20, color: '#FE8733', fontWeight: '700' }}>›</Text>
+          <Text style={{ fontSize: 13, color: '#FE8733', fontWeight: '700' }}>Change</Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Serviceability from the coordinate-based check on the map step. */}
+      {mapServiceable === true && (
+        <View style={{ marginBottom: 16, backgroundColor: '#ECFDF5', borderRadius: 12, padding: 12 }}>
+          <Text style={{ color: '#047857', fontSize: 13, fontWeight: '600' }}>✓ Great! We deliver to this location</Text>
+        </View>
+      )}
+      {mapServiceable === false && (
+        <View style={{ marginBottom: 16, backgroundColor: '#FEF3C7', borderRadius: 12, padding: 12 }}>
+          <Text style={{ color: '#B45309', fontSize: 13, fontWeight: '600' }}>
+            We don't deliver here yet — you can still save this address.
+          </Text>
+        </View>
+      )}
 
       {/* Label Selection */}
       <View className="mb-4">
@@ -595,71 +585,27 @@ const AddressScreen: React.FC<Props> = ({ navigation, route }) => {
         />
       </View>
 
-      {/* Pincode with serviceability check */}
+      {/* City / State / Pincode — derived from the map pin, read-only.
+          (Zomato/Swiggy-style: you don't type the pincode; tap "Change" above.) */}
       <View className="mb-4">
-        <Text className="text-sm font-semibold text-gray-700 mb-2">Pincode *</Text>
-        <View className="flex-row items-center">
-          <TextInput
-            value={formData.pincode}
-            onChangeText={handlePincodeChange}
-            placeholder="6-digit pincode"
-            placeholderTextColor="#9CA3AF"
-            keyboardType="number-pad"
-            maxLength={6}
-            className="flex-1 bg-gray-50 rounded-2xl px-4 py-3 text-gray-900 border border-gray-200"
-          />
-          {isCheckingPincode && (
-            <ActivityIndicator size="small" color="#FE8733" style={{ marginLeft: 12 }} />
-          )}
-          {pincodeServiceable === true && (
-            <Text className="ml-3 text-green-600 text-lg">✓</Text>
-          )}
-          {pincodeServiceable === false && (
-            <Text className="ml-3 text-lg" style={{ color: '#F59E0B' }}>!</Text>
-          )}
+        <Text className="text-sm font-semibold text-gray-700 mb-2">Area (from your pin)</Text>
+        <View className="flex-row">
+          <View className="flex-1 mr-2">
+            <Text className="text-xs text-gray-500 mb-1">City</Text>
+            <View className="bg-gray-100 rounded-2xl px-4 py-3 border border-gray-200" style={{ minHeight: 48, justifyContent: 'center' }}>
+              <Text style={{ color: '#374151', fontSize: 14 }}>{formData.city || '—'}</Text>
+            </View>
+          </View>
+          <View className="flex-1 ml-2">
+            <Text className="text-xs text-gray-500 mb-1">Pincode</Text>
+            <View className="bg-gray-100 rounded-2xl px-4 py-3 border border-gray-200" style={{ minHeight: 48, justifyContent: 'center' }}>
+              <Text style={{ color: '#374151', fontSize: 14 }}>{formData.pincode || '—'}</Text>
+            </View>
+          </View>
         </View>
-        {pincodeServiceable === false && (
-          <Text className="text-xs mt-1" style={{ color: '#B45309' }}>
-            We don't deliver here yet - you can still save this address.
-          </Text>
+        {!!formData.state && (
+          <Text className="text-xs text-gray-400 mt-1">{formData.state}</Text>
         )}
-        {pincodeServiceable === true && (
-          <Text className="text-green-600 text-xs mt-1">
-            Great! We deliver to this location
-          </Text>
-        )}
-      </View>
-
-      {/* City and State — picker triggers (curated dropdown via PickerSheet) */}
-      <View className="flex-row mb-4">
-        <View className="flex-1 mr-2">
-          <Text className="text-sm font-semibold text-gray-700 mb-2">City *</Text>
-          <TouchableOpacity
-            onPress={() => setShowCityPicker(true)}
-            activeOpacity={0.7}
-            className="bg-gray-50 rounded-2xl px-4 py-3 border border-gray-200 flex-row items-center justify-between"
-            style={{ minHeight: 48 }}
-          >
-            <Text style={{ color: formData.city ? '#111827' : '#9CA3AF', fontSize: 14 }}>
-              {formData.city || 'Select city'}
-            </Text>
-            <Text style={{ color: '#9CA3AF', fontSize: 16 }}>▾</Text>
-          </TouchableOpacity>
-        </View>
-        <View className="flex-1 ml-2">
-          <Text className="text-sm font-semibold text-gray-700 mb-2">State *</Text>
-          <TouchableOpacity
-            onPress={() => setShowStatePicker(true)}
-            activeOpacity={0.7}
-            className="bg-gray-50 rounded-2xl px-4 py-3 border border-gray-200 flex-row items-center justify-between"
-            style={{ minHeight: 48 }}
-          >
-            <Text style={{ color: formData.state ? '#111827' : '#9CA3AF', fontSize: 14 }}>
-              {formData.state || 'Select state'}
-            </Text>
-            <Text style={{ color: '#9CA3AF', fontSize: 16 }}>▾</Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
       {/* Submit Button */}
@@ -757,9 +703,10 @@ const AddressScreen: React.FC<Props> = ({ navigation, route }) => {
               setShowGuestLoginPrompt(true);
               return;
             }
-            console.log('[AddressScreen] Add New Address pressed');
             resetForm();
-            setShowAddModal(true);
+            setEditingAddress(null);
+            // Map-first: pick the location, then fill details on return.
+            navigation.navigate('LocationPicker');
           }}
           style={{
             marginHorizontal: 20,

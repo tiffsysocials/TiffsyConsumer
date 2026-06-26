@@ -20,6 +20,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import { MainTabParamList } from '../../types/navigation';
 import locationService, { LocationResult } from '../../services/location.service';
+import apiService from '../../services/api.service';
 import { GOOGLE_MAPS_API_KEY } from '../../constants/config';
 import { SPACING, TOUCH_TARGETS } from '../../constants/spacing';
 import { FONT_SIZES } from '../../constants/typography';
@@ -41,11 +42,22 @@ interface PlacePrediction {
   place_id: string;
 }
 
-const LocationPickerScreen: React.FC<Props> = ({ navigation }) => {
+const LocationPickerScreen: React.FC<Props> = ({ navigation, route }) => {
+  // Edit flow opens the map at the address's existing pin.
+  const initialCoords =
+    route.params?.initialLatitude != null && route.params?.initialLongitude != null
+      ? { latitude: route.params.initialLatitude, longitude: route.params.initialLongitude }
+      : null;
   const mapRef = useRef<MapView>(null);
-  const [region, setRegion] = useState<Region>(DEFAULT_REGION);
+  const [region, setRegion] = useState<Region>(
+    initialCoords
+      ? { ...initialCoords, latitudeDelta: 0.008, longitudeDelta: 0.008 }
+      : DEFAULT_REGION,
+  );
   const [resolvedAddress, setResolvedAddress] = useState<LocationResult | null>(null);
   const [isResolving, setIsResolving] = useState(false);
+  // Live, coordinate-based serviceability for the current pin. null = unknown/checking.
+  const [serviceable, setServiceable] = useState<boolean | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
@@ -61,6 +73,8 @@ const LocationPickerScreen: React.FC<Props> = ({ navigation }) => {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // Editing an existing address: stay on its saved pin, don't jump to GPS.
+      if (initialCoords) return;
       try {
         const granted = await locationService.requestLocationPermission();
         if (!granted || cancelled) return;
@@ -95,6 +109,22 @@ const LocationPickerScreen: React.FC<Props> = ({ navigation }) => {
   const runReverseGeocode = useCallback(async (lat: number, lng: number) => {
     const requestId = ++geocodeRequestId.current;
     setIsResolving(true);
+    setServiceable(null);
+
+    // Coordinate-based serviceability for the current pin (Zomato/Swiggy-style
+    // "we deliver here" feedback). Runs in parallel; never blocks the address
+    // resolve, and stays null/unknown on error so we don't falsely block saving.
+    apiService
+      .getKitchensByCoordsV2(lat, lng)
+      .then(res => {
+        if (requestId !== geocodeRequestId.current) return;
+        setServiceable((res?.data?.count ?? 0) > 0);
+      })
+      .catch(() => {
+        if (requestId !== geocodeRequestId.current) return;
+        setServiceable(null);
+      });
+
     try {
       const result = await locationService.reverseGeocode({ latitude: lat, longitude: lng });
       if (requestId !== geocodeRequestId.current) return;
@@ -219,6 +249,7 @@ const LocationPickerScreen: React.FC<Props> = ({ navigation }) => {
       city: resolvedAddress?.address?.city,
       state: resolvedAddress?.address?.state,
       pincode: resolvedAddress?.pincode,
+      isServiceable: serviceable === true,
     };
     // Use merge:true so we don't blow away other Address route params if any
     navigation.navigate({
@@ -385,6 +416,21 @@ const LocationPickerScreen: React.FC<Props> = ({ navigation }) => {
             )}
           </View>
         </View>
+
+        {/* Coordinate-based serviceability banner. Non-blocking: a non-serviceable
+            pin can still be saved (ordering is gated later). */}
+        {serviceable === true && (
+          <View style={[styles.serviceBanner, styles.serviceBannerOk]}>
+            <Text style={styles.serviceTextOk}>✓ Great! We deliver to this location</Text>
+          </View>
+        )}
+        {serviceable === false && (
+          <View style={[styles.serviceBanner, styles.serviceBannerNo]}>
+            <Text style={styles.serviceTextNo}>
+              We don't deliver here yet — you can still save this address
+            </Text>
+          </View>
+        )}
 
         <TouchableOpacity
           onPress={handleConfirm}
@@ -558,6 +604,28 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 2,
     lineHeight: FONT_SIZES.sm * 1.4,
+  },
+  serviceBanner: {
+    borderRadius: 12,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  serviceBannerOk: {
+    backgroundColor: '#ECFDF5',
+  },
+  serviceBannerNo: {
+    backgroundColor: '#FEF3C7',
+  },
+  serviceTextOk: {
+    color: '#047857',
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+  },
+  serviceTextNo: {
+    color: '#B45309',
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
   },
   confirmButton: {
     backgroundColor: '#FE8733',
