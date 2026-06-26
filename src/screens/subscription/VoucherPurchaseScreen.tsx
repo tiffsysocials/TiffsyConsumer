@@ -76,7 +76,7 @@ export default function VoucherPurchaseScreen() {
   const insets = useSafeAreaInsets();
   const { planId } = route.params;
 
-  const { addresses, getMainAddress } = useAddress();
+  const { addresses } = useAddress();
   // Phase 11.1 hotfix — pull the refetch hooks so the success path can
   // refresh subscriptions + vouchers + auto-order configs before
   // navigating. Without this, post-purchase screens read stale state.
@@ -93,11 +93,36 @@ export default function VoucherPurchaseScreen() {
   // Step 1: opt-in
   const [autoOrderYes, setAutoOrderYes] = useState<boolean | null>(null);
 
-  // Step 2: form fields (only used when autoOrderYes === true)
-  const defaultAddr = getMainAddress();
-  const [addressId, setAddressId] = useState<string>(defaultAddr?.id ?? '');
-  const [contactName, setContactName] = useState<string>(defaultAddr?.contactName ?? '');
-  const [contactPhone, setContactPhone] = useState<string>(defaultAddr?.contactPhone ?? '');
+  // Step 2: form fields (only used when autoOrderYes === true).
+  //
+  // Phase 11.1.x hotfix — silent default pre-fill caused a real
+  // production-class bug: customers with multiple addresses (especially
+  // ones sharing the 'HOME' label) would proceed without opening the
+  // picker, end up using their isDefault address, and silently duplicate
+  // an existing auto-order setup. Force an active choice when there's
+  // more than one address; keep the single-address auto-fill for the
+  // common case.
+  const onlyAddr = addresses.length === 1 ? addresses[0] : null;
+  const [addressId, setAddressId] = useState<string>(onlyAddr?.id ?? '');
+  const [contactName, setContactName] = useState<string>(onlyAddr?.contactName ?? '');
+  const [contactPhone, setContactPhone] = useState<string>(onlyAddr?.contactPhone ?? '');
+
+  // Phase 11.1.x — addressIds that ALREADY have an enabled auto-order
+  // setup across the user's active subscriptions. Used by the picker
+  // (Fix 2 — show 'Already running' pill) and the confirm sheet
+  // (Fix 4 — show the duplicate-address warning). Empty when
+  // subscriptions haven't loaded yet; that's fine, the picker just
+  // doesn't badge anything until they do.
+  const addressIdsWithSetup = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of subscriptions) {
+      if (s.status !== 'ACTIVE') continue;
+      for (const x of (s.autoOrderSetups || [])) {
+        if (x.enabled !== false && x.addressId) set.add(String(x.addressId));
+      }
+    }
+    return set;
+  }, [subscriptions]);
   const [thalisPerMeal, setThalisPerMeal] = useState<number>(1);
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule>(defaultWeekly());
 
@@ -116,6 +141,10 @@ export default function VoucherPurchaseScreen() {
   const [quoteError, setQuoteError] = useState<string | null>(null);
 
   const [showAddressPicker, setShowAddressPicker] = useState(false);
+  // Fix 4 — pre-Pay confirm modal. Only fires on the auto-order branch
+  // (pack-only purchases have no address bound to them, so there's
+  // nothing to mis-confirm).
+  const [showPayConfirm, setShowPayConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   // Collapsed by default — same UX as the cart's "To Pay" row.
   const [summaryExpanded, setSummaryExpanded] = useState(false);
@@ -191,7 +220,10 @@ export default function VoucherPurchaseScreen() {
 
   const selectedAddress = addresses.find(a => a.id === addressId);
 
-  const handlePay = async () => {
+  // Fix 4 — Pay button now routes through a confirm sheet on the
+  // auto-order branch. Pack-only purchases (autoOrderYes !== true) skip
+  // the sheet since there's no address binding to confirm.
+  const handlePay = () => {
     if (!plan) return;
     if (autoOrderYes === true && (!quote || quoteError)) {
       showAlert(
@@ -202,6 +234,15 @@ export default function VoucherPurchaseScreen() {
       );
       return;
     }
+    if (autoOrderYes === true) {
+      setShowPayConfirm(true);
+      return;
+    }
+    executePayment();
+  };
+
+  const executePayment = async () => {
+    if (!plan) return;
     setSubmitting(true);
     try {
       const result = await paymentService.processSubscriptionPayment(
@@ -588,40 +629,213 @@ export default function VoucherPurchaseScreen() {
                 </View>
               ) : (
                 <ScrollView style={{ maxHeight: 360 }}>
-                  {addresses.map(a => (
-                    <TouchableOpacity
-                      key={a.id}
-                      onPress={() => {
-                        setAddressId(a.id);
-                        if (!contactName) setContactName(a.contactName || '');
-                        if (!contactPhone) setContactPhone(a.contactPhone || '');
-                        setShowAddressPicker(false);
-                      }}
-                      activeOpacity={0.7}
-                      style={[
-                        styles.addressRow,
-                        addressId === a.id && {
-                          borderColor: PRIMARY,
-                          backgroundColor: PRIMARY_TINT,
-                        },
-                      ]}
-                    >
-                      <View style={styles.iconCircle}>
-                        <MaterialCommunityIcons name="map-marker" size={22} color={PRIMARY} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.cardTitle} numberOfLines={1}>{a.label}</Text>
-                        <Text style={styles.cardMeta} numberOfLines={2}>
-                          {a.addressLine1}, {a.locality}, {a.pincode}
-                        </Text>
-                      </View>
-                      {addressId === a.id && (
-                        <MaterialCommunityIcons name="check-circle" size={22} color={PRIMARY} />
-                      )}
-                    </TouchableOpacity>
-                  ))}
+                  {(() => {
+                    // Fix 3 — count label occurrences once per render so the
+                    // row only emphasises addressLine1 when the label is
+                    // ambiguous. Single-label addresses keep the original
+                    // bold-label-first treatment.
+                    const labelCounts: Record<string, number> = {};
+                    for (const a of addresses) {
+                      const k = (a.label || '').trim();
+                      if (!k) continue;
+                      labelCounts[k] = (labelCounts[k] || 0) + 1;
+                    }
+                    return addresses.map(a => {
+                      const isAmbiguous = (labelCounts[(a.label || '').trim()] || 0) > 1;
+                      const alreadyHasSetup = addressIdsWithSetup.has(a.id);
+                      return (
+                        <TouchableOpacity
+                          key={a.id}
+                          onPress={() => {
+                            setAddressId(a.id);
+                            if (!contactName) setContactName(a.contactName || '');
+                            if (!contactPhone) setContactPhone(a.contactPhone || '');
+                            setShowAddressPicker(false);
+                          }}
+                          activeOpacity={0.7}
+                          style={[
+                            styles.addressRow,
+                            addressId === a.id && {
+                              borderColor: PRIMARY,
+                              backgroundColor: PRIMARY_TINT,
+                            },
+                          ]}
+                        >
+                          <View style={styles.iconCircle}>
+                            <MaterialCommunityIcons name="map-marker" size={22} color={PRIMARY} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            {/* Fix 3 — when labels collide, render
+                                "LABEL · addressLine1" on one heavy line so
+                                the street identifier carries the same
+                                visual weight as the label. */}
+                            {isAmbiguous ? (
+                              <Text style={styles.cardTitle} numberOfLines={1}>
+                                {a.label} · {a.addressLine1}
+                              </Text>
+                            ) : (
+                              <Text style={styles.cardTitle} numberOfLines={1}>{a.label}</Text>
+                            )}
+                            <Text style={styles.cardMeta} numberOfLines={2}>
+                              {isAmbiguous
+                                ? `${a.locality}, ${a.pincode}`
+                                : `${a.addressLine1}, ${a.locality}, ${a.pincode}`}
+                            </Text>
+                            {/* Fix 2 — addresses that already host an
+                                enabled auto-order setup get a small orange
+                                pill so the customer can see at a glance
+                                which choice would duplicate. Tap is still
+                                allowed (legitimate use case = two packs
+                                feeding the same household). */}
+                            {alreadyHasSetup && (
+                              <View style={{
+                                marginTop: 4,
+                                alignSelf: 'flex-start',
+                                paddingHorizontal: 6,
+                                paddingVertical: 2,
+                                borderRadius: 6,
+                                backgroundColor: '#FFF7ED',
+                                borderWidth: 1,
+                                borderColor: '#FED7AA',
+                              }}>
+                                <Text style={{ fontSize: 10, color: '#FE8733', fontWeight: '600' }}>
+                                  Auto-order already running here
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                          {addressId === a.id && (
+                            <MaterialCommunityIcons name="check-circle" size={22} color={PRIMARY} />
+                          )}
+                        </TouchableOpacity>
+                      );
+                    });
+                  })()}
                 </ScrollView>
               )}
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Fix 4 — pre-Pay confirm sheet. Surfaces the chosen address +
+          total before the Razorpay sheet opens. Last-mile insurance
+          against the silent-default bug class that produced the
+          duplicate-address orders for the rehearsal customer. */}
+      <Modal
+        visible={showPayConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPayConfirm(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setShowPayConfirm(false)}>
+          <Pressable style={styles.sheetContainer} onPress={e => e.stopPropagation()}>
+            <View style={styles.sheetContent}>
+              <Text style={styles.sheetTitle}>Confirm your auto-order</Text>
+              <Text style={{ fontSize: FONT_SIZES.sm, color: MUTED, marginBottom: 14 }}>
+                Please review before paying. Auto-orders run on every scheduled day until your wallet runs out.
+              </Text>
+
+              {/* Address card */}
+              <View style={{
+                backgroundColor: PRIMARY_TINT,
+                borderRadius: 12,
+                padding: 14,
+                borderWidth: 1,
+                borderColor: '#FED7AA',
+                marginBottom: 12,
+              }}>
+                <Text style={{ fontSize: 11, color: '#9A3412', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  Delivering to
+                </Text>
+                <Text style={{ fontSize: FONT_SIZES.lg, fontWeight: '700', color: TEXT, marginTop: 4 }} numberOfLines={1}>
+                  {selectedAddress?.label || 'No address'}
+                </Text>
+                {selectedAddress && (
+                  <Text style={{ fontSize: FONT_SIZES.sm, color: TEXT, marginTop: 2 }} numberOfLines={2}>
+                    {selectedAddress.addressLine1}, {selectedAddress.locality}, {selectedAddress.pincode}
+                  </Text>
+                )}
+                {/* Duplicate-address warning — the exact bug we're guarding
+                    against. Show only when the selected address already
+                    has an auto-order from another sub. */}
+                {!!addressId && addressIdsWithSetup.has(addressId) && (
+                  <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'flex-start' }}>
+                    <MaterialCommunityIcons name="alert-circle" size={16} color="#DC2626" style={{ marginTop: 1, marginRight: 6 }} />
+                    <Text style={{ flex: 1, fontSize: FONT_SIZES.sm, color: '#991B1B', fontWeight: '600' }}>
+                      This address already has an auto-order running. You'll have TWO auto-orders here — meals will be doubled.
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Total + deliveries summary */}
+              <View style={{
+                backgroundColor: '#F9FAFB',
+                borderRadius: 12,
+                padding: 14,
+                borderWidth: 1,
+                borderColor: '#E5E7EB',
+                marginBottom: 18,
+              }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <Text style={{ fontSize: FONT_SIZES.sm, color: MUTED }}>Deliveries covered</Text>
+                  <Text style={{ fontSize: FONT_SIZES.sm, color: TEXT, fontWeight: '600' }}>
+                    {quote?.totalDeliveries ?? 0}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: FONT_SIZES.base, color: TEXT, fontWeight: '700' }}>Total payable</Text>
+                  <Text style={{ fontSize: FONT_SIZES.base, color: PRIMARY, fontWeight: '700' }}>
+                    ₹{formatINR((quote?.grandTotal ?? (plan?.price ?? 0)))}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Actions */}
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowPayConfirm(false);
+                    // Tiny delay so the close animation can settle before
+                    // we re-open the picker — RN dislikes overlapping
+                    // Modal transitions on some devices.
+                    setTimeout(() => setShowAddressPicker(true), 150);
+                  }}
+                  activeOpacity={0.85}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 14,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: '#E5E7EB',
+                    alignItems: 'center',
+                    backgroundColor: '#FFFFFF',
+                  }}
+                >
+                  <Text style={{ color: TEXT, fontWeight: '700', fontSize: FONT_SIZES.base }}>
+                    Change address
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowPayConfirm(false);
+                    executePayment();
+                  }}
+                  activeOpacity={0.85}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 14,
+                    borderRadius: 999,
+                    alignItems: 'center',
+                    backgroundColor: PRIMARY,
+                  }}
+                >
+                  <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: FONT_SIZES.base }}>
+                    Confirm &amp; Pay
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </Pressable>
         </Pressable>

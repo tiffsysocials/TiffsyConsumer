@@ -1,4 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
+import { Platform } from 'react-native';
+import DeviceInfo from 'react-native-device-info';
 import {
   getAuthToken,
   clearAuthToken,
@@ -987,6 +989,19 @@ export interface Subscription {
     totalDeposited: number;
     totalDeducted: number;
   };
+  // Phase 11.1 — array of auto-order setups attached to this pack. Each
+  // entry binds a delivery address + weekly schedule + thalisPerMeal +
+  // addons + per-meal fees snapshot. The cron iterates this array.
+  // Consumer reads `addressId` and `enabled` for guardrails (e.g. badging
+  // addresses that already have a setup in the purchase picker).
+  autoOrderSetups?: Array<{
+    _id?: string;
+    addressId: string;
+    enabled?: boolean;
+    mealWindows?: Array<'LUNCH' | 'DINNER'>;
+    isPaused?: boolean;
+    pausedUntil?: string | null;
+  }>;
 }
 
 export type VoucherStatus =
@@ -1020,6 +1035,9 @@ export interface VoucherSummary {
   expired: number;
   restored: number;
   total: number;
+  cancelled?: number;
+  // Canonical usable pool from the backend (available + restored, expiry-aware).
+  usable?: number;
 }
 
 // Subscription API Response Types
@@ -1891,6 +1909,13 @@ class ApiService {
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
+        // App-version telemetry headers — backend records which app/version/platform
+        // each user is on (throttled). Never block the request on a read failure.
+        try {
+          config.headers['X-App-Version'] = DeviceInfo.getVersion();
+          config.headers['X-App-Type'] = 'consumer';
+          config.headers['X-Platform'] = Platform.OS === 'ios' ? 'ios' : 'android';
+        } catch {}
         // Log raw request
         console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`);
         console.log('[API] Request:', JSON.stringify({
@@ -3253,7 +3278,7 @@ class ApiService {
       storeUrl: string;
     };
   }> {
-    return this.api.get('/api/app/config', { params: { platform } });
+    return this.api.get('/api/app/config', { params: { platform, app: 'consumer' } });
   }
 }
 
