@@ -20,6 +20,7 @@ import { BannerProvider } from './src/context/BannerContext';
 import NotificationPopup from './src/components/NotificationPopup';
 import ForceUpdateModal from './src/components/ForceUpdateModal';
 import { checkForUpdate, UpdateCheckResult } from './src/services/appUpdate.service';
+import { checkForOtaUpdate } from './src/services/otaUpdate.service';
 import notificationService from './src/services/notification.service';
 import notificationChannelService from './src/services/notificationChannel.service';
 import apiService from './src/services/api.service';
@@ -261,6 +262,8 @@ const AppContent = () => {
   // regardless of auth state.
   useEffect(() => {
     runUpdateCheck();
+    // OTA JS-bundle check (silent; applies on next launch). Fail-open.
+    checkForOtaUpdate();
 
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (

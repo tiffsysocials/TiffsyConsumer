@@ -3281,6 +3281,23 @@ class ApiService {
   }> {
     return this.api.get('/api/app/config', { params: { platform, app: 'consumer' } });
   }
+
+  // OTA JS-bundle manifest (react-native-ota-hot-update). Goes through the same
+  // axios instance, so it targets the same backend + sends the version headers.
+  async getOtaManifest(platform: 'android' | 'ios'): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      app: string;
+      platform: 'android' | 'ios';
+      version: number;
+      downloadUrl: string | null;
+      targetNativeVersion: string | null;
+      mandatory: boolean;
+    };
+  }> {
+    return this.api.get('/api/ota/manifest', { params: { platform, app: 'consumer' } });
+  }
 }
 
 export default new ApiService();
