@@ -12,10 +12,9 @@ import {
 import { authEvents } from './auth.events';
 
 // Backend base URL - update this with your actual backend URL
-// Phase 11 testing — pointing at Render `test` backend until we cut over.
-// Flip back to the CloudFront prod URL below before the next Play Store build.
-const BASE_URL = 'https://tiffsy-backend-8ecm.onrender.com';
-// const BASE_URL = 'https://d31od4t2t5epcb.cloudfront.net';
+// Using the AWS (CloudFront) product backend.
+const BASE_URL = 'https://d31od4t2t5epcb.cloudfront.net';
+// const BASE_URL = 'https://tiffsy-backend-8ecm.onrender.com';
 // const BASE_URL = 'http://192.168.1.4:5005';
 // const BASE_URL = 'http://192.168.29.69:5005';
 
