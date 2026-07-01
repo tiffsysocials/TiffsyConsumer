@@ -11,11 +11,11 @@ import {
 } from './auth.token.service';
 import { authEvents } from './auth.events';
 
-// Backend base URL - update this with your actual backend URL
-// Phase 11 testing — pointing at Render `test` backend until we cut over.
-// Flip back to the CloudFront prod URL below before the next Play Store build.
-const BASE_URL = 'https://tiffsy-backend-8ecm.onrender.com';
-// const BASE_URL = 'https://d31od4t2t5epcb.cloudfront.net';
+// Backend base URL.
+// PRODUCTION (CloudFront) — used for Play Store builds.
+const BASE_URL = 'https://d31od4t2t5epcb.cloudfront.net';
+// TEST (Render) — flip to this for dev/testing against staging:
+// const BASE_URL = 'https://tiffsy-backend-8ecm.onrender.com';
 // const BASE_URL = 'http://192.168.1.4:5005';
 // const BASE_URL = 'http://192.168.29.69:5005';
 
@@ -2801,17 +2801,20 @@ class ApiService {
     success: boolean;
     message: string;
     data: {
-      razorpayOrderId: string;
-      amount: number;
-      currency: string;
-      key: string;
+      // Free-delivery path: backend applied the setup directly, no payment.
+      requiresPayment?: boolean;
+      applied?: boolean;
+      razorpayOrderId?: string;
+      amount?: number;
+      currency?: string;
+      key?: string;
       subscriptionId: string;
       autoOrderSetupQuote: {
         totalFeesPrepaid: number;
         totalDeliveries: number;
         grandTotal: number;
       };
-      prefill: { name: string; contact: string; email?: string };
+      prefill?: { name: string; contact: string; email?: string };
     };
   }> {
     return this.api.post('/api/payment/auto-order-setup/initiate', {

@@ -406,14 +406,21 @@ class PaymentService {
       }
       const init = initiateResponse.data;
 
+      // Free delivery (₹0 per-meal fees): the backend already applied the
+      // auto-order setup — there's nothing to charge, so skip Razorpay.
+      if (init.requiresPayment === false || init.applied) {
+        console.log('[PaymentService] AUTO_ORDER_SETUP free (₹0) — applied without payment');
+        return { success: true, subscriptionId };
+      }
+
       const checkoutOptions: RazorpayOptions = {
-        key: init.key,
-        amount: init.amount,
+        key: init.key!,
+        amount: init.amount!,
         currency: 'INR',
         name: MERCHANT_NAME,
         description: `Auto-order setup · ${init.autoOrderSetupQuote.totalDeliveries} deliveries`,
-        order_id: init.razorpayOrderId,
-        prefill: init.prefill,
+        order_id: init.razorpayOrderId!,
+        prefill: init.prefill!,
         theme: { color: THEME_COLOR },
       };
       const paymentResponse = await this.openCheckout(checkoutOptions);
