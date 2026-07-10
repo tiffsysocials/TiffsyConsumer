@@ -102,6 +102,13 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
   const perSlotAddonsRef = useRef(perSlotAddons);
   perSlotAddonsRef.current = perSlotAddons;
 
+  // Per-slot thali quantity, keyed by `${date}_${mealWindow}` (default 1).
+  const [slotQuantities, setSlotQuantities] = useState<Record<string, number>>({});
+  const slotQuantitiesRef = useRef(slotQuantities);
+  slotQuantitiesRef.current = slotQuantities;
+  const slotKeyOf = (slot: { date: string; mealWindow: string }) => `${slot.date}_${slot.mealWindow}`;
+  const getSlotQty = (slot: { date: string; mealWindow: string }) => slotQuantitiesRef.current[slotKeyOf(slot)] || 1;
+
   // Build slots with addons (supports both global and per-slot modes)
   const buildSlotsWithAddons = useCallback(
     (overrideLunch?: SelectedAddon[], overrideDinner?: SelectedAddon[], overridePerSlot?: Record<string, SelectedAddon[]>) => {
@@ -113,10 +120,10 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
         return selectedSlots.map(slot => {
           const key = `${slot.date}_${slot.mealWindow}`;
           const addons = slotAddonsMap[key] || [];
-          if (addons.length === 0) return { date: slot.date, mealWindow: slot.mealWindow };
+          const base = { date: slot.date, mealWindow: slot.mealWindow, quantity: getSlotQty(slot) };
+          if (addons.length === 0) return base;
           return {
-            date: slot.date,
-            mealWindow: slot.mealWindow,
+            ...base,
             addons: addons.map(a => ({ addonId: a.addonId, quantity: a.quantity })),
           };
         });
@@ -127,10 +134,10 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
       const dinner = overrideDinner ?? selectedDinnerAddonsRef.current;
       return selectedSlots.map(slot => {
         const addonsForWindow = slot.mealWindow === 'LUNCH' ? lunch : dinner;
-        if (addonsForWindow.length === 0) return { date: slot.date, mealWindow: slot.mealWindow };
+        const base = { date: slot.date, mealWindow: slot.mealWindow, quantity: getSlotQty(slot) };
+        if (addonsForWindow.length === 0) return base;
         return {
-          date: slot.date,
-          mealWindow: slot.mealWindow,
+          ...base,
           addons: addonsForWindow.map(a => ({ addonId: a.addonId, quantity: a.quantity })),
         };
       });
@@ -296,16 +303,26 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
       const dinner = selectedDinnerAddonsRef.current;
       const slots = selectedSlots.map(slot => {
         const addonsForWindow = slot.mealWindow === 'LUNCH' ? lunch : dinner;
-        if (addonsForWindow.length === 0) return { date: slot.date, mealWindow: slot.mealWindow };
+        const base = { date: slot.date, mealWindow: slot.mealWindow, quantity: getSlotQty(slot) };
+        if (addonsForWindow.length === 0) return base;
         return {
-          date: slot.date,
-          mealWindow: slot.mealWindow,
+          ...base,
           addons: addonsForWindow.map(a => ({ addonId: a.addonId, quantity: a.quantity })),
         };
       });
       fetchPricing(vouchersToUse, slots);
     }
   }, [customizePerSlot, selectedSlots, fetchPricing, vouchersToUse]);
+
+  // Change a slot's thali quantity and re-price.
+  const handleSlotQuantityChange = useCallback((slot: { date: string; mealWindow: 'LUNCH' | 'DINNER' }, newQty: number) => {
+    if (newQty < 1 || newQty > 10) return;
+    const key = `${slot.date}_${slot.mealWindow}`;
+    const updated = { ...slotQuantitiesRef.current, [key]: newQty };
+    setSlotQuantities(updated);
+    slotQuantitiesRef.current = updated;
+    fetchPricing(vouchersToUse, buildSlotsWithAddons());
+  }, [fetchPricing, vouchersToUse, buildSlotsWithAddons]);
 
   // Per-slot addon handlers
   const handlePerSlotAddonAdd = useCallback((slotKey: string, addon: AddonItem) => {
@@ -490,6 +507,10 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
       ? require('../../assets/images/homepage/lunchThali.png')
       : require('../../assets/images/homepage/dinnerThali.png');
     const isLast = index === (pricingData?.perSlotBreakdown.length || 0) - 1;
+    // perSlotBreakdown is index-aligned with selectedSlots; use the original
+    // (ISO-dated) slot so the quantity key matches slotQuantities.
+    const originalSlot = selectedSlots[index];
+    const slotQty = originalSlot ? getSlotQty(originalSlot) : 1;
 
     return (
       <View
@@ -549,6 +570,30 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
             )}
           </View>
         </View>
+
+        {/* Thali quantity stepper */}
+        {originalSlot && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: SPACING.sm }}>
+            <Text style={{ fontSize: 12, color: '#6B7280', fontWeight: '600' }}>Thalis</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity
+                onPress={() => handleSlotQuantityChange(originalSlot, slotQty - 1)}
+                disabled={slotQty <= 1 || isLoading}
+                style={{ width: 30, height: 30, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center', opacity: slotQty <= 1 ? 0.4 : 1 }}
+              >
+                <MaterialCommunityIcons name="minus" size={16} color="#FE8733" />
+              </TouchableOpacity>
+              <Text style={{ marginHorizontal: 14, fontSize: 15, fontWeight: '700', color: '#111827', minWidth: 18, textAlign: 'center' }}>{slotQty}</Text>
+              <TouchableOpacity
+                onPress={() => handleSlotQuantityChange(originalSlot, slotQty + 1)}
+                disabled={slotQty >= 10 || isLoading}
+                style={{ width: 30, height: 30, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center', opacity: slotQty >= 10 ? 0.4 : 1 }}
+              >
+                <MaterialCommunityIcons name="plus" size={16} color="#FE8733" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {/* Per-slot addon selector when customizing per day */}
         {customizePerSlot && !addonsLoading && (

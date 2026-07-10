@@ -1739,6 +1739,7 @@ export interface CancelScheduledMealData {
 export interface BulkSlotInput {
   date: string;      // ISO date YYYY-MM-DD
   mealWindow: 'LUNCH' | 'DINNER';
+  quantity?: number; // number of thalis for this slot (default 1)
   addons?: Array<{ addonId: string; quantity: number }>;
 }
 
