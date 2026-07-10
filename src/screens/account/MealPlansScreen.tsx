@@ -205,14 +205,11 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
     return date.toLocaleDateString('en-IN', options);
   };
 
-  // Calculate savings - first plan uses originalPrice, others compare against first plan's per-voucher rate
-  const calculateSavings = (plan: SubscriptionPlan, index: number) => {
-    if (index === 0 || plans.length === 0) {
-      return plan.originalPrice - plan.price;
-    }
-    const basePricePerVoucher = Math.round(plans[0].price / plans[0].totalVouchers);
-    const thisPricePerVoucher = Math.round(plan.price / plan.totalVouchers);
-    return (basePricePerVoucher - thisPricePerVoucher) * plan.totalVouchers;
+  // Savings = compare-at (originalPrice) minus actual price, matching the
+  // strikethrough shown on the card. No originalPrice -> no Save chip.
+  const calculateSavings = (plan: SubscriptionPlan) => {
+    if (!plan.originalPrice || plan.originalPrice <= plan.price) return 0;
+    return Math.round(plan.originalPrice - plan.price);
   };
 
   // Calculate price per voucher. Show 2 decimals so a ₹1/14-voucher
@@ -450,8 +447,8 @@ const MealPlansScreen: React.FC<Props> = ({ navigation }) => {
 
           {/* Plans List */}
           {!plansLoading &&
-            plans.map((plan, index) => {
-              const savings = calculateSavings(plan, index);
+            plans.map((plan) => {
+              const savings = calculateSavings(plan);
               const pricePerVoucher = calculatePricePerVoucher(plan);
               const activeSubscriptionsForPlan = subscriptions.filter(
                 sub => sub.status === 'ACTIVE' && sub.planSnapshot?.name === plan.name
