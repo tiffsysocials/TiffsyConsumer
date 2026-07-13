@@ -39,6 +39,13 @@ export async function checkForOtaUpdate(): Promise<void> {
       restartAfterInstall: false, // silent — apply on next cold start
       progress: () => {},
       maxBundleVersions: 3,
+      // no-store: blob-util downloads through RN's shared OkHttp client,
+      // whose disk cache (cache/http-cache) breaks blob-util's
+      // bytes-vs-Content-Length completeness check on cacheable responses
+      // ("Download interrupted."). The backend's /api/ota/download proxy
+      // serves no-store for the same reason; this header protects us even
+      // if a manifest ever points straight at cacheable storage again.
+      headers: { 'Cache-Control': 'no-store' },
     });
   } catch (err: any) {
     console.log('[OTA] check failed (non-blocking):', err?.message);

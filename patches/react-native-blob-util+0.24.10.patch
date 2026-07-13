@@ -1,0 +1,60 @@
+diff --git a/node_modules/react-native-blob-util/android/src/main/java/com/ReactNativeBlobUtil/ReactNativeBlobUtilReq.java b/node_modules/react-native-blob-util/android/src/main/java/com/ReactNativeBlobUtil/ReactNativeBlobUtilReq.java
+index 7d33af4..78e8780 100644
+--- a/node_modules/react-native-blob-util/android/src/main/java/com/ReactNativeBlobUtil/ReactNativeBlobUtilReq.java
++++ b/node_modules/react-native-blob-util/android/src/main/java/com/ReactNativeBlobUtil/ReactNativeBlobUtilReq.java
+@@ -801,8 +801,10 @@ public class ReactNativeBlobUtilReq extends BroadcastReceiver implements Runnabl
+                     } finally {
+                         try { drainStream.close(); } catch (Exception ignored2) { }
+                     }
+-                } catch (Exception ignored) {
+-//                    ignored.printStackTrace();
++                } catch (Exception drainError) {
++                    // Never silent: a failure here truncates the download and used to
++                    // be swallowed, making "Download interrupted." undiagnosable.
++                    android.util.Log.w("ReactNativeBlobUtil", "FileStorage drain failed", drainError);
+                 }
+ 
+                 ReactNativeBlobUtilFileResp ReactNativeBlobUtilFileResp;
+diff --git a/node_modules/react-native-blob-util/android/src/main/java/com/ReactNativeBlobUtil/Response/ReactNativeBlobUtilFileResp.java b/node_modules/react-native-blob-util/android/src/main/java/com/ReactNativeBlobUtil/Response/ReactNativeBlobUtilFileResp.java
+index ccceaf1..fdc41af 100644
+--- a/node_modules/react-native-blob-util/android/src/main/java/com/ReactNativeBlobUtil/Response/ReactNativeBlobUtilFileResp.java
++++ b/node_modules/react-native-blob-util/android/src/main/java/com/ReactNativeBlobUtil/Response/ReactNativeBlobUtilFileResp.java
+@@ -108,6 +108,7 @@ public class ReactNativeBlobUtilFileResp extends ResponseBody {
+                 || (contentLength() == -1 && isEndMarkerReceived); // Case of chunked downloads
+     }
+ 
++
+     @Override
+     public BufferedSource source() {
+         ProgressReportingSource countable = new ProgressReportingSource();
+@@ -115,14 +116,29 @@ public class ReactNativeBlobUtilFileResp extends ResponseBody {
+     }
+ 
+     private class ProgressReportingSource implements Source {
++        // Hold ONE InputStream for the whole body. Creating a fresh view via
++        // originalBody.byteStream() on every read() causes the second view to
++        // report EOF on newer okio/OkHttp (observed on Android 16, RN 0.82),
++        // truncating every download to its first chunk.
++        private java.io.InputStream bodyStream;
++
+         @Override
+         public long read(@NonNull Buffer sink, long byteCount) throws IOException {
+             try {
++                if (bodyStream == null) {
++                    bodyStream = originalBody.byteStream();
++                }
+                 byte[] bytes = new byte[(int) byteCount];
+-                long read = originalBody.byteStream().read(bytes, 0, (int) byteCount);
++                long read = bodyStream.read(bytes, 0, (int) byteCount);
+                 bytesDownloaded += read > 0 ? read : 0;
+                 if (read > 0) {
+                     ofStream.write(bytes, 0, (int) read);
++                    // FIX: hand the bytes to the okio sink as the Source contract
++                    // requires. Without this the buffer stays empty while read()
++                    // returns a positive count, and okio's InputStream adapter
++                    // reports EOF after the first chunk — truncating every
++                    // download ("Download interrupted.").
++                    sink.write(bytes, 0, (int) read);
+                 } else if (contentLength() == -1 && read == -1) {
+                     // End marker has been received for chunked download
+                     isEndMarkerReceived = true;
