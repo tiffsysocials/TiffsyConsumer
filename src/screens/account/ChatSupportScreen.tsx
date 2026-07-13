@@ -298,7 +298,7 @@ const RESPONSE_RULES: ResponseRule[] = [
   // ---- CONTACT / SUPPORT ----
   {
     keywords: ['contact', 'support', 'help', 'customer care', 'customer service', 'reach out', 'talk to someone', 'complaint', 'issue', 'problem', 'speak to', 'call', 'email'],
-    response: 'You can reach our support team through:\n\nPhone: +91 98765-43210\n(Mon-Fri, 9 AM - 10 PM)\n\nEmail: info@tiffsy.in\n\nYou can also visit "Help & Support" in the Account menu for FAQs and more contact options.\n\nWe\'re here to help with any questions, concerns, or feedback!',
+    response: 'You can reach our support team through:\n\nPhone: +91 70242-44646\n(Mon-Fri, 9 AM - 10 PM)\n\nEmail: tiffsysocials@gmail.com\n\nYou can also visit "Help & Support" in the Account menu for FAQs and more contact options.\n\nWe\'re here to help with any questions, concerns, or feedback!',
     quickReplies: ['Call support', 'Email support', 'FAQs'],
   },
 
@@ -360,7 +360,7 @@ const QUICK_REPLY_SEARCH: Record<string, string> = {
   'Apply coupon': 'coupon',
 };
 
-const CONTACT_FALLBACK = 'I\'m not sure I understood your question. Let me connect you with our support team!\n\nPhone: +91 98765-43210\n(Mon-Fri, 9 AM - 10 PM)\n\nEmail: info@tiffsy.in\n\nYou can also visit "Help & Support" from the Account menu for more assistance.';
+const CONTACT_FALLBACK = 'I\'m not sure I understood your question. Let me connect you with our support team!\n\nPhone: +91 70242-44646\n(Mon-Fri, 9 AM - 10 PM)\n\nEmail: tiffsysocials@gmail.com\n\nYou can also visit "Help & Support" from the Account menu for more assistance.';
 
 function getResponse(input: string): { text: string; quickReplies?: string[] } {
   const lower = input.toLowerCase().trim();
@@ -514,11 +514,11 @@ const ChatSupportScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleQuickReply = (reply: string) => {
     if (reply === 'Call support') {
-      Linking.openURL('tel:+919876543210');
+      Linking.openURL('tel:+917024244646');
       return;
     }
     if (reply === 'Email support') {
-      Linking.openURL('mailto:info@tiffsy.in');
+      Linking.openURL('mailto:tiffsysocials@gmail.com');
       return;
     }
     const searchTerm = QUICK_REPLY_SEARCH[reply] || reply.toLowerCase();
@@ -555,11 +555,11 @@ const ChatSupportScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleCall = () => {
-    Linking.openURL('tel:+919876543210');
+    Linking.openURL('tel:+917024244646');
   };
 
   const handleEmail = () => {
-    Linking.openURL('mailto:info@tiffsy.in');
+    Linking.openURL('mailto:tiffsysocials@gmail.com');
   };
 
   const formatTime = (date: Date) => {

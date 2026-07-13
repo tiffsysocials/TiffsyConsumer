@@ -39,7 +39,7 @@ const HelpSupportScreen: React.FC<Props> = ({ navigation }) => {
     {
       id: '1',
       question: 'What if my order is delayed?',
-      answer: 'If your order is delayed, you can track its real-time status in "My Orders". You\'ll also receive push notifications at every step. If the delay is significant, please contact our support team at +91 98765-43210 and we\'ll resolve it for you immediately.',
+      answer: 'If your order is delayed, you can track its real-time status in "My Orders". You\'ll also receive push notifications at every step. If the delay is significant, please contact our support team at +91 70242-44646 and we\'ll resolve it for you immediately.',
       category: 'Delivery',
     },
     {
@@ -129,11 +129,11 @@ const HelpSupportScreen: React.FC<Props> = ({ navigation }) => {
   ];
 
   const handleCall = () => {
-    Linking.openURL('tel:+919876543210');
+    Linking.openURL('tel:+917024244646');
   };
 
   const handleEmail = () => {
-    Linking.openURL('mailto:info@tiffsy.in');
+    Linking.openURL('mailto:tiffsysocials@gmail.com');
   };
 
   const toggleFAQ = (id: string) => {
@@ -289,7 +289,7 @@ const HelpSupportScreen: React.FC<Props> = ({ navigation }) => {
                 />
               </View>
               <Text className="font-bold text-gray-900 mb-1" style={{ fontSize: FONT_SIZES.base }}>Call us</Text>
-              <Text className="font-semibold text-gray-900 mb-1" style={{ fontSize: FONT_SIZES.sm }}>+91 98765-43210</Text>
+              <Text className="font-semibold text-gray-900 mb-1" style={{ fontSize: FONT_SIZES.sm }}>+91 70242-44646</Text>
               <Text className="text-gray-500" style={{ fontSize: FONT_SIZES.xs }}>Mon-Fri • 9-10</Text>
             </TouchableOpacity>
 
@@ -322,7 +322,7 @@ const HelpSupportScreen: React.FC<Props> = ({ navigation }) => {
                 />
               </View>
               <Text className="font-bold text-gray-900 mb-1" style={{ fontSize: FONT_SIZES.base }}>Email Us</Text>
-              <Text className="font-semibold text-gray-900 mb-1" style={{ fontSize: FONT_SIZES.sm }}>info@tiffsy.in</Text>
+              <Text className="font-semibold text-gray-900 mb-1" style={{ fontSize: FONT_SIZES.sm }}>tiffsysocials@gmail.com</Text>
               <Text className="text-gray-500" style={{ fontSize: FONT_SIZES.xs }}>Mon-Fri • 9-10</Text>
             </TouchableOpacity>
           </View>
