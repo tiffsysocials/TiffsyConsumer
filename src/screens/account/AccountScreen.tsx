@@ -23,6 +23,7 @@ import { useAddress } from '../../context/AddressContext';
 import { Subscription } from '../../services/api.service';
 import ConfirmationModal from '../../components/ConfirmationModal';
 import InfoModal from '../../components/InfoModal';
+import InitialAvatar from '../../components/InitialAvatar';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useResponsive, useScaling } from '../../hooks/useResponsive';
 import { SPACING } from '../../constants/spacing';
@@ -342,16 +343,7 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
               borderColor: '#FE8733',
             }}>
               <View className="items-center mb-4">
-                <Image
-                  source={require('../../assets/images/myaccount/user2.png')}
-                  style={{
-                    width: SPACING.iconXl * 2,
-                    height: SPACING.iconXl * 2,
-                    borderRadius: SPACING.iconXl,
-                    opacity: 0.7
-                  }}
-                  resizeMode="cover"
-                />
+                <InitialAvatar name="Guest" size={SPACING.iconXl * 2} />
               </View>
               <Text className="text-xl font-bold text-gray-900 text-center mb-2">
                 Welcome, Guest!
@@ -388,15 +380,7 @@ const AccountScreen: React.FC<Props> = ({ navigation }) => {
                     resizeMode="cover"
                   />
                 ) : (
-                  <Image
-                    source={require('../../assets/images/myaccount/user2.png')}
-                    style={{
-                      width: SPACING.iconXl * 1.75,
-                      height: SPACING.iconXl * 1.75,
-                      borderRadius: SPACING.iconXl * 0.875
-                    }}
-                    resizeMode="cover"
-                  />
+                  <InitialAvatar name={user?.name} size={SPACING.iconXl * 1.75} />
                 )}
                 <View style={{ marginLeft: SPACING.lg + 4 }}>
                   <Text style={{ fontSize: FONT_SIZES.lg, fontWeight: 'bold', color: '#111827' }}>

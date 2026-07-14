@@ -18,6 +18,7 @@ import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { MainTabParamList } from '../../types/navigation';
 import { useUser } from '../../context/UserContext';
 import apiService from '../../services/api.service';
+import InitialAvatar from '../../components/InitialAvatar';
 import { useResponsive } from '../../hooks/useResponsive';
 import { SPACING, TOUCH_TARGETS } from '../../constants/spacing';
 import { FONT_SIZES } from '../../constants/typography';
@@ -346,13 +347,7 @@ const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
                 resizeMode="cover"
               />
             ) : (
-              <View className="rounded-full bg-gray-200 items-center justify-center" style={{ width: isSmallDevice ? 96 : 112, height: isSmallDevice ? 96 : 112 }}>
-                <Image
-                  source={require('../../assets/images/myaccount/user2.png')}
-                  style={{ width: isSmallDevice ? 64 : 80, height: isSmallDevice ? 64 : 80, borderRadius: isSmallDevice ? 32 : 40 }}
-                  resizeMode="cover"
-                />
-              </View>
+              <InitialAvatar name={name || user?.name} size={isSmallDevice ? 96 : 112} />
             )}
 
             {/* Edit Icon Overlay */}
