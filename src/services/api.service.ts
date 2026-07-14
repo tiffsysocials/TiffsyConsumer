@@ -421,6 +421,23 @@ export interface Coupon {
   bannerImage?: string | null;
 }
 
+/** Coupon applicable to a voucher-pack (plan) purchase. */
+export interface PlanCoupon {
+  code: string;
+  name: string;
+  description?: string;
+  discountType: 'PERCENTAGE' | 'FLAT' | 'FREE_EXTRA_VOUCHER';
+  discountValue: number;
+  maxDiscountAmount?: number | null;
+  extraVoucherCount?: number | null;
+  extraVoucherExpiryDays?: number | null;
+  minOrderValue: number;
+  perUserLimit?: number;
+  validTill: string;
+  termsAndConditions?: string | null;
+  bannerImage?: string | null;
+}
+
 export interface GetAvailableCouponsParams {
   kitchenId?: string;
   zoneId?: string;
@@ -2763,6 +2780,7 @@ class ApiService {
   async initiateSubscriptionPayment(
     planId: string,
     autoOrderSetup?: AutoOrderSetupForm,
+    couponCode?: string,
   ): Promise<{
     success: boolean;
     message: string;
@@ -2774,6 +2792,13 @@ class ApiService {
       planId: string;
       planName: string;
       expiresAt: string;
+      couponApplied?: {
+        code: string;
+        discountType: string;
+        discountAmount: number;
+        extraVouchers: number;
+        packPayable: number;
+      } | null;
       autoOrderSetupQuote?: {
         totalFeesPrepaid: number;
         totalDeliveries: number;
@@ -2789,7 +2814,38 @@ class ApiService {
     return this.api.post('/api/payment/subscription/initiate', {
       planId,
       ...(autoOrderSetup ? { autoOrderSetup } : {}),
+      ...(couponCode ? { couponCode } : {}),
     });
+  }
+
+  // Plan-purchase coupons shown on the voucher purchase screen.
+  async getCouponsForPlan(planId: string): Promise<{
+    success: boolean;
+    message: string;
+    data: { coupons: PlanCoupon[] };
+  }> {
+    return this.api.get(`/api/coupons/for-plan/${planId}`);
+  }
+
+  // Validate + price a coupon against a pack purchase. Same math as
+  // initiate, so the previewed finalPayable equals the Razorpay charge.
+  async validatePlanCoupon(couponCode: string, planId: string): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      valid: boolean;
+      reason?: string;
+      couponCode?: string;
+      discountType?: string;
+      discountAmount?: number;
+      extraVouchers?: number;
+      extraVoucherExpiryDays?: number;
+      planPrice?: number;
+      finalPayable?: number;
+      taxAmount?: number;
+    };
+  }> {
+    return this.api.post('/api/coupons/validate-plan', { couponCode, planId });
   }
 
   // Phase 11 — initiate payment to set up auto-order on an EXISTING

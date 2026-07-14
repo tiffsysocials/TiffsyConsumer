@@ -43,6 +43,7 @@ import { SPACING, TOUCH_TARGETS } from '../../constants/spacing';
 import { FONT_SIZES } from '../../constants/typography';
 import WeeklyScheduleGrid from '../../components/WeeklyScheduleGrid';
 import WeeklyScheduleQuickSets from '../../components/WeeklyScheduleQuickSets';
+import PlanCouponSheet, { AppliedPlanCoupon } from '../../components/PlanCouponSheet';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'VoucherPurchase'>;
 type Rt = RouteProp<RootStackParamList, 'VoucherPurchase'>;
@@ -146,6 +147,11 @@ export default function VoucherPurchaseScreen() {
   // nothing to mis-confirm).
   const [showPayConfirm, setShowPayConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Plan-purchase coupon (validated server-side; finalPayable mirrors what
+  // Razorpay will charge for the pack portion).
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedPlanCoupon | null>(null);
+  const [couponSheetVisible, setCouponSheetVisible] = useState(false);
   // Collapsed by default — same UX as the cart's "To Pay" row.
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   // Phase 11.1 hotfix — refetch loading indicator for the post-success
@@ -248,6 +254,7 @@ export default function VoucherPurchaseScreen() {
       const result = await paymentService.processSubscriptionPayment(
         plan._id,
         autoOrderYes === true ? form : undefined,
+        appliedCoupon?.code,
       );
       if (!result.success) {
         if (result.error === 'Payment cancelled') return;
@@ -287,11 +294,15 @@ export default function VoucherPurchaseScreen() {
       //   - autoOrderYes  → AutoOrderSettings (new setup + wallet card)
       //   - pack-only     → Vouchers          (freshly-issued vouchers)
       const successDestination = autoOrderYes === true ? 'AutoOrderSettings' : 'Vouchers';
+      const bonusNote =
+        appliedCoupon && appliedCoupon.extraVouchers > 0
+          ? ` (+${appliedCoupon.extraVouchers} bonus voucher${appliedCoupon.extraVouchers > 1 ? 's' : ''} from ${appliedCoupon.code})`
+          : '';
       showAlert(
         'Pack purchased',
         autoOrderYes === true
-          ? `Auto-order set up successfully. ₹${formatINR(quote?.totalFeesPrepaid ?? 0)} credited to your wallet for ${quote?.totalDeliveries ?? 0} upcoming deliveries.`
-          : `${plan.totalVouchers} vouchers added to your account.`,
+          ? `Auto-order set up successfully. ₹${formatINR(quote?.totalFeesPrepaid ?? 0)} credited to your wallet for ${quote?.totalDeliveries ?? 0} upcoming deliveries.${bonusNote}`
+          : `${plan.totalVouchers} vouchers added to your account${bonusNote}.`,
         [{ text: 'OK', style: 'default', onPress: () => nav.navigate(successDestination as never) }],
         'success',
       );
@@ -312,8 +323,13 @@ export default function VoucherPurchaseScreen() {
 
   // For inclusive-GST plans totalPayable === price (no change to what's charged);
   // for exclusive-GST plans it's price + GST. Fall back to price for old plans.
-  const packPayable = plan.totalPayable ?? plan.price;
-  const grandTotal = autoOrderYes === true && quote ? quote.grandTotal : packPayable;
+  const packPayableBase = plan.totalPayable ?? plan.price;
+  // Coupon: finalPayable is the server-computed discounted pack total (incl.
+  // tax on the discounted base). couponSavings shifts every displayed total.
+  const packPayable = appliedCoupon ? appliedCoupon.finalPayable : packPayableBase;
+  const couponSavings = appliedCoupon ? Math.max(0, packPayableBase - appliedCoupon.finalPayable) : 0;
+  const grandTotal =
+    autoOrderYes === true && quote ? quote.grandTotal - couponSavings : packPayable;
   const canPay =
     autoOrderYes !== null &&
     (autoOrderYes === false || (!!quote && !quoteLoading && !quoteError)) &&
@@ -509,7 +525,7 @@ export default function VoucherPurchaseScreen() {
             <CollapsibleSummary
               expanded={summaryExpanded}
               onToggle={() => setSummaryExpanded(v => !v)}
-              total={quote ? quote.grandTotal : plan.price}
+              total={quote ? quote.grandTotal - couponSavings : packPayable}
               loading={quoteLoading}
             >
               {quoteError && (
@@ -560,8 +576,14 @@ export default function VoucherPurchaseScreen() {
                   <Text style={{ fontSize: FONT_SIZES.xs, color: MUTED, marginTop: 2 }}>
                     Used by the system to pay delivery & charges for each auto-order.
                   </Text>
+                  {couponSavings > 0 && (
+                    <SummaryLine
+                      label={`Coupon (${appliedCoupon?.code})`}
+                      value={`−₹${formatINR(couponSavings)}`}
+                    />
+                  )}
                   <View style={styles.divider} />
-                  <SummaryLine label="Pay now" value={`₹${formatINR(quote.grandTotal)}`} big />
+                  <SummaryLine label="Pay now" value={`₹${formatINR(quote.grandTotal - couponSavings)}`} big />
                 </View>
               )}
             </CollapsibleSummary>
@@ -582,9 +604,53 @@ export default function VoucherPurchaseScreen() {
                 value={`₹${formatINR(plan.taxAmount)}`}
               />
             )}
+            {couponSavings > 0 && (
+              <SummaryLine
+                label={`Coupon (${appliedCoupon?.code})`}
+                value={`−₹${formatINR(couponSavings)}`}
+              />
+            )}
             <View style={styles.divider} />
             <SummaryLine label="Pay now" value={`₹${formatINR(packPayable)}`} big />
           </CollapsibleSummary>
+        )}
+
+        {/* Coupon row — applies to the pack price in both branches */}
+        {autoOrderYes !== null && (
+          <View style={styles.couponRow}>
+            {appliedCoupon ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <MaterialCommunityIcons name="ticket-percent" size={20} color="#059669" />
+                <View style={{ marginLeft: 10, flex: 1 }}>
+                  <Text style={styles.couponAppliedCode}>{appliedCoupon.code} applied</Text>
+                  <Text style={styles.couponAppliedDetail}>
+                    {couponSavings > 0 ? `You save ₹${formatINR(couponSavings)}` : ''}
+                    {couponSavings > 0 && appliedCoupon.extraVouchers > 0 ? ' · ' : ''}
+                    {appliedCoupon.extraVouchers > 0
+                      ? `+${appliedCoupon.extraVouchers} bonus voucher${appliedCoupon.extraVouchers > 1 ? 's' : ''}`
+                      : ''}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setAppliedCoupon(null)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={{ color: '#DC2626', fontWeight: '700', fontSize: 12 }}>REMOVE</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
+                onPress={() => setCouponSheetVisible(true)}
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons name="ticket-percent-outline" size={20} color={PRIMARY} />
+                <Text style={styles.couponCta}>Apply Coupon</Text>
+                <View style={{ flex: 1 }} />
+                <MaterialCommunityIcons name="chevron-right" size={20} color={MUTED} />
+              </TouchableOpacity>
+            )}
+          </View>
         )}
       </ScrollView>
 
@@ -609,6 +675,16 @@ export default function VoucherPurchaseScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Plan coupon sheet */}
+      {plan && (
+        <PlanCouponSheet
+          visible={couponSheetVisible}
+          onClose={() => setCouponSheetVisible(false)}
+          planId={plan._id}
+          onApplied={setAppliedCoupon}
+        />
+      )}
 
       {/* Address picker modal */}
       <Modal
@@ -787,7 +863,7 @@ export default function VoucherPurchaseScreen() {
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                   <Text style={{ fontSize: FONT_SIZES.base, color: TEXT, fontWeight: '700' }}>Total payable</Text>
                   <Text style={{ fontSize: FONT_SIZES.base, color: PRIMARY, fontWeight: '700' }}>
-                    ₹{formatINR((quote?.grandTotal ?? (plan?.price ?? 0)))}
+                    ₹{formatINR(((quote?.grandTotal ?? (plan?.price ?? 0)) - couponSavings))}
                   </Text>
                 </View>
               </View>
@@ -1237,6 +1313,21 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   divider: { height: 1, backgroundColor: BORDER, marginVertical: 8 },
+  couponRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  couponCta: { color: PRIMARY, fontWeight: '700', fontSize: FONT_SIZES.base, marginLeft: 10 },
+  couponAppliedCode: { color: '#059669', fontWeight: '700', fontSize: FONT_SIZES.sm },
+  couponAppliedDetail: { color: MUTED, fontSize: FONT_SIZES.xs, marginTop: 1 },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',

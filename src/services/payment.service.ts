@@ -286,15 +286,18 @@ class PaymentService {
   async processSubscriptionPayment(
     planId: string,
     autoOrderSetup?: import('./api.service').AutoOrderSetupForm,
+    couponCode?: string,
   ): Promise<SubscriptionPaymentResult> {
     try {
-      console.log('[PaymentService] Processing subscription payment for planId:', planId);
+      console.log('[PaymentService] Processing subscription payment for planId:', planId, couponCode ? `coupon: ${couponCode}` : '');
 
       // Step 1: Initiate payment with backend
       // Phase 11 — autoOrderSetup, if present, makes the Razorpay total
       // include the prepaid auto-order fees. Backend stashes it in the
       // PaymentTransaction metadata for the verify step to apply.
-      const initiateResponse = await apiService.initiateSubscriptionPayment(planId, autoOrderSetup);
+      // A plan-purchase couponCode is resolved server-side; the Razorpay
+      // amount comes back already discounted.
+      const initiateResponse = await apiService.initiateSubscriptionPayment(planId, autoOrderSetup, couponCode);
       if (!initiateResponse.success) {
         throw new Error(initiateResponse.message || 'Failed to initiate payment');
       }
