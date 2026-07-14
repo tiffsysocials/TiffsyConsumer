@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthScreenProps } from '../../types/navigation';
@@ -36,6 +37,19 @@ const OTPVerificationScreen: React.FC<Props> = ({ navigation, route }) => {
 
   // Refs for input fields
   const inputRefs = useRef<(TextInput | null)[]>([]);
+  const scrollRef = useRef<ScrollView>(null);
+
+  // Scroll the OTP card into view when the keyboard opens, otherwise the
+  // inputs hide behind the keyboard on iOS (mirrors LoginScreen's fix).
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => {
+        scrollRef.current?.scrollTo({ y: 230, animated: true });
+      },
+    );
+    return () => showSub.remove();
+  }, []);
 
   useEffect(() => {
     // Start timer
@@ -161,13 +175,19 @@ const OTPVerificationScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#FE8733' }}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: '#FE8733' }}
+      // iOS: top-only, like LoginScreen — the default bottom inset otherwise
+      // double-stacks with the KeyboardAvoidingView padding and under-scrolls.
+      edges={Platform.OS === 'ios' ? ['top'] : undefined}
+    >
       <StatusBar barStyle="light-content" backgroundColor="#FE8733" />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={{ flexGrow: 1 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}

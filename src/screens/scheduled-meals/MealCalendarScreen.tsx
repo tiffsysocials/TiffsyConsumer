@@ -112,10 +112,17 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation, route }) => {
 
   // Use a ref to track current address to avoid stale closures
   const addressRef = React.useRef<string | null>(null);
+  // Refocusing refreshes silently once data has loaded for this address;
+  // switching address still shows a real spinner (stale calendar would be
+  // misleading). Refs on purpose — state would re-run the focus effect.
+  const hasLoadedOnceRef = React.useRef(false);
+  const lastLoadedAddressIdRef = React.useRef<string | null>(null);
 
   const fetchAndMergeData = useCallback(async (addressId: string) => {
     addressRef.current = addressId;
-    setIsLoading(true);
+    if (!hasLoadedOnceRef.current || lastLoadedAddressIdRef.current !== addressId) {
+      setIsLoading(true);
+    }
     try {
       const [slotsResponse, scheduleResponse, mealsResponse] = await Promise.all([
         apiService.getScheduledMealSlots(addressId),
@@ -196,6 +203,8 @@ const MealCalendarScreen: React.FC<Props> = ({ navigation, route }) => {
       }
 
       setMergedData(merged);
+      hasLoadedOnceRef.current = true;
+      lastLoadedAddressIdRef.current = addressId;
     } catch (err: any) {
       if (addressRef.current === addressId) {
         showAlert('Error', 'Failed to load meal calendar', undefined, 'error');

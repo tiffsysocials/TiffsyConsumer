@@ -116,14 +116,12 @@ const NotificationPopup: React.FC<NotificationPopupProps> = ({
           onPress={(e) => e.stopPropagation()}
         >
           <View style={styles.content}>
-            {/* Branding Header */}
-            <Text style={styles.brandLabel}>Tiffsy</Text>
-
-            {/* Icon and Close Button */}
+            {/* Header row: icon at left, "Tiffsy" brand beside it, close at right */}
             <View style={styles.header}>
               <View style={styles.iconContainer}>
                 <IconComponent name={iconConfig.iconName} size={24} color={iconConfig.color} />
               </View>
+              <Text style={styles.brandLabel}>Tiffsy</Text>
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={onDismiss}
@@ -201,12 +199,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   brandLabel: {
+    flex: 1,
+    marginLeft: 12,
     fontSize: 11,
     fontWeight: '700',
     color: '#FE8733',
     letterSpacing: 1,
     textTransform: 'uppercase',
-    marginBottom: 10,
   },
   iconContainer: {
     width: 48,

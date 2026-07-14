@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -77,6 +77,12 @@ const MyScheduledMealsScreen: React.FC<Props> = ({ navigation }) => {
   const [cancelMealQty, setCancelMealQty] = useState(1);
   const [cancelQty, setCancelQty] = useState(1);
 
+  // Tracks whether data has loaded at least once, so refocusing the screen
+  // refreshes silently instead of blanking the list to a spinner. A ref (not
+  // state) on purpose — state in the focus callback deps would re-run the
+  // effect mid-focus when data lands.
+  const hasLoadedOnceRef = useRef(false);
+
   const fetchMeals = useCallback(async (pageNum: number, isRefresh = false) => {
     try {
       const response = await apiService.getMyScheduledMeals({ page: pageNum, limit: 10 });
@@ -93,6 +99,7 @@ const MyScheduledMealsScreen: React.FC<Props> = ({ navigation }) => {
         }
         setTotalPages(response.data.pagination.pages);
         setPage(pageNum);
+        hasLoadedOnceRef.current = true;
       }
     } catch (err: any) {
       showAlert('Error', err.message || 'Failed to load scheduled meals', undefined, 'error');
@@ -105,7 +112,10 @@ const MyScheduledMealsScreen: React.FC<Props> = ({ navigation }) => {
 
   useFocusEffect(
     useCallback(() => {
-      setIsLoading(true);
+      // Spinner only before the first load; later focuses refresh silently.
+      if (!hasLoadedOnceRef.current) {
+        setIsLoading(true);
+      }
       fetchMeals(1, true);
     }, [fetchMeals])
   );

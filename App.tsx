@@ -19,6 +19,7 @@ import { AlertProvider } from './src/context/AlertContext';
 import { BannerProvider } from './src/context/BannerContext';
 import NotificationPopup from './src/components/NotificationPopup';
 import ForceUpdateModal from './src/components/ForceUpdateModal';
+import { subscribeToRootRoute } from './src/navigation/navigationRef';
 import { checkForUpdate, UpdateCheckResult } from './src/services/appUpdate.service';
 import { checkForOtaUpdate } from './src/services/otaUpdate.service';
 import notificationService from './src/services/notification.service';
@@ -39,6 +40,15 @@ const AppContent = () => {
   const navigationRef = useRef<any>(null);
   const appState = useRef(AppState.currentState);
   const isRefreshingLocationRef = useRef(false);
+
+  // True only when the root navigator is showing the Main app (not the
+  // splash, onboarding, auth, or profile-setup screens). Used to hold the
+  // notification popup back until the user has actually entered Home.
+  const [isInMainApp, setIsInMainApp] = useState(false);
+  useEffect(
+    () => subscribeToRootRoute(name => setIsInMainApp(name === 'Main')),
+    []
+  );
 
   // Force/soft update gate. Runs independent of auth so even logged-out users
   // on an unsupported version are gated. Soft ('available') prompts can be
@@ -179,8 +189,9 @@ const AppContent = () => {
           handleNotification(initialNotification);
         }
 
-        // Fetch latest unread notification on app open
-        fetchLatestUnread().catch(err => console.warn('[App] fetchLatestUnread failed:', err));
+        // Note: the app-open "latest unread" popup fetch lives in its own
+        // effect below, gated on the Main app being visible — so the popup
+        // never appears over the splash/auth screens.
 
         console.log('[App] FCM notification handlers set up successfully');
       } catch (error) {
@@ -200,6 +211,21 @@ const AppContent = () => {
       }
     };
   }, [isAuthenticated]);
+
+  // Fetch the latest unread notification (drives the popup) once per app open
+  // / login session, but only after the user has entered the Main app — never
+  // over the splash, onboarding, or auth screens.
+  const hasShownOpenPopupRef = useRef(false);
+  useEffect(() => {
+    if (!isAuthenticated) {
+      // Reset on logout so the next login session gets its popup again.
+      hasShownOpenPopupRef.current = false;
+      return;
+    }
+    if (!isInMainApp || hasShownOpenPopupRef.current) return;
+    hasShownOpenPopupRef.current = true;
+    fetchLatestUnread().catch(err => console.warn('[App] fetchLatestUnread failed:', err));
+  }, [isAuthenticated, isInMainApp, fetchLatestUnread]);
 
   // Reusable location fetch — guarded so foreground/mount don't double-fire.
   const refreshCurrentLocation = async () => {
@@ -288,7 +314,10 @@ const AppContent = () => {
     <>
       <AppNavigator ref={navigationRef} />
       <NotificationPopup
-        visible={showPopup}
+        // Belt-and-suspenders: even if a fetch fires from another path (e.g.
+        // foreground resume while on an auth screen), never show the popup
+        // outside the Main app.
+        visible={showPopup && isInMainApp}
         notification={latestUnreadNotification}
         onDismiss={dismissPopup}
         onView={handlePopupView}

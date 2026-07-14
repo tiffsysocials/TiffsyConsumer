@@ -9,6 +9,7 @@ import {
   StatusBar,
   ActivityIndicator,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import Svg, { Path } from 'react-native-svg';
@@ -982,8 +983,9 @@ const YourOrdersScreen: React.FC<Props> = ({ navigation }) => {
           </>
         )}
 
-        {/* Bottom Spacing for Navigation Bar */}
-        <View style={{ height: 100 }} />
+        {/* Bottom Spacing for Navigation Bar. iOS: include the home-indicator
+            inset so the last card clears the floating nav on notched iPhones. */}
+        <View style={{ height: Platform.OS === 'ios' ? insets.bottom + 100 : 100 }} />
       </ScrollView>
 
       {/* Login prompt for guest users tapping History or Auto Order tabs */}

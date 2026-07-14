@@ -6,6 +6,7 @@ import {
   Image,
   TouchableOpacity,
   StatusBar,
+  Platform,
 } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import LinearGradient from 'react-native-linear-gradient';
@@ -59,7 +60,12 @@ const OnDemandScreen: React.FC<Props> = ({ navigation }) => {
           resizeMode="contain"
         />
 
-        <View className="flex-row items-center justify-between px-5 pt-4 pb-6">
+        <View
+          className="flex-row items-center justify-between px-5 pt-4"
+          // iOS: 16 matches My Profile / My Orders header rows (py-4) so the
+          // orange bands are equal height. Android keeps the original pb-6 (24).
+          style={{ paddingBottom: Platform.OS === 'ios' ? 16 : 24 }}
+        >
           {/* Logo */}
           <View style={{ width: isSmallDevice ? SPACING.iconXl * 1.2 : SPACING.iconXl * 1.45 }}>
             <Image

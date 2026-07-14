@@ -8,7 +8,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useUser } from '../../context/UserContext';
 import { useAlert } from '../../context/AlertContext';
@@ -173,25 +175,44 @@ const UserOnboardingScreen: React.FC = () => {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-white"
+    // iOS: consume the top inset with an orange strip so the header clears the
+    // notch/Dynamic Island (this screen had no safe-area handling). Android is
+    // untouched — edges={[]} renders it as a plain View.
+    <SafeAreaView
+      edges={Platform.OS === 'ios' ? ['top'] : []}
+      className="flex-1 bg-orange-400"
     >
+      {Platform.OS === 'ios' && <StatusBar barStyle="light-content" />}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        className="flex-1 bg-white"
+      >
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         {/* Header Section */}
-        <View className="bg-orange-400 pb-8 pt-12 px-5 relative" style={{ borderBottomLeftRadius: 30, borderBottomRightRadius: 30 }}>
+        <View
+          className="bg-orange-400 pb-8 pt-12 px-5 relative"
+          style={[
+            { borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
+            // iOS: SafeAreaView already consumed the status-bar inset, so the
+            // pt-12 (48px) status-bar allowance shrinks to plain spacing.
+            Platform.OS === 'ios' && { paddingTop: 16 },
+          ]}
+        >
           {/* Back Button */}
           <TouchableOpacity
             onPress={handleBackPress}
             className="absolute top-12 left-5 z-10"
-            style={{
-              minWidth: TOUCH_TARGETS.minimum,
-              minHeight: TOUCH_TARGETS.minimum,
-              borderRadius: TOUCH_TARGETS.minimum / 2,
-              backgroundColor: 'rgba(255, 255, 255, 0.3)',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
+            style={[
+              {
+                minWidth: TOUCH_TARGETS.minimum,
+                minHeight: TOUCH_TARGETS.minimum,
+                borderRadius: TOUCH_TARGETS.minimum / 2,
+                backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              },
+              Platform.OS === 'ios' && { top: 16 },
+            ]}
           >
             <MaterialCommunityIcons name="arrow-left" size={SPACING.iconSize} color="#FFFFFF" />
           </TouchableOpacity>
@@ -358,7 +379,8 @@ const UserOnboardingScreen: React.FC = () => {
         onSkip={handleSkipNotifications}
         isLoading={isRequestingPermission}
       />
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 

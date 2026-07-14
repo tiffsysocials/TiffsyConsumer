@@ -35,3 +35,36 @@ export function getCurrentRouteName(): string | undefined {
   }
   return undefined;
 }
+
+// ---------------------------------------------------------------------------
+// Root-route subscription — lets components outside the NavigationContainer
+// (e.g. the global NotificationPopup in App.tsx) know which root screen is
+// active ('Onboarding' | 'Auth' | 'UserOnboarding' | 'Main' | undefined while
+// the splash is showing, since the container isn't mounted yet).
+// ---------------------------------------------------------------------------
+
+type RootRouteListener = (rootRouteName: string | undefined) => void;
+const rootRouteListeners = new Set<RootRouteListener>();
+
+function getRootRouteName(): string | undefined {
+  if (!navigationRef.isReady()) return undefined;
+  const state = navigationRef.getState();
+  if (!state) return undefined;
+  return state.routes[state.index]?.name;
+}
+
+// Fires immediately with the current value, then on every root-route change.
+// Returns an unsubscribe function.
+export function subscribeToRootRoute(listener: RootRouteListener): () => void {
+  rootRouteListeners.add(listener);
+  listener(getRootRouteName());
+  return () => {
+    rootRouteListeners.delete(listener);
+  };
+}
+
+// Called from NavigationContainer's onReady/onStateChange in AppNavigator.
+export function notifyRootRouteChanged() {
+  const name = getRootRouteName();
+  rootRouteListeners.forEach(listener => listener(name));
+}

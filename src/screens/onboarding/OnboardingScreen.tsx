@@ -9,7 +9,6 @@ import {
   Easing,
   ImageBackground,
   useWindowDimensions,
-  Platform,
   ScrollView,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -379,8 +378,9 @@ const OnboardingScreen: React.FC<Props> = ({ navigation }) => {
         <View
           style={{
             paddingHorizontal: contentPadding,
-            paddingBottom:
-              Platform.OS === 'android' ? insets.bottom + 12 : 12,
+            // Both platforms: keep the button clear of the home indicator /
+            // gesture bar (root SafeAreaView only handles the top edge).
+            paddingBottom: insets.bottom + 12,
           }}>
           <TouchableOpacity
             onPressIn={handlePressIn}

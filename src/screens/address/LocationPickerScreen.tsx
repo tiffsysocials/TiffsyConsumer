@@ -37,6 +37,11 @@ const DEFAULT_REGION: Region = {
 
 const REVERSE_GEOCODE_DEBOUNCE_MS = 400;
 
+// react-native-maps 2.0.0-beta.15 (Fabric) fires onRegionChangeComplete for
+// sub-pixel settles and animateToRegion echoes. Ignore settles within ~11 m
+// of the spot we already resolved so the address doesn't constantly reload.
+const COORD_EPSILON = 0.0001;
+
 interface PlacePrediction {
   description: string;
   place_id: string;
@@ -68,32 +73,48 @@ const LocationPickerScreen: React.FC<Props> = ({ navigation, route }) => {
   // Monotonic request id so out-of-order reverse-geocode responses don't
   // clobber the address we just resolved for the current pin location.
   const geocodeRequestId = useRef(0);
+  // Coords of the last *initiated* reverse-geocode. onRegionChangeComplete uses
+  // this to swallow spurious same-spot settles (see COORD_EPSILON above).
+  const lastRequestedCoords = useRef<{ latitude: number; longitude: number } | null>(null);
 
-  // On mount, try to center on user's current GPS location
+  // On mount, resolve exactly one initial location per path (edit pin / GPS /
+  // default center) instead of racing multiple reverse-geocodes.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       // Editing an existing address: stay on its saved pin, don't jump to GPS.
-      if (initialCoords) return;
+      if (initialCoords) {
+        runReverseGeocode(initialCoords.latitude, initialCoords.longitude);
+        return;
+      }
       try {
         const granted = await locationService.requestLocationPermission();
-        if (!granted || cancelled) return;
-        const coords = await locationService.getCurrentLocation();
-        if (cancelled || !coords) return;
-        const initial: Region = {
-          latitude: coords.latitude,
-          longitude: coords.longitude,
-          latitudeDelta: 0.008,
-          longitudeDelta: 0.008,
-        };
-        setRegion(initial);
-        mapRef.current?.animateToRegion(initial, 600);
-        // Resolve address immediately rather than waiting for the user to pan.
-        // animateToRegion does not always fire onRegionChangeComplete on Android
-        // Fabric in 2.0.0-beta.15.
-        runReverseGeocode(coords.latitude, coords.longitude);
+        if (cancelled) return;
+        if (granted) {
+          const coords = await locationService.getCurrentLocation();
+          if (cancelled) return;
+          if (coords) {
+            const initial: Region = {
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+              latitudeDelta: 0.008,
+              longitudeDelta: 0.008,
+            };
+            setRegion(initial);
+            mapRef.current?.animateToRegion(initial, 600);
+            // Resolve address immediately rather than waiting for the user to pan.
+            // animateToRegion does not always fire onRegionChangeComplete on Android
+            // Fabric in 2.0.0-beta.15.
+            runReverseGeocode(coords.latitude, coords.longitude);
+            return;
+          }
+        }
       } catch (err) {
         console.warn('[LocationPicker] Could not get current location:', err);
+      }
+      // GPS unavailable or permission denied — resolve the default map center once.
+      if (!cancelled) {
+        runReverseGeocode(DEFAULT_REGION.latitude, DEFAULT_REGION.longitude);
       }
     })();
     return () => {
@@ -101,6 +122,9 @@ const LocationPickerScreen: React.FC<Props> = ({ navigation, route }) => {
       if (reverseGeocodeTimer.current) clearTimeout(reverseGeocodeTimer.current);
       if (searchTimer.current) clearTimeout(searchTimer.current);
     };
+    // Mount-only by design: initialCoords comes from route params (stable) and
+    // runReverseGeocode is a stable useCallback.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Reverse-geocode whenever the map settles on a new region.
@@ -108,6 +132,7 @@ const LocationPickerScreen: React.FC<Props> = ({ navigation, route }) => {
   // update state, so a slow earlier response can't overwrite a faster later one.
   const runReverseGeocode = useCallback(async (lat: number, lng: number) => {
     const requestId = ++geocodeRequestId.current;
+    lastRequestedCoords.current = { latitude: lat, longitude: lng };
     setIsResolving(true);
     setServiceable(null);
 
@@ -141,18 +166,22 @@ const LocationPickerScreen: React.FC<Props> = ({ navigation, route }) => {
   }, []);
 
   const onRegionChangeComplete = (next: Region) => {
-    setRegion(next);
+    setRegion(next); // handleConfirm reads region — keep it in sync even for skipped settles
+    // Skip re-resolving when the map settles on effectively the same spot we
+    // already requested (spurious Fabric settle or animateToRegion echo).
+    const last = lastRequestedCoords.current;
+    if (
+      last &&
+      Math.abs(last.latitude - next.latitude) < COORD_EPSILON &&
+      Math.abs(last.longitude - next.longitude) < COORD_EPSILON
+    ) {
+      return;
+    }
     if (reverseGeocodeTimer.current) clearTimeout(reverseGeocodeTimer.current);
     reverseGeocodeTimer.current = setTimeout(() => {
       runReverseGeocode(next.latitude, next.longitude);
     }, REVERSE_GEOCODE_DEBOUNCE_MS);
   };
-
-  // Trigger an initial reverse-geocode when default region is shown
-  useEffect(() => {
-    runReverseGeocode(region.latitude, region.longitude);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Places Autocomplete (HTTP, no extra package)
   const searchPlaces = async (query: string) => {

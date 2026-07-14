@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -97,6 +97,11 @@ const ScheduleMealScreen: React.FC<Props> = ({ navigation }) => {
     return null;
   }, [addresses, selectedAddressId]);
 
+  // Tracks whether slots have loaded at least once, so refocusing refreshes
+  // silently instead of blanking the screen to a spinner (ref on purpose —
+  // state here would re-run the focus effect when data lands).
+  const hasLoadedOnceRef = useRef(false);
+
   const fetchSlots = useCallback(async (addressId: string | null) => {
     if (!addressId) {
       setIsLoading(false);
@@ -111,6 +116,7 @@ const ScheduleMealScreen: React.FC<Props> = ({ navigation }) => {
         setSlots(response.data.slots);
         setActiveScheduledMeals(response.data.activeScheduledMeals);
         setMaxScheduledMeals(response.data.maxScheduledMeals);
+        hasLoadedOnceRef.current = true;
       } else {
         setError(response.message || 'Failed to load available slots');
       }
@@ -128,7 +134,11 @@ const ScheduleMealScreen: React.FC<Props> = ({ navigation }) => {
       if (addressId && addressId !== currentAddressId) {
         setCurrentAddressId(addressId);
       }
-      setIsLoading(true);
+      // Spinner only before the first load; later focuses refresh silently
+      // (explicit retry and address changes still set the spinner themselves).
+      if (!hasLoadedOnceRef.current) {
+        setIsLoading(true);
+      }
       fetchSlots(addressId || currentAddressId);
     }, [currentAddressId, getDefaultAddressId, fetchSlots])
   );

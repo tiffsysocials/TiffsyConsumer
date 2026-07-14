@@ -9,7 +9,7 @@ import SplashScreen, { SplashView } from '../screens/SplashScreen';
 import UserOnboardingScreen from '../screens/auth/UserOnboardingScreen';
 import { RootStackParamList } from '../types/navigation';
 import { useUser } from '../context/UserContext';
-import { navigationRef } from './navigationRef';
+import { navigationRef, notifyRootRouteChanged } from './navigationRef';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const { width } = Dimensions.get('window');
@@ -99,6 +99,8 @@ const AppNavigator = () => {
   return (
     <NavigationContainer
       ref={navigationRef}
+      onReady={notifyRootRouteChanged}
+      onStateChange={notifyRootRouteChanged}
       theme={{
         dark: false,
         colors: {

@@ -153,6 +153,14 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   // Background data preload tracking
   const hasPreloadedRef = useRef(false);
 
+  // Silent-refresh guards: don't blank the menu to a spinner on refocus, and skip
+  // the refetch entirely when the same address was fetched moments ago (mirrors
+  // AccountScreen's REFETCH_COOLDOWN_MS pattern). Recorded at fetch *start* so the
+  // mount effect + focus effect don't double-fetch on first entry; failed fetches
+  // stay retryable because the focus guard also checks menuError.
+  const lastMenuFetchRef = useRef<{ at: number; addressId: string | null }>({ at: 0, addressId: null });
+  const MENU_REFETCH_COOLDOWN_MS = 30000;
+
   // Buy Now flow state
   const [showVoucherModal, setShowVoucherModal] = useState(false);
   const [isBuyNowFlow, setIsBuyNowFlow] = useState(false);
@@ -368,7 +376,14 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   // Fetch menu using new flow: address → kitchens → menu
   const fetchMenu = async () => {
     console.log('[HomeScreen] === FETCH MENU STARTED ===');
-    setIsLoadingMenu(true);
+    const addressChanged =
+      (selectedAddressId ?? null) !== lastMenuFetchRef.current.addressId;
+    // Only blank to the spinner on first load or when the address changed —
+    // otherwise keep the existing menu visible and refresh silently.
+    if (!menuData || addressChanged) {
+      setIsLoadingMenu(true);
+    }
+    lastMenuFetchRef.current = { at: Date.now(), addressId: selectedAddressId ?? null };
     setMenuError(null);
     setRequiresAddress(false);
 
@@ -652,7 +667,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   // Also refetch menu when screen comes into focus (e.g., returning from AddressScreen)
   useFocusEffect(
     useCallback(() => {
-      console.log('[HomeScreen] useFocusEffect triggered - refetching menu');
+      console.log('[HomeScreen] useFocusEffect triggered');
       // Recalculate correct meal tab based on current time
       const now = new Date();
       const totalMin = now.getHours() * 60 + now.getMinutes();
@@ -660,8 +675,16 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
       setSelectedMeal(timeMeal);
       // Increment focus counter to recalculate mealWindowInfo
       setFocusCount(c => c + 1);
-      fetchMenu();
-    }, [selectedAddressId])
+      // Skip the network refetch when the same address was fetched moments ago
+      // (prevents the reload-on-every-tab-switch churn). Errors always retry.
+      const fresh =
+        Date.now() - lastMenuFetchRef.current.at < MENU_REFETCH_COOLDOWN_MS &&
+        (selectedAddressId ?? null) === lastMenuFetchRef.current.addressId &&
+        !menuError;
+      if (!fresh) {
+        fetchMenu();
+      }
+    }, [selectedAddressId, menuError])
   );
 
   // Check for auto-ordering status and show notification
