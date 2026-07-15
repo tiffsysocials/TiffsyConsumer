@@ -339,7 +339,7 @@ export default function VoucherPurchaseScreen() {
   // banner when nothing applied, green applied-card with savings + remove.
   // Rendered ABOVE the pay summary in both branches.
   const couponSection = (
-    <View style={{ marginBottom: 12 }}>
+    <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
       {appliedCoupon ? (
         <View
           style={{
