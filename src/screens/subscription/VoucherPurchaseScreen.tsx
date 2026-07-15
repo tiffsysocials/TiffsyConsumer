@@ -335,6 +335,93 @@ export default function VoucherPurchaseScreen() {
     (autoOrderYes === false || (!!quote && !quoteLoading && !quoteError)) &&
     !submitting;
 
+  // Coupon section — identical look to the cart's coupon UI: orange promo
+  // banner when nothing applied, green applied-card with savings + remove.
+  // Rendered ABOVE the pay summary in both branches.
+  const couponSection = (
+    <View style={{ marginBottom: 12 }}>
+      {appliedCoupon ? (
+        <View
+          style={{
+            borderWidth: 1,
+            borderColor: '#BBF7D0',
+            backgroundColor: '#F0FDF4',
+            borderRadius: 16,
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+              <MaterialCommunityIcons name="ticket-percent" size={22} color="#16A34A" />
+              <View style={{ marginLeft: 10, flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#15803D' }}>
+                  {appliedCoupon.code} Applied
+                </Text>
+                {couponSavings > 0 && (
+                  <Text style={{ fontSize: 12, color: '#16A34A', marginTop: 1 }}>
+                    You save ₹{formatINR(couponSavings)}
+                  </Text>
+                )}
+                {appliedCoupon.extraVouchers > 0 && (
+                  <Text style={{ fontSize: 12, color: '#2563EB', marginTop: 1 }}>
+                    +{appliedCoupon.extraVouchers} bonus meal voucher{appliedCoupon.extraVouchers > 1 ? 's' : ''}
+                  </Text>
+                )}
+              </View>
+            </View>
+            <TouchableOpacity
+              onPress={() => setAppliedCoupon(null)}
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 15,
+                backgroundColor: 'white',
+                borderWidth: 1.5,
+                borderColor: '#FE8733',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text style={{ color: '#EF4444', fontWeight: 'bold', fontSize: 16 }}>×</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <TouchableOpacity
+          onPress={() => setCouponSheetVisible(true)}
+          activeOpacity={0.8}
+          style={{
+            borderRadius: 16,
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: '#FE8733',
+          }}
+        >
+          <MaterialCommunityIcons name="ticket-percent" size={24} color="white" />
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: 'white' }}>
+              Save more with coupons!
+            </Text>
+            <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 1 }}>
+              View all coupons {'>'}
+            </Text>
+          </View>
+          <View style={{
+            backgroundColor: 'white',
+            borderRadius: 20,
+            paddingHorizontal: 16,
+            paddingVertical: 8,
+          }}>
+            <Text style={{ color: '#FE8733', fontWeight: '700', fontSize: 13 }}>Apply</Text>
+          </View>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
@@ -521,6 +608,8 @@ export default function VoucherPurchaseScreen() {
               />
             </Section>
 
+            {couponSection}
+
             {/* Live summary — collapsible, mirrors the cart's "To Pay" pattern. */}
             <CollapsibleSummary
               expanded={summaryExpanded}
@@ -591,6 +680,8 @@ export default function VoucherPurchaseScreen() {
         )}
 
         {autoOrderYes === false && (
+          <>
+          {couponSection}
           <CollapsibleSummary
             expanded={summaryExpanded}
             onToggle={() => setSummaryExpanded(v => !v)}
@@ -613,44 +704,7 @@ export default function VoucherPurchaseScreen() {
             <View style={styles.divider} />
             <SummaryLine label="Pay now" value={`₹${formatINR(packPayable)}`} big />
           </CollapsibleSummary>
-        )}
-
-        {/* Coupon row — applies to the pack price in both branches */}
-        {autoOrderYes !== null && (
-          <View style={styles.couponRow}>
-            {appliedCoupon ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                <MaterialCommunityIcons name="ticket-percent" size={20} color="#059669" />
-                <View style={{ marginLeft: 10, flex: 1 }}>
-                  <Text style={styles.couponAppliedCode}>{appliedCoupon.code} applied</Text>
-                  <Text style={styles.couponAppliedDetail}>
-                    {couponSavings > 0 ? `You save ₹${formatINR(couponSavings)}` : ''}
-                    {couponSavings > 0 && appliedCoupon.extraVouchers > 0 ? ' · ' : ''}
-                    {appliedCoupon.extraVouchers > 0
-                      ? `+${appliedCoupon.extraVouchers} bonus voucher${appliedCoupon.extraVouchers > 1 ? 's' : ''}`
-                      : ''}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => setAppliedCoupon(null)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Text style={{ color: '#DC2626', fontWeight: '700', fontSize: 12 }}>REMOVE</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
-                onPress={() => setCouponSheetVisible(true)}
-                activeOpacity={0.7}
-              >
-                <MaterialCommunityIcons name="ticket-percent-outline" size={20} color={PRIMARY} />
-                <Text style={styles.couponCta}>Apply Coupon</Text>
-                <View style={{ flex: 1 }} />
-                <MaterialCommunityIcons name="chevron-right" size={20} color={MUTED} />
-              </TouchableOpacity>
-            )}
-          </View>
+          </>
         )}
       </ScrollView>
 
