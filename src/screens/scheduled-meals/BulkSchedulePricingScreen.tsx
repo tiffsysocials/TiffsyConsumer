@@ -218,8 +218,11 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
     fetchAddonMenus();
   }, [pricingData?.kitchen?.id, addonsFetched, hasLunchSlots, hasDinnerSlots]);
 
+  // Vouchers cover individual thalis, so the cap is the total thali count
+  // across slots — not the number of slots (a 3-thali day can take 3).
+  const totalThalis = selectedSlots.reduce((s, slot) => s + (slotQuantities[slotKeyOf(slot)] || 1), 0);
   const maxVouchers = pricingData
-    ? Math.min(pricingData.vouchers.available, pricingData.totalSlots)
+    ? Math.min(pricingData.vouchers.available, totalThalis)
     : 0;
 
   const handleVoucherIncrement = useCallback(() => {
@@ -321,8 +324,16 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
     const updated = { ...slotQuantitiesRef.current, [key]: newQty };
     setSlotQuantities(updated);
     slotQuantitiesRef.current = updated;
+    // Shrinking a day can leave more vouchers selected than thalis exist.
+    // Clamp and let the vouchersToUse effect refetch (it reads the updated
+    // quantities via slotQuantitiesRef).
+    const newTotalThalis = selectedSlots.reduce((s, sl) => s + (updated[slotKeyOf(sl)] || 1), 0);
+    if (vouchersToUse > newTotalThalis) {
+      setVouchersToUse(newTotalThalis);
+      return;
+    }
     fetchPricing(vouchersToUse, buildSlotsWithAddons());
-  }, [fetchPricing, vouchersToUse, buildSlotsWithAddons]);
+  }, [fetchPricing, vouchersToUse, buildSlotsWithAddons, selectedSlots]);
 
   // Per-slot addon handlers
   const handlePerSlotAddonAdd = useCallback((slotKey: string, addon: AddonItem) => {
@@ -563,7 +574,7 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
             }}>
               {slot.pricing.amountToPay === 0 ? 'Covered' : `\u20B9${slot.pricing.amountToPay}`}
             </Text>
-            {slot.pricing.amountToPay > 0 && slot.pricing.subtotal !== slot.pricing.amountToPay && (
+            {slot.pricing.amountToPay > 0 && slot.pricing.subtotal + slot.pricing.addonsTotal > slot.pricing.amountToPay && (
               <Text style={{ fontSize: 11, color: '#9CA3AF', textDecorationLine: 'line-through', marginTop: 1 }}>
                 {'\u20B9'}{slot.pricing.subtotal + slot.pricing.addonsTotal}
               </Text>

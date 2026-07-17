@@ -326,6 +326,10 @@ export interface ServiceableKitchenV2 {
   /** Phase 8 — kitchen → customer Haversine distance in km (0.1 precision).
    *  Absent when either side lacks coordinates. */
   distanceKm?: number;
+  /** Whole-day closure (weekly off-day / holiday, IST) — server-computed.
+   *  Absent on older backends. */
+  isClosedToday?: boolean;
+  closureReason?: string | null;
 }
 
 export interface ServiceableKitchensV2Response {
@@ -2206,6 +2210,25 @@ class ApiService {
   ): Promise<KitchensForZoneResponse> {
     const params = menuType ? { menuType } : undefined;
     return this.api.get(`/api/kitchens/zone/${zoneId}`, { params });
+  }
+
+  // Get kitchen public details incl. server-computed whole-day closure state
+  // (public, no auth)
+  async getKitchenPublicDetails(kitchenId: string): Promise<{
+    success: boolean;
+    message?: string;
+    data: {
+      kitchen: {
+        _id: string;
+        name: string;
+        closedDays?: string[];
+        closedDates?: string[];
+        isClosedToday?: boolean;
+        closureReason?: string | null;
+      };
+    };
+  }> {
+    return this.api.get(`/api/kitchens/${kitchenId}/public`);
   }
 
   // ============================================

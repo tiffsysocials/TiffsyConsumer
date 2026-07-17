@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -71,6 +71,19 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
   const [selectedAddons, setSelectedAddons] = useState<SelectedAddon[]>([]);
   const [addonsLoading, setAddonsLoading] = useState(false);
   const [addonsFetched, setAddonsFetched] = useState(false);
+
+  const scrollRef = useRef<ScrollView>(null);
+  // Content-relative Y of each text-input section. On iOS the
+  // KeyboardAvoidingView only shrinks the scroll area — it doesn't bring the
+  // focused field into view, so we scroll to it ourselves once the keyboard
+  // has animated in.
+  const sectionY = useRef({ coupon: 0, instructions: 0, notes: 0 });
+  const scrollFieldIntoView = useCallback((key: 'coupon' | 'instructions' | 'notes') => {
+    if (Platform.OS !== 'ios') return;
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: Math.max(sectionY.current[key] - SPACING.lg, 0), animated: true });
+    }, 300);
+  }, []);
 
   const fetchPricing = useCallback(async (coupon?: string, itemsOverride?: Array<{ menuItemId: string; quantity: number; addons?: Array<{ addonId: string; quantity: number }> }>) => {
     try {
@@ -375,7 +388,12 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          ref={scrollRef}
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Date & Meal Window Badge */}
           <View style={{ paddingHorizontal: SPACING.lg, paddingTop: SPACING.lg, flexDirection: 'row', alignItems: 'center' }}>
             <MaterialCommunityIcons name="calendar" size={18} color="#FE8733" style={{ marginRight: SPACING.xs }} />
@@ -591,7 +609,10 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
 
           {/* Coupon Section */}
-          <View style={{ paddingHorizontal: SPACING.lg, marginBottom: SPACING.lg }}>
+          <View
+            style={{ paddingHorizontal: SPACING.lg, marginBottom: SPACING.lg }}
+            onLayout={(e) => { sectionY.current.coupon = e.nativeEvent.layout.y; }}
+          >
             <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'bold', color: '#1F2937', marginBottom: SPACING.sm }}>Apply Coupon</Text>
             {appliedCoupon ? (
               <View style={{
@@ -626,6 +647,7 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
                   <TextInput
                     value={couponCode}
                     onChangeText={(text) => { setCouponCode(text.toUpperCase()); setCouponError(null); }}
+                    onFocus={() => scrollFieldIntoView('coupon')}
                     placeholder="Enter coupon code"
                     placeholderTextColor="#9CA3AF"
                     autoCapitalize="characters"
@@ -667,11 +689,15 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
 
           {/* Special Instructions */}
-          <View style={{ paddingHorizontal: SPACING.lg, marginBottom: SPACING.lg }}>
+          <View
+            style={{ paddingHorizontal: SPACING.lg, marginBottom: SPACING.lg }}
+            onLayout={(e) => { sectionY.current.instructions = e.nativeEvent.layout.y; }}
+          >
             <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'bold', color: '#1F2937', marginBottom: SPACING.sm }}>Special Instructions</Text>
             <TextInput
               value={specialInstructions}
               onChangeText={setSpecialInstructions}
+              onFocus={() => scrollFieldIntoView('instructions')}
               placeholder="Any special requests? e.g., Less spicy (optional)"
               placeholderTextColor="#9CA3AF"
               multiline
@@ -694,11 +720,15 @@ const ScheduledMealPricingScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
 
           {/* Delivery Notes */}
-          <View style={{ paddingHorizontal: SPACING.lg, marginBottom: SPACING.lg }}>
+          <View
+            style={{ paddingHorizontal: SPACING.lg, marginBottom: SPACING.lg }}
+            onLayout={(e) => { sectionY.current.notes = e.nativeEvent.layout.y; }}
+          >
             <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'bold', color: '#1F2937', marginBottom: SPACING.sm }}>Delivery Notes</Text>
             <TextInput
               value={deliveryNotes}
               onChangeText={setDeliveryNotes}
+              onFocus={() => scrollFieldIntoView('notes')}
               placeholder="Delivery instructions, e.g., Ring the bell twice (optional)"
               placeholderTextColor="#9CA3AF"
               multiline

@@ -268,6 +268,29 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
   const [lunchCutoff, setLunchCutoff] = useState<SlotCutoffState>({ canOrder: true, canUseVoucher: true });
   const [dinnerCutoff, setDinnerCutoff] = useState<SlotCutoffState>({ canOrder: true, canUseVoucher: true });
 
+  // Whole-day kitchen closure (e.g. Sundays) — server-computed in IST. Only
+  // relevant for today-ordering; scheduling mode validates its target date
+  // server-side.
+  const [kitchenClosure, setKitchenClosure] = useState<{ closed: boolean; reason: string | null }>({ closed: false, reason: null });
+  useEffect(() => {
+    if (isSchedulingMode || !kitchenId) {
+      setKitchenClosure({ closed: false, reason: null });
+      return;
+    }
+    let cancelled = false;
+    apiService
+      .getKitchenPublicDetails(kitchenId)
+      .then((resp) => {
+        if (cancelled) return;
+        const k = resp?.data?.kitchen;
+        if (k) setKitchenClosure({ closed: k.isClosedToday === true, reason: k.closureReason || null });
+      })
+      .catch(() => {
+        // Fail-open: closure is re-checked server-side at order creation.
+      });
+    return () => { cancelled = true; };
+  }, [kitchenId, isSchedulingMode]);
+
 
   // Refresh voucher data when screen comes into focus
   useFocusEffect(
@@ -695,6 +718,18 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
 
     if (selectedMealWindows.length === 0) {
       showAlert('Error', 'Please select a delivery slot', undefined, 'error');
+      return;
+    }
+
+    // Whole-day closure (e.g. Sundays) — backend rejects anyway; fail early
+    // with a clear message.
+    if (!isSchedulingMode && kitchenClosure.closed) {
+      showAlert(
+        'Kitchen Closed Today',
+        `${kitchenClosure.reason || 'The kitchen is closed today.'} You can schedule meals for upcoming days instead.`,
+        undefined,
+        'error'
+      );
       return;
     }
 
@@ -1676,6 +1711,24 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
               </TouchableOpacity>
             )}
           </View>
+          {/* Whole-day closure notice (e.g. Sundays) */}
+          {!isSchedulingMode && kitchenClosure.closed && (
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: '#FEF2F2',
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: '#FECACA',
+              padding: 10,
+              marginTop: 12,
+            }}>
+              <MaterialCommunityIcons name="store-off-outline" size={18} color="#EF4444" style={{ marginRight: 8 }} />
+              <Text style={{ flex: 1, fontSize: 12, color: '#991B1B', fontWeight: '600' }}>
+                {kitchenClosure.reason || 'The kitchen is closed today.'} Use "Plan Ahead" to schedule meals for upcoming days.
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Select Delivery Slot (multi-select) */}
@@ -2356,7 +2409,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
             height: 56,
             paddingLeft: 20,
             paddingRight: 6,
-            opacity: (isPlacingOrder || isCalculating || addresses.length === 0 || pricingError) ? 0.7 : 1,
+            opacity: (isPlacingOrder || isCalculating || addresses.length === 0 || pricingError || (!isSchedulingMode && kitchenClosure.closed)) ? 0.7 : 1,
           }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
@@ -2377,7 +2430,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
               minWidth: 130,
             }}
             onPress={handlePlaceOrder}
-            disabled={isPlacingOrder || isCalculating || addresses.length === 0 || !!pricingError}
+            disabled={isPlacingOrder || isCalculating || addresses.length === 0 || !!pricingError || (!isSchedulingMode && kitchenClosure.closed)}
             activeOpacity={0.8}
           >
             {isPlacingOrder ? (
@@ -2385,7 +2438,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
             ) : (
               <>
                 <Text style={{ color: '#FE8733', fontWeight: '700', fontSize: 15, marginRight: 6 }}>
-                  {addresses.length === 0 ? 'Add Address' : isSchedulingMode ? (amountToPay === 0 ? 'Schedule' : 'Schedule & Pay') : (amountToPay === 0 ? 'Place Order' : 'Pay Now')}
+                  {addresses.length === 0 ? 'Add Address' : isSchedulingMode ? (amountToPay === 0 ? 'Schedule' : 'Schedule & Pay') : (kitchenClosure.closed ? 'Closed Today' : (amountToPay === 0 ? 'Place Order' : 'Pay Now'))}
                 </Text>
                 <Image
                   source={require('../../assets/icons/uparrow.png')}

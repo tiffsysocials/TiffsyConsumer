@@ -127,6 +127,9 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   // Menu state
   const [menuData, setMenuData] = useState<MenuData | null>(null);
   const [currentKitchen, setCurrentKitchen] = useState<KitchenInfo | null>(null);
+  // Whole-day closure (weekly off-day / holiday) for the selected kitchen —
+  // server-computed in IST, carried on the serviceable-kitchen matches.
+  const [kitchenClosure, setKitchenClosure] = useState<{ closed: boolean; reason: string | null }>({ closed: false, reason: null });
   const [isLoadingMenu, setIsLoadingMenu] = useState(true);
   const [menuError, setMenuError] = useState<string | null>(null);
   const [requiresAddress, setRequiresAddress] = useState(false);
@@ -320,6 +323,12 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
         const myMatch = kitchens.find(
           (m) => m.kitchen?._id?.toString() === currentKitchen._id.toString(),
         );
+        if (myMatch) {
+          setKitchenClosure({
+            closed: myMatch.isClosedToday === true,
+            reason: myMatch.closureReason || null,
+          });
+        }
         if (myMatch && myMatch.matchedZone._id === matchedZoneId) {
           // Same zone — merge fees for the new window.
           setMatchedZoneFeesForWindow(mealWindowParam, myMatch.fees);
@@ -547,6 +556,10 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
       const matchForSelected = v2Matches.find(
         (m) => m.kitchen?._id?.toString() === selectedKitchen._id.toString(),
       );
+      setKitchenClosure({
+        closed: matchForSelected?.isClosedToday === true,
+        reason: matchForSelected?.closureReason || null,
+      });
       if (matchForSelected) {
         setMatchedZone({
           id: matchForSelected.matchedZone._id,
@@ -958,6 +971,8 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
 
   // Check if current meal can be ordered (not past cutoff)
   const canOrderCurrentMeal = (): boolean => {
+    // Whole-day closure (e.g. Sundays) beats window/cutoff state.
+    if (kitchenClosure.closed) return false;
     const mealItem = getCurrentMealItem();
     return mealItem?.canOrder !== false;
   };
@@ -1602,8 +1617,32 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
             </View>
           )}
 
+          {/* Kitchen closed today banner (red) — whole-day closure (e.g. Sundays) */}
+          {!isLoadingMenu && !menuError && !requiresAddress && kitchenClosure.closed && (
+            <View style={{
+              backgroundColor: '#FEF2F2',
+              borderRadius: 12,
+              padding: 12,
+              marginBottom: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              borderWidth: 1,
+              borderColor: '#FECACA',
+            }}>
+              <MaterialCommunityIcons name="store-off-outline" size={20} color="#EF4444" style={{ marginRight: 8 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: FONT_SIZES.sm, color: '#991B1B', fontWeight: '600' }}>
+                  Kitchen closed today
+                </Text>
+                <Text style={{ fontSize: FONT_SIZES.xs, color: '#B91C1C', marginTop: 2 }}>
+                  {kitchenClosure.reason || 'We are not serving today.'} You can schedule meals for upcoming days.
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* Cash-only banner (amber) — shown when voucher cutoff has passed but ordering is still open */}
-          {!isLoadingMenu && !menuError && !requiresAddress && getCurrentMealItem() && currentMealState === 'cash_only' && (
+          {!isLoadingMenu && !menuError && !requiresAddress && getCurrentMealItem() && currentMealState === 'cash_only' && !kitchenClosure.closed && (
             <View style={{
               backgroundColor: '#FEF3C7',
               borderRadius: 12,
@@ -1627,7 +1666,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
           )}
 
           {/* Ordering closed banner (red) */}
-          {!isLoadingMenu && !menuError && !requiresAddress && getCurrentMealItem() && currentMealState === 'closed' && (
+          {!isLoadingMenu && !menuError && !requiresAddress && getCurrentMealItem() && currentMealState === 'closed' && !kitchenClosure.closed && (
             <View style={{
               backgroundColor: '#FEF2F2',
               borderRadius: 12,
@@ -1680,8 +1719,8 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
               <TouchableOpacity
                 ref={addToCartTourTarget.ref}
                 onLayout={addToCartTourTarget.onLayout}
-                onPress={canOrderCurrentMeal() ? handleAddToCart : (mealWindowInfo.isAllClosedForToday ? () => {
-                  if (mealWindowInfo.isInScheduleWindow) {
+                onPress={canOrderCurrentMeal() ? handleAddToCart : ((mealWindowInfo.isAllClosedForToday || kitchenClosure.closed) ? () => {
+                  if (mealWindowInfo.isInScheduleWindow && !kitchenClosure.closed) {
                     const tomorrow = new Date();
                     tomorrow.setDate(tomorrow.getDate() + 1);
                     const yyyy = tomorrow.getFullYear();
@@ -1692,10 +1731,10 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
                     navigation.navigate('MealCalendar');
                   }
                 } : undefined)}
-                activeOpacity={canOrderCurrentMeal() || mealWindowInfo.isAllClosedForToday ? 0.7 : 1}
-                disabled={!canOrderCurrentMeal() && !mealWindowInfo.isAllClosedForToday}
+                activeOpacity={canOrderCurrentMeal() || mealWindowInfo.isAllClosedForToday || kitchenClosure.closed ? 0.7 : 1}
+                disabled={!canOrderCurrentMeal() && !mealWindowInfo.isAllClosedForToday && !kitchenClosure.closed}
                 style={{
-                  backgroundColor: canOrderCurrentMeal() || mealWindowInfo.isAllClosedForToday ? '#FE8733' : 'rgba(209, 213, 219, 1)',
+                  backgroundColor: canOrderCurrentMeal() || mealWindowInfo.isAllClosedForToday || kitchenClosure.closed ? '#FE8733' : 'rgba(209, 213, 219, 1)',
                   borderRadius: SPACING['3xl'],
                   minWidth: SPACING['5xl'] * 3.125,
                   height: SPACING['2xl'] + SPACING.xl + 1,
@@ -1705,9 +1744,9 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
                   justifyContent: 'center',
                 }}
               >
-                <MaterialCommunityIcons name={canOrderCurrentMeal() ? "cart-plus" : (mealWindowInfo.isAllClosedForToday ? "calendar-clock" : "clock-alert-outline")} size={18} color="white" style={{ marginRight: 6 }} />
+                <MaterialCommunityIcons name={canOrderCurrentMeal() ? "cart-plus" : ((mealWindowInfo.isAllClosedForToday || kitchenClosure.closed) ? "calendar-clock" : "clock-alert-outline")} size={18} color="white" style={{ marginRight: 6 }} />
                 <Text style={{ color: 'white', fontSize: FONT_SIZES.sm, fontWeight: '600' }}>
-                  {canOrderCurrentMeal() ? 'Add to Cart' : (mealWindowInfo.isAllClosedForToday ? 'Schedule for Tomorrow' : 'Ordering Closed')}
+                  {canOrderCurrentMeal() ? 'Add to Cart' : (kitchenClosure.closed ? 'Schedule Meals' : (mealWindowInfo.isAllClosedForToday ? 'Schedule for Tomorrow' : 'Ordering Closed'))}
                 </Text>
               </TouchableOpacity>
             ) : (

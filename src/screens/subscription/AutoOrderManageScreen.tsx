@@ -147,6 +147,25 @@ export default function AutoOrderManageScreen() {
   // Address + kitchen display
   const address = addresses.find(a => a.id === (setup?.addressId?.toString?.() || setup?.addressId));
   const kitchenName = setup?.perMealFeesSnapshot?.sourceKitchenId ? 'Linked kitchen' : null;
+
+  // Recurring kitchen-closed days (e.g. ['sunday']) — greys those rows in the
+  // schedule grid so users can't pick days the auto-order cron skips anyway.
+  const linkedKitchenId = setup?.perMealFeesSnapshot?.sourceKitchenId || null;
+  const [kitchenClosedDays, setKitchenClosedDays] = useState<string[]>([]);
+  useEffect(() => {
+    if (!linkedKitchenId) {
+      setKitchenClosedDays([]);
+      return;
+    }
+    let cancelled = false;
+    apiService
+      .getKitchenPublicDetails(String(linkedKitchenId))
+      .then((resp) => {
+        if (!cancelled) setKitchenClosedDays(resp?.data?.kitchen?.closedDays || []);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [linkedKitchenId]);
   void kitchenName;
 
   // Derived meal windows from the schedule (same logic as setup screen)
@@ -381,6 +400,7 @@ export default function AutoOrderManageScreen() {
             schedule={weeklySchedule}
             onChange={setWeeklySchedule}
             disabled={!isEnabled}
+            closedDays={kitchenClosedDays}
           />
         </Section>
 

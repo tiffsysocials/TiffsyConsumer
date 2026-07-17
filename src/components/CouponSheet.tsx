@@ -11,6 +11,8 @@ import {
   Animated,
   Pressable,
   Keyboard,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -197,7 +199,10 @@ const CouponSheet: React.FC<CouponSheetProps> = ({
       animationType="none"
       onRequestClose={handleClose}
     >
-      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1, justifyContent: 'flex-end' }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <Animated.View
           style={{
             position: 'absolute',
@@ -217,6 +222,7 @@ const CouponSheet: React.FC<CouponSheetProps> = ({
             paddingTop: 16,
             paddingBottom: Math.max(insets.bottom + 12, 24),
             maxHeight: '80%',
+            flexShrink: 1,
             transform: [{ translateY: drawerTranslateY }],
           }}
         >
@@ -414,7 +420,7 @@ const CouponSheet: React.FC<CouponSheetProps> = ({
             </ScrollView>
           )}
         </Animated.View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };

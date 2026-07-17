@@ -78,6 +78,24 @@ const AutoOrderConfigScreen: React.FC<Props> = ({ route, navigation }) => {
   // Kitchen auto-resolution state (not shown to user)
   const [kitchensLoading, setKitchensLoading] = useState(false);
 
+  // Recurring kitchen-closed days (e.g. ['sunday']) — greys those rows in the
+  // schedule grid so users can't pick days the auto-order cron skips anyway.
+  const [kitchenClosedDays, setKitchenClosedDays] = useState<string[]>([]);
+  useEffect(() => {
+    if (!selectedKitchenId) {
+      setKitchenClosedDays([]);
+      return;
+    }
+    let cancelled = false;
+    apiService
+      .getKitchenPublicDetails(selectedKitchenId)
+      .then((resp) => {
+        if (!cancelled) setKitchenClosedDays(resp?.data?.kitchen?.closedDays || []);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [selectedKitchenId]);
+
   // Address picker state (create mode)
   const [showAddressPicker, setShowAddressPicker] = useState(false);
 
@@ -417,6 +435,7 @@ const AutoOrderConfigScreen: React.FC<Props> = ({ route, navigation }) => {
               schedule={weeklySchedule}
               onChange={handleScheduleChange}
               disabled={isSaving || !isEnabled}
+              closedDays={kitchenClosedDays}
             />
           </View>
         )}
