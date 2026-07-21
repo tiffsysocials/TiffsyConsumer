@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { Platform } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
+import hotUpdate from 'react-native-ota-hot-update';
 import {
   getAuthToken,
   clearAuthToken,
@@ -18,6 +19,19 @@ const BASE_URL = 'https://d31od4t2t5epcb.cloudfront.net';
 // const BASE_URL = 'https://tiffsy-backend-8ecm.onrender.com';
 // const BASE_URL = 'http://192.168.1.4:5005';
 // const BASE_URL = 'http://192.168.29.69:5005';
+
+// Capture the RUNNING OTA bundle version once at startup — before any new bundle
+// downloads this session (a download changes getCurrentVersion but NOT what's
+// actually executing until the next cold start, so reading it lazily per-request
+// would over-report the pending version). Sent as X-Bundle-Version so the backend
+// records which JS bundle each device is really running (0 = embedded, no OTA).
+let runningBundleVersion = '0';
+hotUpdate
+  .getCurrentVersion()
+  .then((v) => {
+    runningBundleVersion = String(v || 0);
+  })
+  .catch(() => {});
 
 // Type definitions for API responses
 export interface UserData {
@@ -1938,6 +1952,7 @@ class ApiService {
           config.headers['X-App-Version'] = DeviceInfo.getVersion();
           config.headers['X-App-Type'] = 'consumer';
           config.headers['X-Platform'] = Platform.OS === 'ios' ? 'ios' : 'android';
+          config.headers['X-Bundle-Version'] = runningBundleVersion;
         } catch {}
         // Log raw request
         console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`);
