@@ -28,6 +28,8 @@ import BannerSliderWidget from '../../components/BannerSliderWidget';
 import apiService, { KitchenInfo, MenuItem, AddonItem, Order, ServiceableKitchenV2 } from '../../services/api.service';
 import dataPreloader from '../../services/dataPreloader.service';
 import MealWindowModal from '../../components/MealWindowModal';
+import PromoPopup from '../../components/PromoPopup';
+import promoService from '../../services/promo.service';
 import ActiveOrderBanner from '../../components/ActiveOrderBanner';
 import ConfirmationModal from '../../components/ConfirmationModal';
 import PendingReviewPrompt from '../../components/PendingReviewPrompt';
@@ -110,6 +112,31 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     return totalMin >= 11 * 60 && totalMin < 21 * 60 ? 'dinner' : 'lunch';
   });
   const [showCartModal, setShowCartModal] = useState(false);
+  // Server-driven promo pop-up (shown once per app session). null = hidden.
+  const [promoPopup, setPromoPopup] = useState<{
+    title: string;
+    body: string;
+    ctaLabel: string;
+    ctaTarget: string;
+  } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    promoService.fetchPromo().then((promo) => {
+      // Short-circuit on `promo?.popup` BEFORE claiming the slot so an empty
+      // promo doesn't burn the once-per-session shot.
+      if (cancelled || !promo?.popup) return;
+      if (!promoService.claimPopupSlot()) return;
+      setPromoPopup({
+        title: promo.popup.title,
+        body: promo.popup.body,
+        ctaLabel: promo.popup.ctaLabel,
+        ctaTarget: promo.ctaTarget,
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [bottomOverlayHeight, setBottomOverlayHeight] = useState(0);
   // Reset overlay measurement when no overlay is mounted, so the scroll spacer
   // doesn't keep stale padding after the popup/banner closes.
@@ -2115,6 +2142,20 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
           exitGuestMode();
         }}
         onCancel={() => setShowGuestLoginPrompt(false)}
+      />
+
+      {/* Server-driven promo pop-up (once per session, gated by backend config) */}
+      <PromoPopup
+        visible={!!promoPopup}
+        title={promoPopup?.title ?? ''}
+        body={promoPopup?.body ?? ''}
+        ctaLabel={promoPopup?.ctaLabel ?? ''}
+        onCta={() => {
+          const target = promoPopup?.ctaTarget || 'MealPlans';
+          setPromoPopup(null);
+          navigation.navigate(target as any);
+        }}
+        onClose={() => setPromoPopup(null)}
       />
 
       {/* Zomato-style: prompt to review a delivered, unrated order on app open */}

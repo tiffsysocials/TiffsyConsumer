@@ -34,6 +34,7 @@ import DeliveryFeeInfoModal from '../../components/DeliveryFeeInfoModal';
 import { useSubscription } from '../../context/SubscriptionContext';
 import { useAlert } from '../../context/AlertContext';
 import paymentService from '../../services/payment.service';
+import promoService from '../../services/promo.service';
 import apiService, {
   AutoOrderSetupForm,
   AutoOrderPurchaseQuoteResponse,
@@ -154,6 +155,17 @@ export default function VoucherPurchaseScreen() {
   const [couponSheetVisible, setCouponSheetVisible] = useState(false);
   // Collapsed by default — same UX as the cart's "To Pay" row.
   const [summaryExpanded, setSummaryExpanded] = useState(false);
+  // Server-driven promo banner text (null = hidden).
+  const [promoBanner, setPromoBanner] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    promoService.fetchPromo().then((promo) => {
+      if (!cancelled && promo?.banner?.text) setPromoBanner(promo.banner.text);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   // Phase 11.1 hotfix — refetch loading indicator for the post-success
   // refresh. Keeps the customer on the screen briefly so they don't land
   // on a stale destination.
@@ -451,6 +463,29 @@ export default function VoucherPurchaseScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 140 + insets.bottom, paddingTop: SPACING.lg }}
       >
+        {/* Promo banner (server-driven, e.g. "Save 15% — use TIFFSY15") */}
+        {promoBanner ? (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              marginHorizontal: 16,
+              marginBottom: 12,
+              backgroundColor: '#FFF1E9',
+              borderRadius: 12,
+              paddingVertical: 10,
+              paddingHorizontal: 14,
+              borderWidth: 1,
+              borderColor: '#FFD9C2',
+            }}
+          >
+            <MaterialCommunityIcons name="tag-outline" size={18} color={PRIMARY} />
+            <Text style={{ flex: 1, marginLeft: 8, color: '#9A3412', fontSize: 13, fontWeight: '700' }}>
+              {promoBanner}
+            </Text>
+          </View>
+        ) : null}
+
         {/* Plan card */}
         <Section title="Voucher Pack">
           <View style={styles.planCard}>

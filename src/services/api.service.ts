@@ -34,6 +34,16 @@ hotUpdate
   .catch(() => {});
 
 // Type definitions for API responses
+
+/** Consumer promo campaign served by GET /api/app/config (data.promo). Null = off. */
+export interface PromoConfig {
+  code: string | null;
+  ctaTarget: string;
+  validTill: string | null;
+  popup: { title: string; body: string; ctaLabel: string } | null;
+  banner: { text: string } | null;
+}
+
 export interface UserData {
   _id: string;
   phone: string;
@@ -3375,6 +3385,7 @@ class ApiService {
       minVersion: string;
       latestVersion: string;
       storeUrl: string;
+      promo: PromoConfig | null;
     };
   }> {
     return this.api.get('/api/app/config', { params: { platform, app: 'consumer' } });

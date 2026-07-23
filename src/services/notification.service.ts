@@ -342,6 +342,13 @@ class NotificationService {
   } | null {
     if (!data) return null;
 
+    // Generic deep-link: any push carrying an explicit `screen` (e.g. promo /
+    // marketing pushes) navigates straight there. The structured type cases
+    // below still run for notifications that need computed params.
+    if (data.screen) {
+      return { screen: data.screen };
+    }
+
     const type = data.type as NotificationType;
 
     switch (type) {
