@@ -62,6 +62,7 @@ export type MainTabParamList = {
   // + refunds across all subscriptions).
   WalletTransactions: undefined;
   BulkOrders: undefined;
+  CorporateMeals: undefined;  // Corporate Meals: link ID / plans / purchase / order
   Vouchers: undefined;  // View all vouchers with status filters
   OnDemand: undefined;  // On-Demand screen (Coming Soon)
   AutoOrderSettings: undefined;  // Auto-order dashboard (lists all address configs)

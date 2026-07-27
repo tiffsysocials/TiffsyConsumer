@@ -1188,6 +1188,34 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
                   </View>
                 )}
 
+                {/* Bulk-quantity discount (order-size promo; never with a coupon) */}
+                {(pricingData.summary.bulkDiscount?.totalAmount || 0) > 0 && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <Text style={{ fontSize: 14, color: '#10B981' }}>
+                      Bulk Discount{pricingData.summary.bulkDiscount?.tier ? ` (${pricingData.summary.bulkDiscount.tier.minMeals}+ meals)` : ''}
+                    </Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#10B981' }}>
+                      -{'\u20B9'}{(pricingData.summary.bulkDiscount!.totalAmount).toFixed(2)}
+                    </Text>
+                  </View>
+                )}
+                {(pricingData.summary.bulkDiscount?.cashbackAmount || 0) > 0 && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <Text style={{ fontSize: 14, color: '#2563EB' }}>Bulk Cashback (after delivery)</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#2563EB' }}>
+                      +{'\u20B9'}{Math.round(pricingData.summary.bulkDiscount!.cashbackAmount)}
+                    </Text>
+                  </View>
+                )}
+                {(pricingData.summary.bulkDiscount?.extraVouchers || 0) > 0 && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <Text style={{ fontSize: 14, color: '#2563EB' }}>Bulk Bonus Vouchers</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#2563EB' }}>
+                      +{pricingData.summary.bulkDiscount!.extraVouchers}
+                    </Text>
+                  </View>
+                )}
+
                 {/* Bonus Vouchers */}
                 {(pricingData.summary.totalExtraVouchers || 0) > 0 && (
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -1308,6 +1336,44 @@ const BulkSchedulePricingScreen: React.FC<Props> = ({ navigation, route }) => {
                     <Text style={{ color: '#FE8733', fontWeight: '700', fontSize: 13 }}>Apply</Text>
                   </View>
                 </TouchableOpacity>
+              )}
+
+              {/* Bulk-order nudge — add more meals to unlock the next tier
+                  (only when no coupon is competing). */}
+              {!appliedCoupon && pricingData.bulkNextTier && (
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: '#ECFDF5',
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: '#A7F3D0',
+                  padding: 12,
+                  marginTop: 12,
+                }}>
+                  <MaterialCommunityIcons name="tag-multiple" size={20} color="#059669" style={{ marginRight: 8 }} />
+                  <Text style={{ flex: 1, fontSize: 12, color: '#065F46', fontWeight: '600' }}>
+                    Add {pricingData.bulkNextTier.mealsAway} more thali{pricingData.bulkNextTier.mealsAway > 1 ? 's' : ''} across your days to unlock a bigger bulk discount!
+                  </Text>
+                </View>
+              )}
+              {/* Coupon is blocking a worthwhile bulk offer */}
+              {appliedCoupon && pricingData.bulkPotential && pricingData.bulkPotential.estimatedValue > pricingData.summary.totalDiscount && (
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: '#FFFBEB',
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: '#FDE68A',
+                  padding: 12,
+                  marginTop: 12,
+                }}>
+                  <MaterialCommunityIcons name="information-outline" size={20} color="#D97706" style={{ marginRight: 8 }} />
+                  <Text style={{ flex: 1, fontSize: 12, color: '#92400E', fontWeight: '600' }}>
+                    Removing the coupon could unlock a larger bulk discount (~₹{Math.round(pricingData.bulkPotential.estimatedValue)}) for this batch.
+                  </Text>
+                </View>
               )}
             </View>
 

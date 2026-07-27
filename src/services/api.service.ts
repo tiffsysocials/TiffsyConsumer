@@ -334,6 +334,19 @@ export interface MatchedZonePricing {
   freeDeliveryAbove: number | null;
 }
 
+export interface CorporatePlan {
+  _id: string;
+  corporateId: string;
+  name: string;
+  description?: string;
+  voucherCount: number;
+  price: number;
+  originalPrice?: number | null;
+  voucherValidityDays: number;
+  perMealDeliveryFee: number;
+  status: string;
+}
+
 export interface ServiceableKitchenV2 {
   kitchen: KitchenInfo;
   matchedZone: {
@@ -633,11 +646,33 @@ export interface PricingDiscount {
   value?: number;
 }
 
+export interface BulkDiscount {
+  tier?: { minMeals: number; type: string; value: number };
+  discountType?: string;
+  discountAmount?: number;
+  addonDiscountAmount?: number;
+  deliveryDiscount?: number;
+  extraVouchersToIssue?: number;
+  cashbackAmount?: number;
+  suppressedCouponCode?: string | null;
+}
+
+export interface BulkNextTier {
+  minMeals: number;
+  type: string;
+  value: number;
+  mealsAway: number;
+}
+
 export interface PricingBreakdown {
   items: PricingItem[];
   subtotal: number;
   charges: PricingCharges;
   discount: PricingDiscount | null;
+  // Bulk-quantity discount applied (null when none / coupon won), and the
+  // next tier above this order's meal count for the "add N more" nudge.
+  bulkDiscount?: BulkDiscount | null;
+  bulkNextTier?: BulkNextTier | null;
   voucherCoverage: VoucherCoverage | null;
   grandTotal: number;
   amountToPay: number;
@@ -1848,6 +1883,13 @@ export interface BulkPricingData {
     appliedCouponType?: string | null;
     vouchersApplied: number;
     voucherSavings: number;
+    // Bulk-quantity discount aggregate across the batch (null when none).
+    bulkDiscount?: {
+      tier?: { minMeals: number; type: string; value: number };
+      totalAmount: number;
+      extraVouchers: number;
+      cashbackAmount: number;
+    } | null;
     totalAmountToPay: number;
   };
   vouchers: {
@@ -1855,6 +1897,10 @@ export interface BulkPricingData {
     toUse: number;
     remainingAfter: number;
   };
+  // Next tier above the batch's total meals ("add N more meals to save").
+  bulkNextTier?: BulkNextTier | null;
+  // What the batch WOULD earn without the applied coupon (coupon blocks bulk).
+  bulkPotential?: { tier: { minMeals: number; type: string; value: number }; estimatedValue: number } | null;
   conflicts: {
     duplicates: Array<{ date: string; mealWindow: string; existingOrderNumber: string }>;
     autoOrderConflicts: Array<{ date: string; mealWindow: string; reason: string }>;
@@ -3118,6 +3164,87 @@ class ApiService {
     message: string;
   }> {
     return this.api.delete(`/api/notifications/${notificationId}`);
+  }
+
+  // ============================================
+  // CORPORATE MEALS ENDPOINTS
+  // ============================================
+
+  // My corporate home (linked corporate, plans, balances, cap usage)
+  async getMyCorporate(): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      linked: boolean;
+      corporate?: {
+        id: string;
+        name: string;
+        code: string;
+        status: string;
+        lockedAddress: {
+          addressLine1: string;
+          addressLine2?: string;
+          locality: string;
+          city: string;
+          pincode: string;
+        };
+        maxMealsPerWindow: number;
+      };
+      plans?: CorporatePlan[];
+      voucherBalance?: number;
+      walletBalance?: number;
+      capUsage?: {
+        maxPerWindow: number;
+        lunchUsedToday: number;
+        dinnerUsedToday: number;
+      };
+    };
+  }> {
+    return this.api.get('/api/corporate/me');
+  }
+
+  // Link a corporate code to my account
+  async linkCorporate(code: string): Promise<{ success: boolean; message: string; data: any }> {
+    return this.api.post('/api/corporate/link', { code });
+  }
+
+  // Unlink my corporate
+  async unlinkCorporate(): Promise<{ success: boolean; message: string }> {
+    return this.api.delete('/api/corporate/link');
+  }
+
+  // Submit a "partner with us" lead
+  async createCorporateLead(data: {
+    companyName: string;
+    contactName: string;
+    contactPhone: string;
+    contactEmail?: string;
+    message?: string;
+  }): Promise<{ success: boolean; message: string; data: { leadId: string } }> {
+    return this.api.post('/api/corporate/leads', data);
+  }
+
+  // Initiate a corporate plan purchase (Razorpay; fulfilled on verify)
+  async initiateCorporatePurchase(planId: string): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      paymentRequired: boolean;
+      purchaseId?: string;
+      quote: any;
+      payment?: any;
+    };
+  }> {
+    return this.api.post('/api/corporate/purchase/initiate', { planId });
+  }
+
+  // Place a corporate order for today
+  async placeCorporateOrder(mealWindow: 'LUNCH' | 'DINNER', quantity: number): Promise<{
+    success: boolean;
+    message: string;
+    data: { order: any };
+  }> {
+    return this.api.post('/api/corporate/orders', { mealWindow, quantity });
   }
 
   // ============================================

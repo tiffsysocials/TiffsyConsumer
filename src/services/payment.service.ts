@@ -386,6 +386,58 @@ class PaymentService {
   }
 
   /**
+   * Corporate Meals — buy a corporate voucher pack.
+   * 1. Initiate (server quotes pack + prepaid delivery fees).
+   * 2. Razorpay checkout (skipped in dev when the server auto-confirms).
+   * 3. /api/payment/verify — backend's CORPORATE_PLAN branch creates the
+   *    CorporatePurchase (wallet credited) + issues corporate vouchers.
+   */
+  async processCorporatePurchase(planId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const initiate = await apiService.initiateCorporatePurchase(planId);
+      if (!initiate.success) {
+        throw new Error(initiate.message || 'Failed to initiate purchase');
+      }
+
+      // Dev / free-fulfillment path: nothing to charge.
+      if (!initiate.data.paymentRequired) {
+        return { success: true };
+      }
+
+      const pay = initiate.data.payment;
+      const paymentResponse = await this.openCheckout({
+        key: pay.key,
+        amount: pay.amount,
+        currency: pay.currency || 'INR',
+        name: MERCHANT_NAME,
+        description: 'Corporate Meal Vouchers',
+        order_id: pay.razorpayOrderId,
+        prefill: pay.prefill || {},
+        theme: { color: THEME_COLOR },
+      } as any);
+
+      const verify = await apiService.verifyPayment({
+        razorpayOrderId: paymentResponse.razorpay_order_id,
+        razorpayPaymentId: paymentResponse.razorpay_payment_id,
+        razorpaySignature: paymentResponse.razorpay_signature,
+      });
+      if (!verify.success || !verify.data?.success) {
+        throw new Error(verify.message || 'Payment verification failed');
+      }
+      return { success: true };
+    } catch (error: any) {
+      const isRealError =
+        error?.description?.includes('BAD_REQUEST_ERROR') ||
+        error?.error?.code === 'BAD_REQUEST_ERROR' ||
+        error?.error?.reason === 'payment_error';
+      if ((error?.code === 0 || error?.code === 2) && !isRealError) {
+        return { success: false, error: 'Payment cancelled' };
+      }
+      return { success: false, error: error?.message || error?.description || 'Payment failed. Please try again.' };
+    }
+  }
+
+  /**
    * Phase 11 — Process payment to set up auto-order on an EXISTING subscription.
    * Charges per-meal fees only. On verify, the backend writes
    * Subscription.autoOrderSetup + credits globalWallet.

@@ -92,8 +92,10 @@ const PaymentScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleTrackOrder = () => {
-    // Navigate first, then close modal
-    navigation.navigate('OrderTracking');
+    // Navigate first, then close modal. (This screen is a legacy stub; the
+    // live payment flow runs through paymentService/Razorpay. Route to the
+    // orders list since no specific orderId exists here.)
+    navigation.navigate('YourOrders');
     setShowSuccessModal(false);
   };
 

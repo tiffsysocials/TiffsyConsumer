@@ -627,6 +627,8 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
               subtotal: p.subtotal,
               charges: p.charges as PricingCharges,
               discount: p.discount as PricingBreakdown['discount'],
+              bulkDiscount: (p as any).bulkDiscount || null,
+              bulkNextTier: (p as any).bulkNextTier || null,
               voucherCoverage: p.voucherCoverage || null,
               grandTotal: p.grandTotal,
               amountToPay: p.amountToPay,
@@ -1080,7 +1082,43 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
   const couponExtraVouchers = (lunchPricing.pricing?.discount?.extraVouchersToIssue ?? 0)
     + (dinnerPricing.pricing?.discount?.extraVouchersToIssue ?? 0);
   const couponDiscountType = lunchPricing.pricing?.discount?.discountType || dinnerPricing.pricing?.discount?.discountType || null;
-  const totalDiscount = voucherDiscount + couponDiscount;
+
+  // Bulk-quantity discount (order-size promo; never coexists with a coupon on
+  // the same slot — the server picks the better one). Summed across slots.
+  const getBulkDiscount = (p: PricingBreakdown | null) => {
+    if (!p?.bulkDiscount) return 0;
+    return (p.bulkDiscount.discountAmount ?? 0)
+      + (p.bulkDiscount.addonDiscountAmount ?? 0)
+      + (p.bulkDiscount.deliveryDiscount ?? 0);
+  };
+  const bulkDiscount = getBulkDiscount(lunchPricing.pricing) + getBulkDiscount(dinnerPricing.pricing);
+  const bulkTier = lunchPricing.pricing?.bulkDiscount?.tier || dinnerPricing.pricing?.bulkDiscount?.tier || null;
+  const bulkExtraVouchers = (lunchPricing.pricing?.bulkDiscount?.extraVouchersToIssue ?? 0)
+    + (dinnerPricing.pricing?.bulkDiscount?.extraVouchersToIssue ?? 0);
+  const bulkCashback = (lunchPricing.pricing?.bulkDiscount?.cashbackAmount ?? 0)
+    + (dinnerPricing.pricing?.bulkDiscount?.cashbackAmount ?? 0);
+  // "Add N more meals to save" — take whichever slot's next tier is closest.
+  const bulkNextTier = [lunchPricing.pricing?.bulkNextTier, dinnerPricing.pricing?.bulkNextTier]
+    .filter(Boolean)
+    .sort((a, b) => (a!.mealsAway) - (b!.mealsAway))[0] || null;
+
+  const totalDiscount = voucherDiscount + couponDiscount + bulkDiscount;
+
+  // Human label for a bulk tier's benefit (for the nudge + applied row).
+  const bulkTierBenefitLabel = (t: { type: string; value: number } | null | undefined): string => {
+    if (!t) return '';
+    switch (t.type) {
+      case 'PERCENTAGE': return `${t.value}% off`;
+      case 'FLAT': return `₹${t.value} off`;
+      case 'FREE_DELIVERY': return 'free delivery';
+      case 'UNIT_PRICE': return `thalis at ₹${t.value}`;
+      case 'FREE_MEALS': return `${t.value} meal${t.value > 1 ? 's' : ''} free`;
+      case 'BONUS_VOUCHER': return `${t.value} bonus voucher${t.value > 1 ? 's' : ''}`;
+      case 'FREE_ADDON_VALUE': return `₹${t.value} add-ons free`;
+      case 'CASHBACK': return `₹${t.value} cashback`;
+      default: return 'a discount';
+    }
+  };
 
   // Check if cart has any add-ons
   const hasAddons = cartItems.some(item => item.addons && item.addons.length > 0);
@@ -2044,6 +2082,45 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
               </View>
             </TouchableOpacity>
           )}
+
+          {/* Bulk-order nudge — "add N more meals to unlock ..." Shown when a
+              higher tier is within reach and no coupon is competing. */}
+          {!isSchedulingMode && bulkNextTier && !couponCode && (
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: '#ECFDF5',
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: '#A7F3D0',
+              padding: 12,
+              marginTop: 12,
+            }}>
+              <MaterialCommunityIcons name="tag-multiple" size={20} color="#059669" style={{ marginRight: 8 }} />
+              <Text style={{ flex: 1, fontSize: 12, color: '#065F46', fontWeight: '600' }}>
+                Add {bulkNextTier.mealsAway} more meal{bulkNextTier.mealsAway > 1 ? 's' : ''} to unlock{' '}
+                {bulkTierBenefitLabel(bulkNextTier)} on this order!
+              </Text>
+            </View>
+          )}
+          {/* Applied bulk offer confirmation */}
+          {!isSchedulingMode && bulkTier && (bulkDiscount > 0 || bulkExtraVouchers > 0 || bulkCashback > 0 || bulkTier.type === 'FREE_DELIVERY') && (
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: '#ECFDF5',
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: '#6EE7B7',
+              padding: 12,
+              marginTop: 12,
+            }}>
+              <MaterialCommunityIcons name="check-decagram" size={20} color="#059669" style={{ marginRight: 8 }} />
+              <Text style={{ flex: 1, fontSize: 12, color: '#065F46', fontWeight: '600' }}>
+                Bulk offer unlocked: {bulkTierBenefitLabel(bulkTier)} for ordering {bulkTier.minMeals}+ meals.
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Phase 11.1 — wallet toggle. Visible only when the customer has a
@@ -2304,6 +2381,34 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
                       <Text style={{ fontSize: 14, color: '#2563EB' }}>Bonus Vouchers ({couponCode}):</Text>
                       <Text style={{ fontSize: 14, color: '#2563EB' }}>+{couponExtraVouchers}</Text>
+                    </View>
+                  )}
+
+                  {/* Bulk-quantity discount (order-size promo) */}
+                  {bulkTier && bulkTier.type === 'FREE_DELIVERY' && bulkDiscount === 0 && (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <Text style={{ fontSize: 14, color: '#10B981' }}>Bulk offer (Free Delivery):</Text>
+                      <Text style={{ fontSize: 14, color: '#10B981' }}>Applied</Text>
+                    </View>
+                  )}
+                  {bulkDiscount > 0 && (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <Text style={{ fontSize: 14, color: '#10B981' }}>
+                        Bulk discount{bulkTier ? ` (${bulkTier.minMeals}+ meals)` : ''}:
+                      </Text>
+                      <Text style={{ fontSize: 14, color: '#10B981' }}>- ₹{Math.round(bulkDiscount).toFixed(2)}</Text>
+                    </View>
+                  )}
+                  {bulkExtraVouchers > 0 && (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <Text style={{ fontSize: 14, color: '#2563EB' }}>Bulk bonus vouchers:</Text>
+                      <Text style={{ fontSize: 14, color: '#2563EB' }}>+{bulkExtraVouchers}</Text>
+                    </View>
+                  )}
+                  {bulkCashback > 0 && (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <Text style={{ fontSize: 14, color: '#2563EB' }}>Bulk cashback (after delivery):</Text>
+                      <Text style={{ fontSize: 14, color: '#2563EB' }}>+₹{Math.round(bulkCashback)}</Text>
                     </View>
                   )}
 
