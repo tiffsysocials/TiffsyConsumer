@@ -58,6 +58,7 @@ interface CorporateHome {
   walletBalance?: number;
   capUsage?: { maxPerWindow: number; lunchUsedToday: number; dinnerUsedToday: number };
   autoOrderSetup?: CorporateAutoOrderSetup | null;
+  hasPurchasedAnyPack?: boolean;
 }
 
 const CorporateMealsScreen: React.FC<Props> = ({ navigation }) => {
@@ -382,28 +383,33 @@ const CorporateMealsScreen: React.FC<Props> = ({ navigation }) => {
               </View>
             )}
 
-            {/* Auto-order entry point */}
-            <TouchableOpacity
-              onPress={() => navigation.navigate('CorporateAutoOrder')}
-              style={[cardStyle, { marginTop: SPACING.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                <MaterialCommunityIcons name="auto-mode" size={22} color={PRIMARY} />
-                <View style={{ marginLeft: 8, flex: 1 }}>
-                  <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: 'bold', color: '#1F2937' }}>
-                    {home!.autoOrderSetup ? 'Manage Auto-Order' : 'Set up Auto-Order'}
-                  </Text>
-                  <Text style={{ fontSize: FONT_SIZES.xs, color: '#6B7280', marginTop: 1 }}>
-                    {home!.autoOrderSetup
-                      ? home!.autoOrderSetup.enabled
-                        ? 'Currently ON — tap to manage'
-                        : 'Currently OFF — tap to manage'
-                      : 'Order automatically on a weekly schedule'}
-                  </Text>
+            {/* Auto-order entry point — only shown once eligible: either a
+                setup already exists (to manage), or they've bought at least
+                one pack (to set one up). Buying nothing yet ⇒ hidden, same
+                pattern as the "Order today" section above. */}
+            {(home!.autoOrderSetup || home!.hasPurchasedAnyPack) && (
+              <TouchableOpacity
+                onPress={() => navigation.navigate('CorporateAutoOrder')}
+                style={[cardStyle, { marginTop: SPACING.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  <MaterialCommunityIcons name="auto-mode" size={22} color={PRIMARY} />
+                  <View style={{ marginLeft: 8, flex: 1 }}>
+                    <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: 'bold', color: '#1F2937' }}>
+                      {home!.autoOrderSetup ? 'Manage Auto-Order' : 'Set up Auto-Order'}
+                    </Text>
+                    <Text style={{ fontSize: FONT_SIZES.xs, color: '#6B7280', marginTop: 1 }}>
+                      {home!.autoOrderSetup
+                        ? home!.autoOrderSetup.enabled
+                          ? 'Currently ON — tap to manage'
+                          : 'Currently OFF — tap to manage'
+                        : 'Order automatically on a weekly schedule'}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-              <MaterialCommunityIcons name="chevron-right" size={22} color="#9CA3AF" />
-            </TouchableOpacity>
+                <MaterialCommunityIcons name="chevron-right" size={22} color="#9CA3AF" />
+              </TouchableOpacity>
+            )}
 
             {/* Voucher plans */}
             <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'bold', color: '#1F2937', marginTop: SPACING.lg, marginBottom: SPACING.sm }}>

@@ -60,6 +60,10 @@ const CorporateAutoOrderScreen: React.FC<Props> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [maxMealsPerWindow, setMaxMealsPerWindow] = useState(2);
   const [setup, setSetup] = useState<CorporateAutoOrderSetup | null>(null);
+  // Gates the create form — must have bought at least one pack (server
+  // enforces this too; this just avoids a dead-end "buy a pack" error after
+  // filling out the whole schedule).
+  const [hasPurchasedAnyPack, setHasPurchasedAnyPack] = useState(false);
 
   // Create-form state
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule>(null);
@@ -72,6 +76,7 @@ const CorporateAutoOrderScreen: React.FC<Props> = ({ navigation }) => {
       if (resp.success && resp.data.corporate) {
         setMaxMealsPerWindow(resp.data.corporate.maxMealsPerWindow || 2);
         setSetup(resp.data.autoOrderSetup || null);
+        setHasPurchasedAnyPack(!!resp.data.hasPurchasedAnyPack);
       }
     } catch {
       // Non-fatal — leave whatever we had.
@@ -225,6 +230,26 @@ const CorporateAutoOrderScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={{ color: '#DC2626', fontWeight: '700', fontSize: FONT_SIZES.sm }}>Remove this auto-order</Text>
             </TouchableOpacity>
           </>
+        ) : !hasPurchasedAnyPack ? (
+          // Server enforces this too (createAutoOrderSetup 400s without a
+          // purchase) — this just avoids sending the user through the whole
+          // schedule form only to hit that error at the end.
+          <View style={cardStyle}>
+            <MaterialCommunityIcons name="ticket-percent-outline" size={32} color="#D1D5DB" />
+            <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'bold', color: '#1F2937', marginTop: SPACING.sm }}>
+              Buy a voucher pack first
+            </Text>
+            <Text style={{ fontSize: FONT_SIZES.sm, color: '#6B7280', marginTop: 4 }}>
+              Auto-order needs corporate vouchers to work with. Buy a pack from the Corporate Meals
+              page, then come back here to set up your schedule.
+            </Text>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={{ backgroundColor: PRIMARY, borderRadius: 12, paddingVertical: SPACING.md, alignItems: 'center', marginTop: SPACING.lg }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '700', fontSize: FONT_SIZES.sm }}>Go to Voucher Plans</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <>
             <View style={cardStyle}>

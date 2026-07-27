@@ -3215,6 +3215,7 @@ class ApiService {
         dinnerUsedToday: number;
       };
       autoOrderSetup?: CorporateAutoOrderSetup | null;
+      hasPurchasedAnyPack?: boolean;
     };
   }> {
     return this.api.get('/api/corporate/me');
