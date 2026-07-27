@@ -28,7 +28,7 @@ import { StackScreenProps } from '@react-navigation/stack';
 import { useFocusEffect } from '@react-navigation/native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { MainTabParamList } from '../../types/navigation';
-import apiService, { CorporatePlan } from '../../services/api.service';
+import apiService, { CorporatePlan, CorporateAutoOrderSetup } from '../../services/api.service';
 import paymentService from '../../services/payment.service';
 import { useAlert } from '../../context/AlertContext';
 import { SPACING } from '../../constants/spacing';
@@ -57,6 +57,7 @@ interface CorporateHome {
   voucherBalance?: number;
   walletBalance?: number;
   capUsage?: { maxPerWindow: number; lunchUsedToday: number; dinnerUsedToday: number };
+  autoOrderSetup?: CorporateAutoOrderSetup | null;
 }
 
 const CorporateMealsScreen: React.FC<Props> = ({ navigation }) => {
@@ -380,6 +381,29 @@ const CorporateMealsScreen: React.FC<Props> = ({ navigation }) => {
                 })}
               </View>
             )}
+
+            {/* Auto-order entry point */}
+            <TouchableOpacity
+              onPress={() => navigation.navigate('CorporateAutoOrder')}
+              style={[cardStyle, { marginTop: SPACING.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <MaterialCommunityIcons name="auto-mode" size={22} color={PRIMARY} />
+                <View style={{ marginLeft: 8, flex: 1 }}>
+                  <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: 'bold', color: '#1F2937' }}>
+                    {home!.autoOrderSetup ? 'Manage Auto-Order' : 'Set up Auto-Order'}
+                  </Text>
+                  <Text style={{ fontSize: FONT_SIZES.xs, color: '#6B7280', marginTop: 1 }}>
+                    {home!.autoOrderSetup
+                      ? home!.autoOrderSetup.enabled
+                        ? 'Currently ON — tap to manage'
+                        : 'Currently OFF — tap to manage'
+                      : 'Order automatically on a weekly schedule'}
+                  </Text>
+                </View>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={22} color="#9CA3AF" />
+            </TouchableOpacity>
 
             {/* Voucher plans */}
             <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'bold', color: '#1F2937', marginTop: SPACING.lg, marginBottom: SPACING.sm }}>

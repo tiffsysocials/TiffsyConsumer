@@ -347,6 +347,22 @@ export interface CorporatePlan {
   status: string;
 }
 
+// Corporate Meals auto-order setup — mirrors the personal system's
+// autoOrderSetups[] shape but scoped to one fixed office address (no address
+// field needed). thalisPerMeal locks after creation.
+export interface CorporateAutoOrderSetup {
+  _id: string;
+  userId: string;
+  corporateId: string;
+  enabled: boolean;
+  mealWindows: Array<'LUNCH' | 'DINNER'>;
+  weeklySchedule: WeeklySchedule;
+  thalisPerMeal: number;
+  isPaused: boolean;
+  pausedUntil?: string | null;
+  skippedSlots?: Array<{ date: string; mealWindow: 'LUNCH' | 'DINNER'; skippedQuantity?: number | null }>;
+}
+
 export interface ServiceableKitchenV2 {
   kitchen: KitchenInfo;
   matchedZone: {
@@ -3198,6 +3214,7 @@ class ApiService {
         lunchUsedToday: number;
         dinnerUsedToday: number;
       };
+      autoOrderSetup?: CorporateAutoOrderSetup | null;
     };
   }> {
     return this.api.get('/api/corporate/me');
@@ -3245,6 +3262,28 @@ class ApiService {
     data: { order: any };
   }> {
     return this.api.post('/api/corporate/orders', { mealWindow, quantity });
+  }
+
+  // Create my Corporate Meals auto-order setup. thalisPerMeal locks after
+  // creation — delete + recreate to change it (same as the personal system).
+  async createCorporateAutoOrderSetup(data: {
+    weeklySchedule: WeeklySchedule;
+    thalisPerMeal: number;
+  }): Promise<{ success: boolean; message: string; data: { autoOrderSetup: CorporateAutoOrderSetup } }> {
+    return this.api.post('/api/corporate/auto-order', data);
+  }
+
+  // Update enabled/weeklySchedule on my existing setup.
+  async updateCorporateAutoOrderSetup(data: {
+    enabled?: boolean;
+    weeklySchedule?: WeeklySchedule;
+  }): Promise<{ success: boolean; message: string; data: { autoOrderSetup: CorporateAutoOrderSetup } }> {
+    return this.api.patch('/api/corporate/auto-order', data);
+  }
+
+  // Remove my setup (wallet/vouchers are untouched).
+  async deleteCorporateAutoOrderSetup(): Promise<{ success: boolean; message: string }> {
+    return this.api.delete('/api/corporate/auto-order');
   }
 
   // ============================================

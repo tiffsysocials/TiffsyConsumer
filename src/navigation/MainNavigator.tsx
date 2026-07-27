@@ -31,6 +31,7 @@ import ChatSupportScreen from '../screens/account/ChatSupportScreen';
 import MealCalendarScreen from '../screens/scheduled-meals/MealCalendarScreen';
 import BulkSchedulePricingScreen from '../screens/scheduled-meals/BulkSchedulePricingScreen';
 import CorporateMealsScreen from '../screens/subscription/CorporateMealsScreen';
+import CorporateAutoOrderScreen from '../screens/subscription/CorporateAutoOrderScreen';
 import AutoOrderAddonScreen from '../screens/scheduled-meals/AutoOrderAddonScreen';
 import LocationPickerScreen from '../screens/address/LocationPickerScreen';
 import BottomNavBar from '../components/BottomNavBar';
@@ -97,6 +98,7 @@ const MainNavigatorContent = () => {
         <Stack.Screen name="WalletTransactions" component={WalletTransactionsScreen} />
         <Stack.Screen name="BulkOrders" component={BulkOrdersScreen} />
         <Stack.Screen name="CorporateMeals" component={CorporateMealsScreen} />
+        <Stack.Screen name="CorporateAutoOrder" component={CorporateAutoOrderScreen} />
         <Stack.Screen name="Vouchers" component={VouchersScreen} />
         <Stack.Screen name="Notifications" component={NotificationsScreen} />
         <Stack.Screen name="AutoOrderSettings" component={AutoOrderSettingsScreen} />
