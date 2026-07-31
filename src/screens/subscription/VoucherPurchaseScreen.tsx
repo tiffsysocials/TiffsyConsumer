@@ -508,7 +508,7 @@ export default function VoucherPurchaseScreen() {
           hint="Auto-order delivers your vouchers automatically. Pay once for the meal fees up-front — no surprise top-ups later."
         >
           <ChoiceCard
-            icon="auto-mode"
+            icon="autorenew"
             iconColor={autoOrderYes === true ? PRIMARY : MUTED}
             iconBg={autoOrderYes === true ? PRIMARY_TINT : '#F3F4F6'}
             title="Yes, auto-deliver"

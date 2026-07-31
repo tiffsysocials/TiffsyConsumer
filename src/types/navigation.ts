@@ -63,7 +63,10 @@ export type MainTabParamList = {
   WalletTransactions: undefined;
   BulkOrders: undefined;
   CorporateMeals: undefined;  // Corporate Meals: link ID / plans / purchase / order
-  CorporateAutoOrder: undefined;  // Corporate Meals auto-order setup/manage
+  // Dedicated purchase screen — mirrors VoucherPurchase: pack summary +
+  // inline auto-order opt-in (schedule/thali count) in the SAME flow.
+  CorporatePurchase: { planId: string };
+  CorporateAutoOrder: undefined;  // Corporate Meals auto-order setup/manage (post-purchase entry point)
   Vouchers: undefined;  // View all vouchers with status filters
   OnDemand: undefined;  // On-Demand screen (Coming Soon)
   AutoOrderSettings: undefined;  // Auto-order dashboard (lists all address configs)

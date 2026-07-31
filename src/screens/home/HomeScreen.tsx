@@ -118,6 +118,8 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     body: string;
     ctaLabel: string;
     ctaTarget: string;
+    code: string | null;
+    validTill: string | null;
   } | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -131,6 +133,8 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
         body: promo.popup.body,
         ctaLabel: promo.popup.ctaLabel,
         ctaTarget: promo.ctaTarget,
+        code: promo.code,
+        validTill: promo.validTill,
       });
     });
     return () => {
@@ -2150,6 +2154,8 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
         title={promoPopup?.title ?? ''}
         body={promoPopup?.body ?? ''}
         ctaLabel={promoPopup?.ctaLabel ?? ''}
+        code={promoPopup?.code ?? null}
+        validTill={promoPopup?.validTill ?? null}
         onCta={() => {
           const target = promoPopup?.ctaTarget || 'MealPlans';
           setPromoPopup(null);
