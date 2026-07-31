@@ -7,11 +7,15 @@
  * Not linked  → [Section 1] corporate-ID entry + [Section 2] "partner with us".
  * Linked      → corporate home: office address, voucher/wallet balance, today's
  *               cap usage + order buttons, and the voucher plans to buy.
+ *
+ * Visual style mirrors VoucherPurchaseScreen/CorporateAutoOrderScreen — orange
+ * gradient header, gray-50 scroll body, sectioned cards with orange-tab titles.
  */
 import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
+  Image,
   ScrollView,
   TextInput,
   TouchableOpacity,
@@ -26,17 +30,24 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackScreenProps } from '@react-navigation/stack';
 import { useFocusEffect } from '@react-navigation/native';
+import LinearGradient from 'react-native-linear-gradient';
+import Svg, { Polyline } from 'react-native-svg';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { MainTabParamList } from '../../types/navigation';
 import apiService, { CorporatePlan, CorporateAutoOrderSetup } from '../../services/api.service';
-import paymentService from '../../services/payment.service';
 import { useAlert } from '../../context/AlertContext';
-import { SPACING } from '../../constants/spacing';
+import { SPACING, TOUCH_TARGETS } from '../../constants/spacing';
 import { FONT_SIZES } from '../../constants/typography';
 
 type Props = StackScreenProps<MainTabParamList, 'CorporateMeals'>;
 
 const PRIMARY = '#FE8733';
+const PRIMARY_TINT = '#FFF7ED';
+const PRIMARY_BORDER = '#FED7AA';
+const BG = '#F9FAFB';
+const BORDER = '#E5E7EB';
+const MUTED = '#6B7280';
+const TEXT = '#111827';
 
 interface CorporateHome {
   linked: boolean;
@@ -72,7 +83,6 @@ const CorporateMealsScreen: React.FC<Props> = ({ navigation }) => {
   const [code, setCode] = useState('');
   const [linking, setLinking] = useState(false);
 
-  const [purchasingPlanId, setPurchasingPlanId] = useState<string | null>(null);
   const [orderingWindow, setOrderingWindow] = useState<'LUNCH' | 'DINNER' | null>(null);
 
   const [leadVisible, setLeadVisible] = useState(false);
@@ -135,22 +145,6 @@ const CorporateMealsScreen: React.FC<Props> = ({ navigation }) => {
     );
   };
 
-  const handlePurchase = async (plan: CorporatePlan) => {
-    setPurchasingPlanId(plan._id);
-    try {
-      const result = await paymentService.processCorporatePurchase(plan._id);
-      if (result.success) {
-        showAlert('Success', `${plan.voucherCount} corporate vouchers added!`, undefined, 'success');
-        setLoading(true);
-        await load();
-      } else if (result.error !== 'Payment cancelled') {
-        showAlert('Payment failed', result.error || 'Try again', undefined, 'error');
-      }
-    } finally {
-      setPurchasingPlanId(null);
-    }
-  };
-
   const handleOrder = async (mealWindow: 'LUNCH' | 'DINNER') => {
     setOrderingWindow(mealWindow);
     try {
@@ -170,8 +164,8 @@ const CorporateMealsScreen: React.FC<Props> = ({ navigation }) => {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#fff' }}>
-        <SafeAreaView style={{ backgroundColor: PRIMARY }} edges={['top']} />
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
         <Header onBack={() => navigation.goBack()} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" color={PRIMARY} />
@@ -183,291 +177,288 @@ const CorporateMealsScreen: React.FC<Props> = ({ navigation }) => {
   const linked = home?.linked && home.corporate;
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <StatusBar barStyle="light-content" backgroundColor={PRIMARY} />
-      <SafeAreaView style={{ backgroundColor: PRIMARY }} edges={['top']} />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       <Header onBack={() => navigation.goBack()} />
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ padding: SPACING.lg, paddingBottom: insets.bottom + 40 }}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={PRIMARY} />
-        }
-      >
-        {!linked ? (
-          <>
-            {/* Section 1 — corporate ID validation */}
-            <View style={cardStyle}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.sm }}>
-                <MaterialCommunityIcons name="office-building" size={22} color={PRIMARY} />
-                <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'bold', color: '#1F2937', marginLeft: 8 }}>
-                  Enter your Corporate ID
-                </Text>
-              </View>
-              <Text style={{ fontSize: FONT_SIZES.sm, color: '#6B7280', marginBottom: SPACING.md }}>
-                Partnered with Tiffsy through your company? Enter the corporate ID your admin shared to unlock
-                discounted meal vouchers delivered to your office.
-              </Text>
-              <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
-                <TextInput
-                  value={code}
-                  onChangeText={(t) => setCode(t.toUpperCase())}
-                  placeholder="e.g., AIB2026"
-                  placeholderTextColor="#9CA3AF"
-                  autoCapitalize="characters"
-                  autoCorrect={false}
-                  style={{
-                    flex: 1,
-                    backgroundColor: '#F9FAFB',
-                    borderRadius: 10,
-                    paddingHorizontal: SPACING.md,
-                    paddingVertical: SPACING.sm + 2,
-                    fontSize: FONT_SIZES.sm,
-                    color: '#1F2937',
-                    borderWidth: 1,
-                    borderColor: '#E5E7EB',
-                    letterSpacing: 1,
-                  }}
-                />
-                <TouchableOpacity
-                  onPress={handleLink}
-                  disabled={!code.trim() || linking}
-                  style={{
-                    backgroundColor: code.trim() ? PRIMARY : '#D1D5DB',
-                    borderRadius: 10,
-                    paddingHorizontal: SPACING.lg,
-                    justifyContent: 'center',
-                  }}
-                >
-                  {linking ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={{ color: '#fff', fontWeight: '700', fontSize: FONT_SIZES.sm }}>Validate</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Section 2 — partner with us */}
-            <View style={[cardStyle, { marginTop: SPACING.md }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.sm }}>
-                <MaterialCommunityIcons name="handshake-outline" size={22} color="#2563EB" />
-                <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'bold', color: '#1F2937', marginLeft: 8 }}>
-                  Want corporate meals at your office?
-                </Text>
-              </View>
-              <Text style={{ fontSize: FONT_SIZES.sm, color: '#6B7280', marginBottom: SPACING.md }}>
-                Get your company partnered with Tiffsy for discounted daily meals delivered to your workplace.
-                Our team will reach out to set it up.
-              </Text>
-              <TouchableOpacity
-                onPress={() => setLeadVisible(true)}
-                style={{
-                  backgroundColor: '#EFF6FF',
-                  borderRadius: 10,
-                  paddingVertical: SPACING.md,
-                  alignItems: 'center',
-                  borderWidth: 1,
-                  borderColor: '#BFDBFE',
-                }}
-              >
-                <Text style={{ color: '#2563EB', fontWeight: '700', fontSize: FONT_SIZES.sm }}>
-                  Contact Tiffsy Team
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </>
-        ) : (
-          <>
-            {/* Corporate header */}
-            <View style={cardStyle}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                  <MaterialCommunityIcons name="office-building" size={24} color={PRIMARY} />
-                  <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'bold', color: '#1F2937', marginLeft: 8, flex: 1 }}>
-                    {home!.corporate!.name}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          style={{ flex: 1, backgroundColor: BG }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingTop: SPACING.lg, paddingBottom: insets.bottom + 40 }}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={PRIMARY} />
+          }
+        >
+          {!linked ? (
+            <>
+              {/* Section 1 — corporate ID validation */}
+              <Section title="Enter your Corporate ID">
+                <View style={[styles.card, { flexDirection: 'column', alignItems: 'stretch' }]}>
+                  <Text style={styles.cardMeta}>
+                    Partnered with Tiffsy through your company? Enter the corporate ID your admin shared to
+                    unlock discounted meal vouchers delivered to your office.
                   </Text>
-                </View>
-                <TouchableOpacity onPress={handleUnlink}>
-                  <Text style={{ fontSize: FONT_SIZES.xs, color: '#9CA3AF' }}>Unlink</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: SPACING.md }}>
-                <MaterialCommunityIcons name="map-marker" size={16} color="#6B7280" style={{ marginTop: 2 }} />
-                <Text style={{ fontSize: FONT_SIZES.xs, color: '#6B7280', marginLeft: 6, flex: 1 }}>
-                  {home!.corporate!.lockedAddress.addressLine1}, {home!.corporate!.lockedAddress.locality},{' '}
-                  {home!.corporate!.lockedAddress.city} {home!.corporate!.lockedAddress.pincode}
-                  {'  '}(locked delivery address)
-                </Text>
-              </View>
-            </View>
-
-            {/* Balances */}
-            <View style={{ flexDirection: 'row', gap: SPACING.md, marginTop: SPACING.md }}>
-              <View style={[cardStyle, { flex: 1, alignItems: 'center' }]}>
-                <Text style={{ fontSize: FONT_SIZES.h3, fontWeight: 'bold', color: PRIMARY }}>{home!.voucherBalance ?? 0}</Text>
-                <Text style={{ fontSize: FONT_SIZES.xs, color: '#6B7280', marginTop: 2 }}>Vouchers</Text>
-              </View>
-              <View style={[cardStyle, { flex: 1, alignItems: 'center' }]}>
-                <Text style={{ fontSize: FONT_SIZES.h3, fontWeight: 'bold', color: '#10B981' }}>₹{(home!.walletBalance ?? 0).toFixed(0)}</Text>
-                <Text style={{ fontSize: FONT_SIZES.xs, color: '#6B7280', marginTop: 2 }}>Delivery Wallet</Text>
-              </View>
-            </View>
-
-            {/* Order today */}
-            {(home!.voucherBalance ?? 0) > 0 && (
-              <View style={[cardStyle, { marginTop: SPACING.md }]}>
-                <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'bold', color: '#1F2937', marginBottom: SPACING.sm }}>
-                  Order for today
-                </Text>
-                {(['LUNCH', 'DINNER'] as const).map((mw) => {
-                  const used = mw === 'LUNCH' ? home!.capUsage?.lunchUsedToday ?? 0 : home!.capUsage?.dinnerUsedToday ?? 0;
-                  const cap = home!.capUsage?.maxPerWindow ?? home!.corporate!.maxMealsPerWindow;
-                  const atCap = used >= cap;
-                  return (
-                    <View
-                      key={mw}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        paddingVertical: SPACING.sm,
-                        borderTopWidth: mw === 'DINNER' ? 1 : 0,
-                        borderTopColor: '#F3F4F6',
-                      }}
+                  <View style={{ flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.md }}>
+                    <TextInput
+                      value={code}
+                      onChangeText={(t) => setCode(t.toUpperCase())}
+                      placeholder="e.g., AIB2026"
+                      placeholderTextColor="#9CA3AF"
+                      autoCapitalize="characters"
+                      autoCorrect={false}
+                      style={styles.input}
+                    />
+                    <TouchableOpacity
+                      onPress={handleLink}
+                      disabled={!code.trim() || linking}
+                      style={[styles.smallBtn, !code.trim() && { backgroundColor: '#D1D5DB' }]}
                     >
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <MaterialCommunityIcons
-                          name={mw === 'LUNCH' ? 'white-balance-sunny' : 'moon-waning-crescent'}
-                          size={18}
-                          color={mw === 'LUNCH' ? '#F59E0B' : '#6366F1'}
-                        />
-                        <View style={{ marginLeft: 8 }}>
-                          <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: '#1F2937' }}>
-                            {mw === 'LUNCH' ? 'Lunch' : 'Dinner'}
-                          </Text>
-                          <Text style={{ fontSize: FONT_SIZES.xs, color: '#9CA3AF' }}>
-                            {used}/{cap} used today
-                          </Text>
-                        </View>
-                      </View>
-                      <TouchableOpacity
-                        onPress={() => handleOrder(mw)}
-                        disabled={atCap || orderingWindow !== null}
-                        style={{
-                          backgroundColor: atCap ? '#E5E7EB' : PRIMARY,
-                          borderRadius: 8,
-                          paddingHorizontal: SPACING.lg,
-                          paddingVertical: SPACING.sm,
-                          minWidth: 90,
-                          alignItems: 'center',
-                        }}
-                      >
-                        {orderingWindow === mw ? (
-                          <ActivityIndicator size="small" color="#fff" />
-                        ) : (
-                          <Text style={{ color: atCap ? '#9CA3AF' : '#fff', fontWeight: '700', fontSize: FONT_SIZES.sm }}>
-                            {atCap ? 'Limit hit' : 'Order 1'}
-                          </Text>
-                        )}
-                      </TouchableOpacity>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-
-            {/* Auto-order entry point — only shown once eligible: either a
-                setup already exists (to manage), or they've bought at least
-                one pack (to set one up). Buying nothing yet ⇒ hidden, same
-                pattern as the "Order today" section above. */}
-            {(home!.autoOrderSetup || home!.hasPurchasedAnyPack) && (
-              <TouchableOpacity
-                onPress={() => navigation.navigate('CorporateAutoOrder')}
-                style={[cardStyle, { marginTop: SPACING.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                  <MaterialCommunityIcons name="auto-mode" size={22} color={PRIMARY} />
-                  <View style={{ marginLeft: 8, flex: 1 }}>
-                    <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: 'bold', color: '#1F2937' }}>
-                      {home!.autoOrderSetup ? 'Manage Auto-Order' : 'Set up Auto-Order'}
-                    </Text>
-                    <Text style={{ fontSize: FONT_SIZES.xs, color: '#6B7280', marginTop: 1 }}>
-                      {home!.autoOrderSetup
-                        ? home!.autoOrderSetup.enabled
-                          ? 'Currently ON — tap to manage'
-                          : 'Currently OFF — tap to manage'
-                        : 'Order automatically on a weekly schedule'}
-                    </Text>
+                      {linking ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.smallBtnText}>Validate</Text>
+                      )}
+                    </TouchableOpacity>
                   </View>
                 </View>
-                <MaterialCommunityIcons name="chevron-right" size={22} color="#9CA3AF" />
-              </TouchableOpacity>
-            )}
+              </Section>
 
-            {/* Voucher plans */}
-            <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'bold', color: '#1F2937', marginTop: SPACING.lg, marginBottom: SPACING.sm }}>
-              Voucher Plans
-            </Text>
-            {(home!.plans || []).length === 0 ? (
-              <View style={cardStyle}>
-                <Text style={{ fontSize: FONT_SIZES.sm, color: '#6B7280', textAlign: 'center' }}>
-                  No plans available yet. Check back soon.
-                </Text>
-              </View>
-            ) : (
-              (home!.plans || []).map((plan) => (
-                <View key={plan._id} style={[cardStyle, { marginBottom: SPACING.md }]}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'bold', color: '#1F2937' }}>{plan.name}</Text>
-                      <Text style={{ fontSize: FONT_SIZES.xs, color: '#6B7280', marginTop: 2 }}>
-                        {plan.voucherCount} meal vouchers · valid {plan.voucherValidityDays} days
-                      </Text>
-                      {plan.perMealDeliveryFee > 0 && (
-                        <Text style={{ fontSize: FONT_SIZES.xs, color: '#9CA3AF', marginTop: 2 }}>
-                          + ₹{plan.perMealDeliveryFee}/meal delivery (prepaid to wallet)
-                        </Text>
-                      )}
-                    </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={{ fontSize: FONT_SIZES.h4, fontWeight: 'bold', color: '#1F2937' }}>₹{plan.price}</Text>
-                      {!!plan.originalPrice && plan.originalPrice > plan.price && (
-                        <Text style={{ fontSize: FONT_SIZES.xs, color: '#9CA3AF', textDecorationLine: 'line-through' }}>
-                          ₹{plan.originalPrice}
-                        </Text>
-                      )}
-                    </View>
-                  </View>
+              {/* Section 2 — partner with us */}
+              <Section title="Want corporate meals at your office?">
+                <View style={[styles.card, { flexDirection: 'column', alignItems: 'stretch' }]}>
+                  <Text style={styles.cardMeta}>
+                    Get your company partnered with Tiffsy for discounted daily meals delivered to your
+                    workplace. Our team will reach out to set it up.
+                  </Text>
                   <TouchableOpacity
-                    onPress={() => handlePurchase(plan)}
-                    disabled={purchasingPlanId !== null}
+                    onPress={() => setLeadVisible(true)}
                     style={{
-                      backgroundColor: PRIMARY,
-                      borderRadius: 10,
+                      backgroundColor: '#EFF6FF',
+                      borderRadius: 12,
                       paddingVertical: SPACING.md,
                       alignItems: 'center',
+                      borderWidth: 1,
+                      borderColor: '#BFDBFE',
                       marginTop: SPACING.md,
                     }}
                   >
-                    {purchasingPlanId === plan._id ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <Text style={{ color: '#fff', fontWeight: '700', fontSize: FONT_SIZES.sm }}>Buy Pack</Text>
-                    )}
+                    <Text style={{ color: '#2563EB', fontWeight: '700', fontSize: FONT_SIZES.base }}>
+                      Contact Tiffsy Team
+                    </Text>
                   </TouchableOpacity>
                 </View>
-              ))
-            )}
-          </>
-        )}
-      </ScrollView>
+              </Section>
+            </>
+          ) : (
+            <>
+              {/* Corporate header */}
+              <Section title={home!.corporate!.name}>
+                <View style={[styles.card, { flexDirection: 'column', alignItems: 'stretch' }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                    <MaterialCommunityIcons name="map-marker" size={18} color={MUTED} style={{ marginTop: 2 }} />
+                    <Text style={{ fontSize: FONT_SIZES.sm, color: MUTED, marginLeft: 8, flex: 1 }}>
+                      {home!.corporate!.lockedAddress.addressLine1}, {home!.corporate!.lockedAddress.locality},{' '}
+                      {home!.corporate!.lockedAddress.city} {home!.corporate!.lockedAddress.pincode}
+                      {'  '}(locked delivery address)
+                    </Text>
+                  </View>
+                  <TouchableOpacity onPress={handleUnlink} style={{ alignSelf: 'flex-end', marginTop: SPACING.sm }}>
+                    <Text style={{ fontSize: FONT_SIZES.xs, color: '#9CA3AF' }}>Unlink</Text>
+                  </TouchableOpacity>
+                </View>
+              </Section>
+
+              {/* Balances */}
+              <View style={{ flexDirection: 'row', gap: SPACING.md, marginHorizontal: 16, marginBottom: 16 }}>
+                <View style={[styles.card, { flex: 1, flexDirection: 'column', alignItems: 'center' }]}>
+                  <Text style={{ fontSize: FONT_SIZES.h3, fontWeight: 'bold', color: PRIMARY }}>{home!.voucherBalance ?? 0}</Text>
+                  <Text style={styles.cardMeta}>Vouchers</Text>
+                </View>
+                <View style={[styles.card, { flex: 1, flexDirection: 'column', alignItems: 'center' }]}>
+                  <Text style={{ fontSize: FONT_SIZES.h3, fontWeight: 'bold', color: '#10B981' }}>₹{(home!.walletBalance ?? 0).toFixed(0)}</Text>
+                  <Text style={styles.cardMeta}>Delivery Wallet</Text>
+                </View>
+              </View>
+
+              {/* Order today */}
+              {(home!.voucherBalance ?? 0) > 0 && (
+                <Section title="Order for today">
+                  <View style={[styles.card, { flexDirection: 'column', alignItems: 'stretch', padding: 0 }]}>
+                    {(['LUNCH', 'DINNER'] as const).map((mw) => {
+                      const used = mw === 'LUNCH' ? home!.capUsage?.lunchUsedToday ?? 0 : home!.capUsage?.dinnerUsedToday ?? 0;
+                      const cap = home!.capUsage?.maxPerWindow ?? home!.corporate!.maxMealsPerWindow;
+                      const atCap = used >= cap;
+                      return (
+                        <View
+                          key={mw}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: 16,
+                            borderTopWidth: mw === 'DINNER' ? 1 : 0,
+                            borderTopColor: BORDER,
+                          }}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <View
+                              style={[
+                                styles.iconCircle,
+                                { backgroundColor: mw === 'LUNCH' ? '#FEF3C7' : '#EDE9FE', width: 36, height: 36, marginRight: 10 },
+                              ]}
+                            >
+                              <MaterialCommunityIcons
+                                name={mw === 'LUNCH' ? 'white-balance-sunny' : 'moon-waning-crescent'}
+                                size={18}
+                                color={mw === 'LUNCH' ? '#F59E0B' : '#6366F1'}
+                              />
+                            </View>
+                            <View>
+                              <Text style={styles.cardTitle}>{mw === 'LUNCH' ? 'Lunch' : 'Dinner'}</Text>
+                              <Text style={styles.cardMeta}>{used}/{cap} used today</Text>
+                            </View>
+                          </View>
+                          <TouchableOpacity
+                            onPress={() => handleOrder(mw)}
+                            disabled={atCap || orderingWindow !== null}
+                            style={[styles.smallBtn, { minWidth: 90 }, atCap && { backgroundColor: '#E5E7EB' }]}
+                          >
+                            {orderingWindow === mw ? (
+                              <ActivityIndicator size="small" color="#fff" />
+                            ) : (
+                              <Text style={[styles.smallBtnText, atCap && { color: '#9CA3AF' }]}>
+                                {atCap ? 'Limit hit' : 'Order 1'}
+                              </Text>
+                            )}
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </Section>
+              )}
+
+              {/* Auto-order entry point — only shown once eligible: either a
+                  setup already exists (to manage), or they've bought at least
+                  one pack (to set one up). Buying nothing yet ⇒ hidden. */}
+              {(home!.autoOrderSetup || home!.hasPurchasedAnyPack) && (
+                <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('CorporateAutoOrder')}
+                    style={styles.card}
+                  >
+                    <View style={styles.iconCircle}>
+                      <MaterialCommunityIcons name="autorenew" size={22} color={PRIMARY} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.cardTitle}>
+                        {home!.autoOrderSetup ? 'Manage Auto-Order' : 'Set up Auto-Order'}
+                      </Text>
+                      <Text style={styles.cardMeta}>
+                        {home!.autoOrderSetup
+                          ? home!.autoOrderSetup.enabled
+                            ? 'Currently ON — tap to manage'
+                            : 'Currently OFF — tap to manage'
+                          : 'Order automatically on a weekly schedule'}
+                      </Text>
+                    </View>
+                    <Text style={styles.chev}>›</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Voucher plans — same branded pack-card design as the
+                  personal MealPlansScreen (background art, orange border,
+                  savings chip, big price/voucher-count row) so a corporate
+                  pack reads as the same product, just a different channel.
+                  Whole card is tappable, same as MealPlansScreen. */}
+              <Section title="Voucher Plans">
+                {(home!.plans || []).length === 0 ? (
+                  <View style={styles.card}>
+                    <Text style={{ fontSize: FONT_SIZES.sm, color: MUTED, textAlign: 'center', flex: 1 }}>
+                      No plans available yet. Check back soon.
+                    </Text>
+                  </View>
+                ) : (
+                  (home!.plans || []).map((plan) => {
+                    const savings =
+                      plan.originalPrice && plan.originalPrice > plan.price
+                        ? Math.round(plan.originalPrice - plan.price)
+                        : 0;
+                    const pricePerVoucher = plan.voucherCount > 0 ? (plan.price / plan.voucherCount) : 0;
+                    const pricePerVoucherLabel = pricePerVoucher >= 1 ? Math.round(pricePerVoucher).toString() : pricePerVoucher.toFixed(2);
+                    return (
+                      <TouchableOpacity
+                        key={plan._id}
+                        onPress={() => navigation.navigate('CorporatePurchase', { planId: plan._id })}
+                        activeOpacity={0.8}
+                        style={styles.planCard}
+                      >
+                        <Image
+                          source={require('../../assets/images/myaccount/voucherbackgound.png')}
+                          style={{ position: 'absolute', width: '100%', height: '100%' }}
+                          resizeMode="cover"
+                        />
+                        <View style={{ flex: 1, padding: 16 }}>
+                          {savings > 0 && (
+                            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 8 }}>
+                              <View style={styles.saveChip}>
+                                <Text style={styles.saveChipText}>Save ₹{savings}</Text>
+                              </View>
+                            </View>
+                          )}
+
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                            <MaterialCommunityIcons name="ticket-percent" size={20} color={TEXT} style={{ marginRight: 8 }} />
+                            <Text style={styles.planName}>{plan.name}</Text>
+                          </View>
+
+                          {plan.description ? (
+                            <Text style={styles.planDesc} numberOfLines={2}>{plan.description}</Text>
+                          ) : (
+                            <View style={{ height: 8 }} />
+                          )}
+
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 6 }}>
+                            <View style={{ flex: 1, marginRight: 12 }}>
+                              {savings > 0 && (
+                                <Text style={styles.planOriginalPrice}>₹{plan.originalPrice!.toFixed(2)}</Text>
+                              )}
+                              <Text style={styles.planBigPrice}>₹{plan.price.toFixed(2)}</Text>
+                            </View>
+                            <View style={{ alignItems: 'flex-end' }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                                <Text style={styles.planVoucherCount}>{plan.voucherCount}</Text>
+                                <Text style={styles.planVoucherLabel}> Vouchers</Text>
+                              </View>
+                              <View style={styles.equivalencePill}>
+                                <Text style={styles.equivalencePillText}>1 voucher = 1 meal</Text>
+                              </View>
+                              <Text style={styles.pricePerVoucher}>₹{pricePerVoucherLabel}/voucher</Text>
+                            </View>
+                          </View>
+
+                          <View style={styles.planFooter}>
+                            <Text style={styles.planFooterText}>
+                              Vouchers valid for {plan.voucherValidityDays} days from purchase
+                            </Text>
+                            {plan.perMealDeliveryFee > 0 && (
+                              <Text style={styles.planFooterText}>
+                                + ₹{plan.perMealDeliveryFee}/meal delivery (prepaid to wallet)
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })
+                )}
+              </Section>
+            </>
+          )}
+        </ScrollView>
       </KeyboardAvoidingView>
 
       <LeadModal
@@ -482,13 +473,39 @@ const CorporateMealsScreen: React.FC<Props> = ({ navigation }) => {
   );
 };
 
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+        <View style={{ width: 6, height: 22, backgroundColor: PRIMARY, borderRadius: 999, marginRight: 10 }} />
+        <Text style={{ fontSize: FONT_SIZES.xl, fontWeight: 'bold', color: TEXT, flex: 1 }} numberOfLines={1}>
+          {title}
+        </Text>
+      </View>
+      {children}
+    </View>
+  );
+}
+
 const Header: React.FC<{ onBack: () => void }> = ({ onBack }) => (
-  <View style={{ backgroundColor: PRIMARY, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
-    <TouchableOpacity onPress={onBack} style={{ marginRight: SPACING.md }}>
-      <MaterialCommunityIcons name="arrow-left" size={24} color="#fff" />
-    </TouchableOpacity>
-    <Text style={{ color: '#fff', fontSize: FONT_SIZES.h4, fontWeight: 'bold' }}>Corporate Meals</Text>
-  </View>
+  <LinearGradient
+    colors={['#FD9E2F', '#FF6636']}
+    start={{ x: 0, y: 0 }}
+    end={{ x: 1, y: 0 }}
+    style={styles.gradientHeader}
+  >
+    <SafeAreaView edges={['top']}>
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+          <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+            <Polyline points="15,18 9,12 15,6" stroke={PRIMARY} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+          </Svg>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle} numberOfLines={1}>Corporate Meals</Text>
+        <View style={{ width: TOUCH_TARGETS.minimum }} />
+      </View>
+    </SafeAreaView>
+  </LinearGradient>
 );
 
 const LeadModal: React.FC<{ visible: boolean; onClose: () => void; onSubmitted: () => void }> = ({
@@ -534,19 +551,19 @@ const LeadModal: React.FC<{ visible: boolean; onClose: () => void; onSubmitted: 
 
   const field = (label: string, value: string, onChange: (v: string) => void, opts?: any) => (
     <View style={{ marginBottom: SPACING.md }}>
-      <Text style={{ fontSize: FONT_SIZES.xs, color: '#6B7280', marginBottom: 4 }}>{label}</Text>
+      <Text style={{ fontSize: FONT_SIZES.xs, color: MUTED, marginBottom: 4 }}>{label}</Text>
       <TextInput
         value={value}
         onChangeText={onChange}
         placeholderTextColor="#9CA3AF"
         style={{
           borderWidth: 1,
-          borderColor: '#E5E7EB',
-          borderRadius: 10,
+          borderColor: BORDER,
+          borderRadius: 12,
           paddingHorizontal: SPACING.md,
           paddingVertical: SPACING.sm + 2,
           fontSize: FONT_SIZES.sm,
-          color: '#1F2937',
+          color: TEXT,
         }}
         {...opts}
       />
@@ -562,9 +579,9 @@ const LeadModal: React.FC<{ visible: boolean; onClose: () => void; onSubmitted: 
         <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' }} />
         <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: SPACING.lg, paddingTop: SPACING.lg, paddingBottom: Math.max(insets.bottom, SPACING.lg), maxHeight: '85%' }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md }}>
-            <Text style={{ fontSize: FONT_SIZES.base, fontWeight: 'bold', color: '#1F2937' }}>Partner with Tiffsy</Text>
+            <Text style={{ fontSize: FONT_SIZES.lg, fontWeight: 'bold', color: TEXT }}>Partner with Tiffsy</Text>
             <TouchableOpacity onPress={onClose}>
-              <MaterialCommunityIcons name="close" size={24} color="#6B7280" />
+              <MaterialCommunityIcons name="close" size={24} color={MUTED} />
             </TouchableOpacity>
           </View>
           <ScrollView keyboardShouldPersistTaps="handled">
@@ -572,13 +589,13 @@ const LeadModal: React.FC<{ visible: boolean; onClose: () => void; onSubmitted: 
             {field('Your name *', contactName, setContactName)}
             {field('Phone *', contactPhone, (v: string) => setContactPhone(v.replace(/[^0-9+]/g, '')), { keyboardType: 'phone-pad', maxLength: 15 })}
             {field('Email', contactEmail, setContactEmail, { keyboardType: 'email-address', autoCapitalize: 'none' })}
-            {field('Message (team size, location…)', message, setMessage, { multiline: true, numberOfLines: 3, style: { minHeight: 70, textAlignVertical: 'top', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, fontSize: FONT_SIZES.sm, color: '#1F2937' } })}
+            {field('Message (team size, location…)', message, setMessage, { multiline: true, numberOfLines: 3, style: { minHeight: 70, textAlignVertical: 'top', borderWidth: 1, borderColor: BORDER, borderRadius: 12, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, fontSize: FONT_SIZES.sm, color: TEXT } })}
             <TouchableOpacity
               onPress={submit}
               disabled={submitting}
-              style={{ backgroundColor: PRIMARY, borderRadius: 12, paddingVertical: SPACING.md, alignItems: 'center', marginTop: SPACING.sm, marginBottom: SPACING.lg }}
+              style={{ backgroundColor: PRIMARY, borderRadius: 25, paddingVertical: SPACING.md, alignItems: 'center', marginTop: SPACING.sm, marginBottom: SPACING.lg }}
             >
-              {submitting ? <ActivityIndicator size="small" color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '700', fontSize: FONT_SIZES.sm }}>Submit Request</Text>}
+              {submitting ? <ActivityIndicator size="small" color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '700', fontSize: FONT_SIZES.base }}>Submit Request</Text>}
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -587,12 +604,112 @@ const LeadModal: React.FC<{ visible: boolean; onClose: () => void; onSubmitted: 
   );
 };
 
-const cardStyle = {
-  backgroundColor: '#FFFFFF',
-  borderRadius: 14,
-  padding: SPACING.lg,
-  borderWidth: 1,
-  borderColor: '#F3F4F6',
-} as const;
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fff' },
+  gradientHeader: {
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    paddingBottom: 16,
+    overflow: 'hidden',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 16,
+  },
+  backBtn: {
+    width: TOUCH_TARGETS.minimum,
+    height: TOUCH_TARGETS.minimum,
+    borderRadius: TOUCH_TARGETS.minimum / 2,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: { color: '#fff', fontSize: FONT_SIZES.h4, fontWeight: 'bold', flex: 1, textAlign: 'center' },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: BORDER,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: PRIMARY_TINT,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  cardTitle: { fontSize: FONT_SIZES.lg, fontWeight: 'bold', color: TEXT },
+  cardMeta: { fontSize: FONT_SIZES.sm, color: MUTED, marginTop: 2 },
+  chev: { fontSize: 22, color: '#9CA3AF' },
+  // Voucher-pack card — same design language as the personal MealPlansScreen
+  // pack card (background art, orange border, savings chip) so a corporate
+  // pack reads as the same product across the app.
+  planCard: {
+    width: '100%',
+    minHeight: 130,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: PRIMARY,
+    marginBottom: SPACING.md,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  saveChip: {
+    backgroundColor: 'rgba(233, 255, 238, 1)',
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  saveChipText: { fontSize: 11, fontWeight: '600', color: 'rgba(0, 139, 30, 1)' },
+  planName: { fontSize: FONT_SIZES.base, fontWeight: '700', color: TEXT },
+  planDesc: { fontSize: FONT_SIZES.xs, color: '#374151', marginBottom: 10, lineHeight: 16 },
+  planOriginalPrice: { fontSize: FONT_SIZES.xs, color: '#9CA3AF', textDecorationLine: 'line-through', marginBottom: 2 },
+  planBigPrice: { fontSize: 26, fontWeight: '700', color: TEXT },
+  planVoucherCount: { fontSize: 26, fontWeight: '700', color: TEXT },
+  planVoucherLabel: { fontSize: FONT_SIZES.sm, fontWeight: '500', color: TEXT },
+  equivalencePill: {
+    backgroundColor: PRIMARY_TINT,
+    borderWidth: 1,
+    borderColor: PRIMARY_BORDER,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginTop: 4,
+  },
+  equivalencePillText: { fontSize: 11, fontWeight: '700', color: PRIMARY },
+  pricePerVoucher: { fontSize: FONT_SIZES.xs, color: '#374151', marginTop: 3 },
+  planFooter: { marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)' },
+  planFooterText: { fontSize: 11, color: MUTED, marginTop: 1 },
+  input: {
+    flex: 1,
+    backgroundColor: BG,
+    borderRadius: 12,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm + 2,
+    fontSize: FONT_SIZES.sm,
+    color: TEXT,
+    borderWidth: 1,
+    borderColor: BORDER,
+    letterSpacing: 1,
+  },
+  smallBtn: {
+    backgroundColor: PRIMARY,
+    borderRadius: 10,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm + 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  smallBtnText: { color: '#fff', fontWeight: '700', fontSize: FONT_SIZES.sm },
+});
 
 export default CorporateMealsScreen;

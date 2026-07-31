@@ -332,7 +332,7 @@ export default function AutoOrderManageScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
               <View style={[styles.iconCircle, { backgroundColor: isEnabled ? PRIMARY_TINT : LOCKED_BG }]}>
                 <MaterialCommunityIcons
-                  name={isEnabled ? 'auto-mode' : 'pause-circle'}
+                  name={isEnabled ? 'autorenew' : 'pause-circle'}
                   size={22}
                   color={isEnabled ? PRIMARY : MUTED}
                 />

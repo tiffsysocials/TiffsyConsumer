@@ -344,6 +344,11 @@ export interface CorporatePlan {
   originalPrice?: number | null;
   voucherValidityDays: number;
   perMealDeliveryFee: number;
+  // GST treatment — mirrors SubscriptionPlan. Needed client-side so the
+  // purchase screen's "Pay now" total (pack + prepaid delivery fees) exactly
+  // matches what buildCorporatePurchaseQuote() charges server-side.
+  taxRate?: number;
+  taxInclusive?: boolean;
   status: string;
 }
 
@@ -361,6 +366,41 @@ export interface CorporateAutoOrderSetup {
   isPaused: boolean;
   pausedUntil?: string | null;
   skippedSlots?: Array<{ date: string; mealWindow: 'LUNCH' | 'DINNER'; skippedQuantity?: number | null }>;
+}
+
+// Corporate purchase quote — the live distance-tier per-meal fee stack for the
+// locked office + prepaid total + grand total. Computed server-side (the phone
+// can't run the pricing engine) and shown on the purchase screen; the same fee
+// is locked onto the CorporatePurchase at fulfillment.
+export interface CorporatePerMealFees {
+  deliveryFee: number;
+  platformFee: number;
+  serviceFee: number;
+  packagingFee: number;
+  handlingFee: number;
+  taxAmount: number;
+  total: number;
+  source: 'DISTANCE_TIER' | 'FLAT_FALLBACK';
+  distanceKm?: number | null;
+}
+
+export interface CorporatePurchaseQuote {
+  planId: string;
+  corporateId: string;
+  planSnapshot: {
+    name: string;
+    voucherCount: number;
+    price: number;
+    voucherValidityDays: number;
+    perMealDeliveryFee: number;
+    taxRate: number;
+    taxInclusive: boolean;
+  };
+  basePrice: number;
+  taxAmount: number;
+  perMealFees: CorporatePerMealFees;
+  feesPrepaid: number;
+  grandTotal: number;
 }
 
 export interface ServiceableKitchenV2 {
@@ -3205,6 +3245,9 @@ class ApiService {
           pincode: string;
         };
         maxMealsPerWindow: number;
+        // Recurring weekly off-days for the kitchen serving the locked office
+        // address (e.g. ["sunday"]) — admin-configured on the Kitchen record.
+        closedDays: string[];
       };
       plans?: CorporatePlan[];
       voucherBalance?: number;
@@ -3254,6 +3297,16 @@ class ApiService {
     };
   }> {
     return this.api.post('/api/corporate/purchase/initiate', { planId });
+  }
+
+  // Read-only purchase quote (pack + GST + distance-tier per-meal fee stack +
+  // prepaid total + grand total) for the purchase-screen summary.
+  async getCorporatePurchaseQuote(planId: string): Promise<{
+    success: boolean;
+    message: string;
+    data: { quote: CorporatePurchaseQuote };
+  }> {
+    return this.api.get(`/api/corporate/purchase/quote?planId=${encodeURIComponent(planId)}`);
   }
 
   // Place a corporate order for today
