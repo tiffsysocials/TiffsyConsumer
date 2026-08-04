@@ -49,7 +49,7 @@ const ACCOUNT_MENU_ITEMS = [
   { id: 'scheduledmeals', label: 'Scheduled Meals', iconName: 'food-variant', route: 'MyScheduledMeals' as const, authRequired: true },
   { id: 'referral', label: 'Refer & Earn', iconName: 'gift-outline', route: 'ReferAndEarn' as const, authRequired: true },
   { id: 'corporate', label: 'Corporate Meals', iconName: 'office-building-outline', route: 'CorporateMeals' as const, authRequired: true },
-  { id: 'bulkorders', label: 'Bulk Orders', iconName: 'package-variant-closed', route: 'BulkOrders' as const, authRequired: false },
+  { id: 'bulkorders', label: 'Bulk Order', iconName: 'package-variant-closed', route: 'BulkOrders' as const, authRequired: true },
 ];
 
 const SUPPORT_MENU_ITEMS = [

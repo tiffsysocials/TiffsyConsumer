@@ -44,6 +44,47 @@ export interface PromoConfig {
   banner: { text: string } | null;
 }
 
+/**
+ * A bulk-quantity pricing tier served by GET /api/app/config (data.bulkTiers),
+ * ascending by minMeals. Same config the backend prices from, so the Bulk
+ * Scheduling page advertises exactly what the order will be charged. Empty
+ * array = engine off.
+ */
+export interface BulkTierConfig {
+  minMeals: number;
+  type: 'PERCENTAGE' | 'FLAT' | 'FREE_DELIVERY' | 'UNIT_PRICE' | 'FREE_MEALS'
+    | 'BONUS_VOUCHER' | 'FREE_ADDON_VALUE' | 'CASHBACK';
+  value: number;
+  maxDiscountAmount?: number | null;
+}
+
+/**
+ * Bulk-ordering limits served by GET /api/app/config (data.bulkOrder). Null
+ * when the backend predates the feature — callers must fall back.
+ */
+export interface BulkOrderLimits {
+  enabled: boolean;
+  minThalisPerOrder: number;
+  maxThalisPerOrder: number;
+  minLeadHours: number;
+  maxDaysAhead: number;
+}
+
+/**
+ * Orderable date/window options for a bulk order, resolved server-side against
+ * the kitchen serving the address — its weekly off-days, holiday closures,
+ * operating hours and the lead-time rule. `days` is ascending by date and only
+ * contains dates with at least one open meal window.
+ */
+export interface BulkOrderAvailability {
+  enabled: boolean;
+  kitchenId?: string;
+  minThalisPerOrder: number;
+  maxThalisPerOrder: number;
+  minLeadHours: number;
+  days?: Array<{ date: string; mealWindows: Array<'LUNCH' | 'DINNER'> }>;
+}
+
 export interface UserData {
   _id: string;
   phone: string;
@@ -3436,17 +3477,20 @@ class ApiService {
     return this.api.patch(`/api/scheduling/meals/${id}/cancel`, { reason, cancelQuantity });
   }
 
-  // Bulk scheduling - pricing preview
+  // Bulk scheduling - pricing preview.
+  // `bulkOrder: true` switches the server into bulk-ORDER mode: exactly one
+  // slot, many thalis, and the configured quantity/lead-time rules.
   async getBulkSchedulePricing(data: {
     deliveryAddressId: string;
     slots: BulkSlotInput[];
     vouchersToUse?: number;
     couponCode?: string;
+    bulkOrder?: boolean;
   }): Promise<{ success: boolean; message: string; data: BulkPricingData }> {
     return this.api.post('/api/scheduling/meals/bulk/pricing', data);
   }
 
-  // Bulk scheduling - create orders
+  // Bulk scheduling - create orders (also the bulk-order create path)
   async createBulkScheduledMeals(data: {
     deliveryAddressId: string;
     slots: BulkSlotInput[];
@@ -3457,8 +3501,21 @@ class ApiService {
     doNotContact?: boolean;
     allowDuplicates?: boolean;
     allowAutoOrderConflict?: boolean;
+    bulkOrder?: boolean;
   }): Promise<{ success: boolean; message: string; data: BulkScheduleResult }> {
     return this.api.post('/api/scheduling/meals/bulk', data);
+  }
+
+  // Date + meal-window options a bulk order can be placed for, resolved
+  // against the kitchen serving this address (closures, cutoffs, lead time).
+  async getBulkOrderAvailability(deliveryAddressId: string): Promise<{
+    success: boolean;
+    message: string;
+    data: BulkOrderAvailability;
+  }> {
+    return this.api.get('/api/scheduling/bulk-order/availability', {
+      params: { deliveryAddressId },
+    });
   }
 
   // ============================================
@@ -3606,6 +3663,9 @@ class ApiService {
       latestVersion: string;
       storeUrl: string;
       promo: PromoConfig | null;
+      // Absent on older backends — callers must tolerate undefined.
+      bulkTiers?: BulkTierConfig[];
+      bulkOrder?: BulkOrderLimits | null;
     };
   }> {
     return this.api.get('/api/app/config', { params: { platform, app: 'consumer' } });
