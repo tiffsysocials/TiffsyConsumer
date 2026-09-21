@@ -31,6 +31,24 @@ export function getTodaysActiveBasicOrders(orders: Order[]): Order[] {
   });
 }
 
+/**
+ * The order whose delivery OTP should surface on the home banner.
+ *
+ * Mirrors the backend gate in order.controller.js (`getOrder`), which only
+ * returns `deliveryOtp` for PICKED_UP / OUT_FOR_DELIVERY. `leaveAtDoor` orders
+ * are excluded because the rider proves delivery with a photo instead — those
+ * have no OTP to share (see the "OTP Waived" branch in OrderTrackingScreen).
+ */
+export function getOtpEligibleOrder(orders: Order[]): Order | null {
+  return (
+    orders.find(
+      o =>
+        (o.status === 'PICKED_UP' || o.status === 'OUT_FOR_DELIVERY') &&
+        !o.leaveAtDoor,
+    ) || null
+  );
+}
+
 export interface ActiveOrderBannerContent {
   title: string;
   subtitle: string;

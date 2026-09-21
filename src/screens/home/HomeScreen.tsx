@@ -36,6 +36,7 @@ import PendingReviewPrompt from '../../components/PendingReviewPrompt';
 import {
   getTodaysActiveBasicOrders,
   getActiveOrderBannerContent,
+  getOtpEligibleOrder,
 } from '../../utils/todaysOrdersBanner';
 import { getMealWindowInfo as getWindowInfo, isMealWindowAvailable } from '../../utils/timeUtils';
 import {
@@ -180,6 +181,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
 
   // Today's active basic orders — drives the "Your lunch/dinner is coming" banner
   const [todaysActiveOrders, setTodaysActiveOrders] = useState<Order[]>([]);
+  const [deliveryOtp, setDeliveryOtp] = useState<string | null>(null);
 
   // Login prompt for guests trying to add to cart or buy now
   const [showGuestLoginPrompt, setShowGuestLoginPrompt] = useState(false);
@@ -773,6 +775,38 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     () => getActiveOrderBannerContent(todaysActiveOrders),
     [todaysActiveOrders],
   );
+
+  // The banner's order list comes from getMyOrders, which does NOT carry
+  // deliveryOtp — the backend only returns it from getOrder/trackOrder. So pull
+  // the code for the one order that's actually with a rider. Keyed on the id so
+  // this fires once per order, not on every orders refresh.
+  const otpOrderId = useMemo(
+    () => getOtpEligibleOrder(todaysActiveOrders)?._id ?? null,
+    [todaysActiveOrders],
+  );
+
+  useEffect(() => {
+    if (!otpOrderId) {
+      setDeliveryOtp(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await apiService.getOrder(otpOrderId);
+        const otp = (response?.data as any)?.deliveryOtp ?? null;
+        if (!cancelled) setDeliveryOtp(otp);
+      } catch (err) {
+        // Non-fatal: the banner still works without the code, and the OTP is
+        // always reachable on the tracking screen.
+        console.warn('[HomeScreen] Failed to load delivery OTP:', err);
+        if (!cancelled) setDeliveryOtp(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [otpOrderId]);
 
   // Cycling text animation for auto-order enabled banner
   const hasActiveAutoOrder = useMemo(() =>
@@ -2089,6 +2123,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
             subtitle={activeOrderBanner.subtitle}
             hasLunch={todaysActiveOrders.some(o => o.mealWindow === 'LUNCH')}
             hasDinner={todaysActiveOrders.some(o => o.mealWindow === 'DINNER')}
+            otp={deliveryOtp}
             onPress={() => {
               if (activeOrderBanner.orderId) {
                 navigation.navigate('OrderDetail', { orderId: activeOrderBanner.orderId });

@@ -9,6 +9,8 @@ interface ActiveOrderBannerProps {
   subtitle: string;
   hasLunch: boolean;
   hasDinner: boolean;
+  /** Delivery OTP for the in-flight order. Omitted/null hides the row entirely. */
+  otp?: string | null;
   onPress: () => void;
 }
 
@@ -33,6 +35,7 @@ const ActiveOrderBanner: React.FC<ActiveOrderBannerProps> = ({
   subtitle,
   hasLunch,
   hasDinner,
+  otp,
   onPress,
 }) => {
   // Pick the most relevant thali image — dinner takes precedence if both
@@ -84,6 +87,56 @@ const ActiveOrderBanner: React.FC<ActiveOrderBannerProps> = ({
         >
           {subtitle}
         </Text>
+
+        {/* Delivery OTP — only rendered while the order is with the rider.
+            Same green palette as the OTP card on OrderTrackingScreen so the
+            code reads as the same object in both places. */}
+        {otp ? (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              marginTop: SPACING.sm,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: FONT_SIZES.xs,
+                fontWeight: '700',
+                color: '#388E3C',
+                marginRight: SPACING.sm,
+              }}
+            >
+              OTP
+            </Text>
+            {otp.split('').map((digit, index) => (
+              <View
+                key={index}
+                style={{
+                  width: 24,
+                  height: 28,
+                  borderRadius: 6,
+                  backgroundColor: '#E8F5E9',
+                  borderWidth: 1,
+                  borderColor: '#4CAF50',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginRight: SPACING.xs,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: FONT_SIZES.sm,
+                    fontWeight: '800',
+                    color: '#2E7D32',
+                  }}
+                >
+                  {digit}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
       </View>
 
       <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
