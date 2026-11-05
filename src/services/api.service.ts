@@ -2382,7 +2382,7 @@ class ApiService {
 
   // Get kitchen public details incl. server-computed whole-day closure state
   // (public, no auth)
-  async getKitchenPublicDetails(kitchenId: string): Promise<{
+  async getKitchenPublicDetails(kitchenId: string, mealWindow?: 'LUNCH' | 'DINNER'): Promise<{
     success: boolean;
     message?: string;
     data: {
@@ -2396,7 +2396,9 @@ class ApiService {
       };
     };
   }> {
-    return this.api.get(`/api/kitchens/${kitchenId}/public`);
+    return this.api.get(`/api/kitchens/${kitchenId}/public`, {
+      params: mealWindow ? { mealWindow } : undefined,
+    });
   }
 
   // ============================================

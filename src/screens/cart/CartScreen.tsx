@@ -271,19 +271,31 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
   // Whole-day kitchen closure (e.g. Sundays) — server-computed in IST. Only
   // relevant for today-ordering; scheduling mode validates its target date
   // server-side.
-  const [kitchenClosure, setKitchenClosure] = useState<{ closed: boolean; reason: string | null }>({ closed: false, reason: null });
+  const [kitchenClosures, setKitchenClosures] = useState<Record<'LUNCH' | 'DINNER', { closed: boolean; reason: string | null }>>({
+    LUNCH: { closed: false, reason: null },
+    DINNER: { closed: false, reason: null },
+  });
+  const selectedKitchenClosure = selectedMealWindows
+    .map((slot) => kitchenClosures[slot])
+    .find((closure) => closure.closed) || { closed: false, reason: null };
   useEffect(() => {
     if (isSchedulingMode || !kitchenId) {
-      setKitchenClosure({ closed: false, reason: null });
+      setKitchenClosures({ LUNCH: { closed: false, reason: null }, DINNER: { closed: false, reason: null } });
       return;
     }
     let cancelled = false;
-    apiService
-      .getKitchenPublicDetails(kitchenId)
-      .then((resp) => {
+    Promise.all([
+      apiService.getKitchenPublicDetails(kitchenId, 'LUNCH'),
+      apiService.getKitchenPublicDetails(kitchenId, 'DINNER'),
+    ])
+      .then(([lunchResp, dinnerResp]) => {
         if (cancelled) return;
-        const k = resp?.data?.kitchen;
-        if (k) setKitchenClosure({ closed: k.isClosedToday === true, reason: k.closureReason || null });
+        const lunch = lunchResp?.data?.kitchen;
+        const dinner = dinnerResp?.data?.kitchen;
+        setKitchenClosures({
+          LUNCH: { closed: lunch?.isClosedToday === true, reason: lunch?.closureReason || null },
+          DINNER: { closed: dinner?.isClosedToday === true, reason: dinner?.closureReason || null },
+        });
       })
       .catch(() => {
         // Fail-open: closure is re-checked server-side at order creation.
@@ -725,10 +737,10 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
 
     // Whole-day closure (e.g. Sundays) — backend rejects anyway; fail early
     // with a clear message.
-    if (!isSchedulingMode && kitchenClosure.closed) {
+    if (!isSchedulingMode && selectedKitchenClosure.closed) {
       showAlert(
         'Kitchen Closed Today',
-        `${kitchenClosure.reason || 'The kitchen is closed today.'} You can schedule meals for upcoming days instead.`,
+        `${selectedKitchenClosure.reason || 'The kitchen is closed for this meal.'} You can schedule another available meal instead.`,
         undefined,
         'error'
       );
@@ -1750,7 +1762,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
             )}
           </View>
           {/* Whole-day closure notice (e.g. Sundays) */}
-          {!isSchedulingMode && kitchenClosure.closed && (
+          {!isSchedulingMode && selectedKitchenClosure.closed && (
             <View style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -1763,7 +1775,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
             }}>
               <MaterialCommunityIcons name="store-off-outline" size={18} color="#EF4444" style={{ marginRight: 8 }} />
               <Text style={{ flex: 1, fontSize: 12, color: '#991B1B', fontWeight: '600' }}>
-                {kitchenClosure.reason || 'The kitchen is closed today.'} Use "Plan Ahead" to schedule meals for upcoming days.
+                {selectedKitchenClosure.reason || 'The kitchen is closed for this meal.'} Use "Plan Ahead" to schedule another available meal.
               </Text>
             </View>
           )}
@@ -1777,7 +1789,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
             {(() => {
               const lunchState = getSlotState(lunchCutoff);
               const isSelected = selectedMealWindows.includes('LUNCH');
-              const isClosed = lunchState === 'closed';
+              const isClosed = lunchState === 'closed' || (!isSchedulingMode && kitchenClosures.LUNCH.closed);
               const isCashOnly = lunchState === 'cash_only';
               return (
                 <TouchableOpacity
@@ -1827,7 +1839,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
             {(() => {
               const dinnerState = getSlotState(dinnerCutoff);
               const isSelected = selectedMealWindows.includes('DINNER');
-              const isClosed = dinnerState === 'closed';
+              const isClosed = dinnerState === 'closed' || (!isSchedulingMode && kitchenClosures.DINNER.closed);
               const isCashOnly = dinnerState === 'cash_only';
               return (
                 <TouchableOpacity
@@ -2514,7 +2526,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
             height: 56,
             paddingLeft: 20,
             paddingRight: 6,
-            opacity: (isPlacingOrder || isCalculating || addresses.length === 0 || pricingError || (!isSchedulingMode && kitchenClosure.closed)) ? 0.7 : 1,
+            opacity: (isPlacingOrder || isCalculating || addresses.length === 0 || pricingError || (!isSchedulingMode && selectedKitchenClosure.closed)) ? 0.7 : 1,
           }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
@@ -2535,7 +2547,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
               minWidth: 130,
             }}
             onPress={handlePlaceOrder}
-            disabled={isPlacingOrder || isCalculating || addresses.length === 0 || !!pricingError || (!isSchedulingMode && kitchenClosure.closed)}
+            disabled={isPlacingOrder || isCalculating || addresses.length === 0 || !!pricingError || (!isSchedulingMode && selectedKitchenClosure.closed)}
             activeOpacity={0.8}
           >
             {isPlacingOrder ? (
@@ -2543,7 +2555,7 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
             ) : (
               <>
                 <Text style={{ color: '#FE8733', fontWeight: '700', fontSize: 15, marginRight: 6 }}>
-                  {addresses.length === 0 ? 'Add Address' : isSchedulingMode ? (amountToPay === 0 ? 'Schedule' : 'Schedule & Pay') : (kitchenClosure.closed ? 'Closed Today' : (amountToPay === 0 ? 'Place Order' : 'Pay Now'))}
+                  {addresses.length === 0 ? 'Add Address' : isSchedulingMode ? (amountToPay === 0 ? 'Schedule' : 'Schedule & Pay') : (selectedKitchenClosure.closed ? 'Meal Closed' : (amountToPay === 0 ? 'Place Order' : 'Pay Now'))}
                 </Text>
                 <Image
                   source={require('../../assets/icons/uparrow.png')}
