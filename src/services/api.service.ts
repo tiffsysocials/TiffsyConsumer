@@ -68,6 +68,7 @@ export interface BulkOrderLimits {
   maxThalisPerOrder: number;
   minLeadHours: number;
   maxDaysAhead: number;
+  packagingOptions: Array<{ code: string; label: string; enabled?: boolean }>;
 }
 
 /**
@@ -2393,6 +2394,7 @@ class ApiService {
         closedDates?: string[];
         isClosedToday?: boolean;
         closureReason?: string | null;
+        capacity?: { capacity: number; used: number; remaining: number; soldOut: boolean };
       };
     };
   }> {
@@ -3488,6 +3490,7 @@ class ApiService {
     vouchersToUse?: number;
     couponCode?: string;
     bulkOrder?: boolean;
+    packagingOption?: string;
   }): Promise<{ success: boolean; message: string; data: BulkPricingData }> {
     return this.api.post('/api/scheduling/meals/bulk/pricing', data);
   }
@@ -3504,6 +3507,7 @@ class ApiService {
     allowDuplicates?: boolean;
     allowAutoOrderConflict?: boolean;
     bulkOrder?: boolean;
+    packagingOption?: string;
   }): Promise<{ success: boolean; message: string; data: BulkScheduleResult }> {
     return this.api.post('/api/scheduling/meals/bulk', data);
   }
@@ -3518,6 +3522,18 @@ class ApiService {
     return this.api.get('/api/scheduling/bulk-order/availability', {
       params: { deliveryAddressId },
     });
+  }
+
+  async createBulkCustomMenuRequest(data: {
+    deliveryAddressId: string;
+    kitchenId: string;
+    serviceDate: string;
+    mealWindow: 'LUNCH' | 'DINNER';
+    quantity: number;
+    requestText: string;
+    packagingOption?: string;
+  }): Promise<{ success: boolean; message: string; data: { request: { _id: string; status: string } } }> {
+    return this.api.post('/api/scheduling/bulk-order/custom-menu-requests', data);
   }
 
   // ============================================
@@ -3668,6 +3684,12 @@ class ApiService {
       // Absent on older backends — callers must tolerate undefined.
       bulkTiers?: BulkTierConfig[];
       bulkOrder?: BulkOrderLimits | null;
+      operationalLimits?: {
+        normalOrderMaxThalis: number;
+        kitchenMealWindowCapacity: number;
+        bulkCustomMenuThreshold: number;
+        adminOrderCalendarDaysAhead: number;
+      } | null;
     };
   }> {
     return this.api.get('/api/app/config', { params: { platform, app: 'consumer' } });

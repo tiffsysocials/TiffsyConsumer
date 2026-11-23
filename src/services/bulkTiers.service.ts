@@ -26,11 +26,16 @@ export const FALLBACK_BULK_ORDER: BulkOrderLimits = {
   maxThalisPerOrder: 100,
   minLeadHours: 12,
   maxDaysAhead: 30,
+  packagingOptions: [
+    { code: 'STANDARD', label: 'Standard packaging', enabled: true },
+    { code: 'INDIVIDUAL', label: 'Individual meal boxes', enabled: true },
+  ],
 };
 
 export interface BulkConfig {
   tiers: BulkTierConfig[];
   limits: BulkOrderLimits;
+  customMenuThreshold: number;
 }
 
 // undefined = not fetched yet this session.
@@ -45,9 +50,10 @@ async function fetchConfig(force = false): Promise<BulkConfig> {
     cached = {
       tiers: Array.isArray(tiers) ? tiers : FALLBACK_BULK_TIERS,
       limits: limits || FALLBACK_BULK_ORDER,
+      customMenuThreshold: res?.data?.operationalLimits?.bulkCustomMenuThreshold || 20,
     };
   } catch {
-    cached = { tiers: FALLBACK_BULK_TIERS, limits: FALLBACK_BULK_ORDER };
+    cached = { tiers: FALLBACK_BULK_TIERS, limits: FALLBACK_BULK_ORDER, customMenuThreshold: 20 };
   }
   return cached;
 }

@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { View } from 'react-native';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
 import HomeScreen from '../screens/home/HomeScreen';
 import AddressScreen from '../screens/address/AddressScreen';
 import CartScreen from '../screens/cart/CartScreen';
@@ -71,7 +71,10 @@ const MainNavigatorContent = () => {
     <View style={{ flex: 1 }}>
       <Stack.Navigator
         screenOptions={{
+          ...TransitionPresets.SlideFromRightIOS,
           headerShown: false,
+          gestureEnabled: true,
+          gestureDirection: 'horizontal',
         }}
         screenListeners={{
           state: (e) => handleStateChange(e.data.state),

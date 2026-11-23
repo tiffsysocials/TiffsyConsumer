@@ -293,8 +293,14 @@ const CartScreen: React.FC<Props> = ({ navigation, route }) => {
         const lunch = lunchResp?.data?.kitchen;
         const dinner = dinnerResp?.data?.kitchen;
         setKitchenClosures({
-          LUNCH: { closed: lunch?.isClosedToday === true, reason: lunch?.closureReason || null },
-          DINNER: { closed: dinner?.isClosedToday === true, reason: dinner?.closureReason || null },
+          LUNCH: {
+            closed: lunch?.isClosedToday === true || lunch?.capacity?.soldOut === true,
+            reason: lunch?.capacity?.soldOut ? 'Lunch is sold out for today' : lunch?.closureReason || null,
+          },
+          DINNER: {
+            closed: dinner?.isClosedToday === true || dinner?.capacity?.soldOut === true,
+            reason: dinner?.capacity?.soldOut ? 'Dinner is sold out for today' : dinner?.closureReason || null,
+          },
         });
       })
       .catch(() => {

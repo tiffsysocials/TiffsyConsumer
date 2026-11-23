@@ -139,6 +139,9 @@ const BulkOrdersScreen: React.FC<Props> = ({ navigation }) => {
   const [showCouponSheet, setShowCouponSheet] = useState(false);
   const [prefs, setPrefs] = useState<DeliveryPreferences>({ leaveAtDoor: false, doNotContact: false });
   const [instructions, setInstructions] = useState('');
+  const [packagingOption, setPackagingOption] = useState<string>('');
+  const [customMenuText, setCustomMenuText] = useState('');
+  const [customMenuSubmitting, setCustomMenuSubmitting] = useState(false);
 
   // Pricing + submit
   const [pricing, setPricing] = useState<BulkPricingData | null>(null);
@@ -164,6 +167,7 @@ const BulkOrdersScreen: React.FC<Props> = ({ navigation }) => {
       if (!alive) return;
       setConfig(fetched);
       setQuantity(q => (q > 0 ? q : fetched.limits.minThalisPerOrder));
+      setPackagingOption(current => current || fetched.limits.packagingOptions?.[0]?.code || 'STANDARD');
     });
     return () => { alive = false; };
   }, []);
@@ -358,6 +362,7 @@ const BulkOrdersScreen: React.FC<Props> = ({ navigation }) => {
         leaveAtDoor: prefs.leaveAtDoor || undefined,
         doNotContact: prefs.doNotContact || undefined,
         bulkOrder: true,
+        packagingOption,
       });
 
       if (!res.success) {
@@ -407,8 +412,34 @@ const BulkOrdersScreen: React.FC<Props> = ({ navigation }) => {
     }
   }, [
     pricing, addressId, slotPayload, submitting, vouchersToUse, appliedCoupon,
-    instructions, prefs, quantity, fetchVouchers, showAlert, navigation,
+    instructions, prefs, packagingOption, quantity, fetchVouchers, showAlert, navigation,
   ]);
+
+  const handleCustomMenuRequest = useCallback(async () => {
+    if (!addressId || !availability?.kitchenId || !selectedDate || !selectedWindow) return;
+    if (customMenuText.trim().length < 10) {
+      showAlert('Add menu details', 'Please describe the custom menu you need.', undefined, 'warning');
+      return;
+    }
+    setCustomMenuSubmitting(true);
+    try {
+      await apiService.createBulkCustomMenuRequest({
+        deliveryAddressId: addressId,
+        kitchenId: availability.kitchenId,
+        serviceDate: selectedDate,
+        mealWindow: selectedWindow,
+        quantity,
+        requestText: customMenuText.trim(),
+        packagingOption,
+      });
+      setCustomMenuText('');
+      showAlert('Request submitted', 'The admin team will review your custom menu and contact you.', undefined, 'success');
+    } catch (error: any) {
+      showAlert('Request failed', error?.message || 'Please try again.', undefined, 'error');
+    } finally {
+      setCustomMenuSubmitting(false);
+    }
+  }, [addressId, availability?.kitchenId, selectedDate, selectedWindow, customMenuText, quantity, packagingOption, showAlert]);
 
   // ── Render helpers ──────────────────────────────────────────────────────
   const cardStyle = {
@@ -1037,8 +1068,62 @@ const BulkOrdersScreen: React.FC<Props> = ({ navigation }) => {
           )}
 
           {/* Delivery preferences + instructions */}
+          {quantity >= (config?.customMenuThreshold || 20) && (
+            <View style={cardStyle}>
+              {sectionTitle('chef-hat', 'Request a custom menu')}
+              <Text style={{ fontSize: FONT_SIZES.sm, color: '#6B7280', marginBottom: SPACING.sm }}>
+                Available for {config?.customMenuThreshold || 20}+ thalis. Submit your requirements for admin approval.
+              </Text>
+              <TextInput
+                value={customMenuText}
+                onChangeText={setCustomMenuText}
+                placeholder="Describe dishes, dietary needs, serving style, or event details"
+                placeholderTextColor="#9CA3AF"
+                multiline
+                maxLength={1000}
+                style={{ borderWidth: 1, borderColor: '#E5E7EB', borderRadius: BORDER_RADIUS.md,
+                  padding: SPACING.md, minHeight: 100, textAlignVertical: 'top', color: '#111827' }}
+              />
+              <TouchableOpacity
+                onPress={handleCustomMenuRequest}
+                disabled={customMenuSubmitting}
+                style={{ marginTop: SPACING.md, backgroundColor: ORANGE, borderRadius: BORDER_RADIUS.md,
+                  paddingVertical: SPACING.md, alignItems: 'center', opacity: customMenuSubmitting ? 0.6 : 1 }}
+              >
+                <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>
+                  {customMenuSubmitting ? 'Submitting…' : 'Submit custom-menu request'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Delivery preferences + instructions */}
           <View style={cardStyle}>
             {sectionTitle('truck-outline', 'Delivery preferences')}
+            <Text style={{ fontSize: FONT_SIZES.sm, fontWeight: '600', color: '#374151', marginBottom: SPACING.sm }}>
+              Packaging
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginBottom: SPACING.md }}>
+              {(limits?.packagingOptions || []).map(option => {
+                const selected = packagingOption === option.code;
+                return (
+                  <TouchableOpacity
+                    key={option.code}
+                    onPress={() => setPackagingOption(option.code)}
+                    style={{
+                      paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
+                      borderRadius: BORDER_RADIUS.md, borderWidth: 1,
+                      borderColor: selected ? ORANGE : '#D1D5DB',
+                      backgroundColor: selected ? '#FFF7ED' : '#FFFFFF',
+                    }}
+                  >
+                    <Text style={{ color: selected ? ORANGE : '#374151', fontWeight: selected ? '700' : '500' }}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
             <DeliveryPreferenceToggles value={prefs} onChange={setPrefs} variant="editable" />
             <TextInput
               value={instructions}
